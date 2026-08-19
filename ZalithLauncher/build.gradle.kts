@@ -101,7 +101,7 @@ android {
         }
     }
 
-    ndkVersion = "25.2.9519653"
+    ndkVersion = "29.0.14206865"
 
     externalNativeBuild {
         ndkBuild {
