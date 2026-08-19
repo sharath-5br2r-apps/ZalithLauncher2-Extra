@@ -158,6 +158,7 @@
     <string name="download_install_success_message">Il tuo gioco è stato installato correttamente!</string>
     <string name="festivals_christmas">Buon Natale!</string>
     <string name="generic_saved">Salvato</string>
+    <string name="generic_saving">Salvataggio in corso…</string>
     <string name="generic_copied">Copiato</string>
     <string name="page_title_version_list">Lista delle versioni</string>
     <string name="page_title_version_manage">Gestisci Versioni</string>

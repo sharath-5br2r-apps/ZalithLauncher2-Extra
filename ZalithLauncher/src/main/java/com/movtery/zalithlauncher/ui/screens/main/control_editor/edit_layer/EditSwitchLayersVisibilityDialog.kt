@@ -35,7 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
@@ -52,6 +52,7 @@ import com.movtery.layer_controller.observable.ObservableControlLayer
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.fadeEdge
+import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.InfoLayoutItem
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
@@ -106,13 +107,15 @@ fun EditSwitchLayersVisibilityDialog(
         onDismissRequest = onDismissRequest
     ) {
         BoxWithConstraints(
-            modifier = Modifier.fillMaxHeight(),
+            modifier = Modifier
+                .heightIn(max = rememberDialogMaxHeight())
+                .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 3.dp)
-                    .heightIn(max = maxHeight - 6.dp)
+                    .heightIn(max = (maxHeight - 6.dp).coerceAtMost(rememberDialogMaxHeight()))
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -141,8 +144,8 @@ fun EditSwitchLayersVisibilityDialog(
                             .fadeEdge(state = scrollState)
                             .weight(1f, fill = false)
                             .fillMaxWidth()
-                            .scrollbar(
-                                state = scrollState.scrollIndicatorState,
+                            .nonInteractiveScrollbar(
+                                state = scrollState.scrollIndicatorState!!,
                                 orientation = Orientation.Vertical,
                             ),
                         state = scrollState,

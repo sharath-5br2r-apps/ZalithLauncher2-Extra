@@ -51,6 +51,7 @@
     <string name="generic_unspecified">بەلگىلەنمىگەن</string>
     <string name="generic_save">ساقلاش</string>
     <string name="generic_saved">ساقلاندى</string>
+    <string name="generic_saving">ساقلاشتىۋاتىدۇ…</string>
     <string name="generic_share">ھەمبەھرلەش</string>
     <string name="generic_copied">كۆپەيتىلدى</string>
     <string name="generic_no_matching_items">شەرتكە ئۇيغۇن كېلىدىغان تۈر يوق</string>

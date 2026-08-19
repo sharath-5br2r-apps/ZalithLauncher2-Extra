@@ -126,8 +126,18 @@ class EventViewModel : ViewModel() {
         data object VulkanCheck: Event
         /** 在应用内打开日志文件 */
         data class OpenLog(val path: String) : Event
-        /** 展示 Toast 消息 */
-        data class ShowToast(val text: AndroidStringText, val duration: Int) : Event
+
+        /** 在 MainActivity 中显示 Toast */
+        data class ShowToast(
+            val text: AndroidStringText,
+            val duration: Int = Toast.LENGTH_SHORT
+        ) : Event
+
+        /** 打开文件管理器 */
+        data class OpenFileManager(
+            val rootPath: String,
+            val currentPath: String? = null,
+        ) : Event
     }
 }
 

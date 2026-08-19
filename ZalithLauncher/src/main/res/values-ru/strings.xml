@@ -1028,6 +1028,7 @@
     <string name="game_styles_joystick_hide_when_mouse">Скрывать при использовании физической мыши</string>
     <string name="game_styles_joystick_hide_when_gamepad">Скрывать при использовании геймпада</string>
     <string name="game_styles_save_failed">Не удалось сохранить стиль</string>
+    <string name="generic_saving">Сохранение…</string>
     <string name="account_change_cape_cache_all">Кэширование всех плащей</string>
     <string name="cape_name_zombie_horse">Зомби-лошадь</string>
     <string name="control_editor_special_joystick_style">Стиль джойстика</string>

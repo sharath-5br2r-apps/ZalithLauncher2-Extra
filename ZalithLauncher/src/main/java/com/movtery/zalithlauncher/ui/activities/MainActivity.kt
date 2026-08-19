@@ -52,7 +52,11 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.context.COPY_LABEL_LINK
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
+import com.movtery.zalithlauncher.filemanager.FileManagerLauncher
+import com.movtery.zalithlauncher.filemanager.events.FileManagerEvent
+import com.movtery.zalithlauncher.filemanager.events.FileManagerEventRegistrar
 import com.movtery.zalithlauncher.game.control.ControlManager
+import com.movtery.zalithlauncher.game.path.getVersionsHome
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.renderer.Renderers
@@ -187,6 +191,11 @@ class MainActivity : BaseAppCompatActivity() {
      */
     private var isCaptureKey = false
 
+    /**
+     * 文件管理器事件监听
+     */
+    private var fmEventRegistrar: FileManagerEventRegistrar? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //处理外部导入
@@ -197,6 +206,9 @@ class MainActivity : BaseAppCompatActivity() {
         //加载插件
         PluginLoader.loadAllPlugins(this, false)
         refreshData()
+
+        //注册文件管理器事件监听
+        fmEventRegistrar = FileManagerEventRegistrar(this, ::onFileManagerEvent).also { it.start() }
 
         //初始化通知管理（创建渠道）
         NotificationManager.initManager(this)
@@ -295,6 +307,14 @@ class MainActivity : BaseAppCompatActivity() {
                     is EventViewModel.Event.OpenLog -> {
                         screenBackStackModel.mainScreen.backStack.navigateToLogView(
                             logPath = event.path
+                        )
+                    }
+                    is EventViewModel.Event.OpenFileManager -> {
+                        FileManagerLauncher.launch(
+                            context = this@MainActivity,
+                            rootPath = event.rootPath,
+                            currentPath = event.currentPath,
+                            logsDir = PathManager.DIR_LAUNCHER_LOGS.absolutePath
                         )
                     }
                     else -> {
@@ -509,6 +529,26 @@ class MainActivity : BaseAppCompatActivity() {
         Renderers.init(true)
         // 重载插件
         PluginLoader.loadAllPlugins(this, true)
+    }
+
+    override fun onDestroy() {
+        fmEventRegistrar?.stop()
+        fmEventRegistrar = null
+        super.onDestroy()
+    }
+
+    /**
+     * 文件管理器文件变更事件处理
+     */
+    private fun onFileManagerEvent(event: FileManagerEvent) {
+        val versionsHome = File(getVersionsHome()).absolutePath
+        val touchesVersions = event.changedDirs.any { dir ->
+            val normalized = File(dir).absolutePath
+            normalized == versionsHome || normalized.startsWith("$versionsHome${File.separator}")
+        }
+        if (touchesVersions) {
+            VersionsManager.refresh("[FileManager] ${event.type.name}")
+        }
     }
 
     /**

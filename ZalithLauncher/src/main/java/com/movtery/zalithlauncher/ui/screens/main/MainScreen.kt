@@ -79,6 +79,7 @@ import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT
+import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
@@ -225,15 +226,17 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
-                toFileManagerScreen = {
-                    screenBackStackModel.mainScreen.navigateTo(
-                        screenKey = NormalNavKey.BuiltInFileManager()
-                    )
-                },
                 toRecordingsScreen = {
                     screenBackStackModel.mainScreen.removeAndNavigateTo(
                         removes = screenBackStackModel.clearBeforeNavKeys,
                         screenKey = NormalNavKey.Recordings
+                    )
+                },
+                openFileManager = {
+                    eventViewModel.sendEvent(
+                        EventViewModel.Event.OpenFileManager(
+                            rootPath = PathManager.DIR_FILES_EXTERNAL.absolutePath
+                        )
                     )
                 },
                 changeExpandedState = {
@@ -283,14 +286,13 @@ private fun <E: TitledNavKey> TopBar(
     toMainScreen: () -> Unit,
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
-    toFileManagerScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
+    openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
 
-    val inFileManagerScreen = mainScreenKey is NormalNavKey.BuiltInFileManager
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
     val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
@@ -447,21 +449,21 @@ private fun <E: TitledNavKey> TopBar(
                     }
                 }
 
+                IconButton(
+                    onClick = openFileManager
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_folder_filled),
+                        contentDescription = null
+                    )
+                }
+
                 TopBarRailItem(
                     selected = inRecordingsScreen,
                     painter = painterResource(R.drawable.ic_videocam_filled),
                     text = stringResource(R.string.page_title_recordings),
                     onClick = {
                         if (!inRecordingsScreen) toRecordingsScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inFileManagerScreen,
-                    painter = painterResource(R.drawable.ic_folder_filled),
-                    text = stringResource(R.string.page_title_file_manager),
-                    onClick = {
-                        if (!inFileManagerScreen) toFileManagerScreen()
                     },
                 )
 

@@ -49,6 +49,11 @@ object Logger : CoroutineScope {
     override val coroutineContext: CoroutineContext = Dispatchers.Default + Job()
 
     private lateinit var PACKAGE_PREFIX: String
+
+    /**
+     * 当前进程的标识
+     */
+    private lateinit var PROCESS_TAG: String
     private val isInitialized = AtomicBoolean(false)
     private val channel = Channel<LogMessage>(Channel.UNLIMITED)
 
@@ -63,19 +68,30 @@ object Logger : CoroutineScope {
      */
     fun initialize(context: Context) {
         PACKAGE_PREFIX = "${context.packageName}."
+        PROCESS_TAG = getProcessTag(context)
 
         if (!isInitialized.compareAndSet(false, true)) return
 
         launch(Dispatchers.IO) {
+            setupLogWriter()
+
             //由于安卓不存在“退出”这种设置
             //所以清理旧的日志的工作需要放到初始化阶段
             deleteOldLogs()
-            setupLogWriter()
 
             printLauncherInfo()
 
             processEvents()
         }
+    }
+
+    /**
+     * 获取当前进程标识
+     */
+    private fun getProcessTag(context: Context): String {
+        val processName = context.applicationInfo.processName
+        val separatorIndex = processName.lastIndexOf(':')
+        return if (separatorIndex < 0) "main" else processName.substring(separatorIndex + 1)
     }
 
     private suspend fun printLauncherInfo() {
@@ -84,6 +100,7 @@ object Logger : CoroutineScope {
                 println("================ ${BuildKeys.LAUNCHER_IDENTIFIER} Log ================")
                 printLauncherInfo { println(it) }
                 println("====================================================")
+                flush()
             }
         }
     }
@@ -112,11 +129,10 @@ object Logger : CoroutineScope {
 
         do {
             val suffix = if (counter == 0) "" else ".$counter"
-            file = File(PathManager.DIR_LAUNCHER_LOGS, "log_${dateFormat.format(Date())}$suffix.log")
+            file = File(PathManager.DIR_LAUNCHER_LOGS, "log_${dateFormat.format(Date())}_$PROCESS_TAG$suffix.log")
             counter++
-        } while (file.exists())
+        } while (!file.createNewFile())
 
-        file.createNewFile()
         return file
     }
 
@@ -179,9 +195,11 @@ object Logger : CoroutineScope {
     private suspend fun deleteOldLogs() = withContext(Dispatchers.IO) {
         PathManager.DIR_LAUNCHER_LOGS.listFiles()?.let { files ->
             val cutoff = System.currentTimeMillis() - logRetentionDays * 86400000L
+            //清理遗留的 0kb 空日志
+            val emptyLogCutoff = System.currentTimeMillis() - 60 * 1000L
             files.filter {
-                //过滤出日期超过指定天数的日志文件
-                it.lastModified() < cutoff
+                it.lastModified() < cutoff ||
+                    (it != currentLogFile && it.length() == 0L && it.lastModified() < emptyLogCutoff)
             }.forEach {
                 FileUtils.deleteQuietly(it)
             }

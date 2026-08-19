@@ -67,6 +67,8 @@ suspend fun parseLevelDatFile(
         val levelMCVersion = data.asCompoundTag("Version")?.asString("Name", null)
         //上次保存此存档的时间戳
         val lastPlayed = data.asLong("LastPlayed", 0) ?: 0 //0则代表不存在
+        //游戏时长
+        val playTime = data.asLong("Time", 0) ?: 0 //0则代表不存在
         //存档的游戏模式
         val gameMode = data.asInt("GameType", 0) //默认为生存模式
             ?.let { levelCode -> GameMode.entries.find { it.levelCode == levelCode } }
@@ -111,6 +113,7 @@ suspend fun parseLevelDatFile(
             levelName = levelName,
             levelMCVersion = levelMCVersion,
             lastPlayed = lastPlayed.takeIf { it != 0L },
+            playTime = playTime.takeIf { it != 0L },
             gameMode = gameMode,
             //关于极限模式：极限模式开启后，难度会被锁定为困难（尽管 level.dat 文件内并不会这样存储）
             //https://zh.minecraft.wiki/w/%E6%9E%81%E9%99%90%E6%A8%A1%E5%BC%8F#%E5%88%9B%E5%BB%BA%E6%96%B0%E7%9A%84%E4%B8%96%E7%95%8C

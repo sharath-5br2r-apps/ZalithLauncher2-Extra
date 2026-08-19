@@ -225,6 +225,8 @@ fun shareFile(
     }
 
     val chooserIntent = Intent.createChooser(shareIntent, file.name)
+    // 兼容非 Activity 上下文发起分享
+    chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     try {
         context.startActivity(chooserIntent)
     } catch (_: ActivityNotFoundException) {

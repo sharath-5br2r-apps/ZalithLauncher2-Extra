@@ -37,6 +37,8 @@ data class SaveData(
     val levelMCVersion: String? = null,
     /** 上次保存此存档的时间戳 */
     val lastPlayed: Long? = null,
+    /** 游戏时长 */
+    val playTime: Long? = null,
     /** 存档游戏模式 */
     val gameMode: GameMode? = null,
     /** 存档难度等级 */

@@ -303,9 +303,10 @@ object RuntimesManager {
 
                 when {
                     tarEntry.isSymbolicLink -> try {
-                        Os.symlink(tarEntry.linkName, tarEntryName)
+                        if (destPath.exists()) destPath.delete()
+                        Os.symlink(tarEntry.linkName, destPath.absolutePath)
                     } catch (e: Throwable) {
-                        Logger.error(TAG, "Exception occurred while creating symbolic link", e)
+                        Logger.warning(TAG, "Failed to create symbolic link: ${destPath.absolutePath} -> ${tarEntry.linkName} (${e.message})")
                     }
 
                     tarEntry.isDirectory -> destPath.ensureDirectory()

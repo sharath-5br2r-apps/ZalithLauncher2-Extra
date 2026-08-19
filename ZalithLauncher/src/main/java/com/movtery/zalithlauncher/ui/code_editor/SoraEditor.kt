@@ -20,9 +20,12 @@ package com.movtery.zalithlauncher.ui.code_editor
 
 import android.graphics.Typeface
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -32,6 +35,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.theme.onBackgroundColor
+import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
@@ -65,14 +70,34 @@ fun SoraEditor(
     isReadOnly: Boolean = false,
     language: Language? = null,
     scheme: EditorColorScheme = SchemeGitHub(),
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    /** 内容变化回调（用户编辑时触发，用于追踪未保存修改） */
+    onTextChange: (() -> Unit)? = null,
+    /** 编辑器实例创建完成回调（供外部执行菜单操作等） */
+    onEditorCreated: ((CodeEditor) -> Unit)? = null,
+    topBar: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {},
+    floatingActionButtonPosition: FabPosition = FabPosition.End,
+    /** 自定义浮动操作按钮；为 null 时显示内置保存按钮 */
+    floatingActionButton: (@Composable () -> Unit)? = null,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = onBackgroundColor(),
+    content: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        contentColor = onBackgroundColor(),
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding(),
+        containerColor = containerColor,
+        contentColor = contentColor,
+        topBar = topBar,
+        bottomBar = bottomBar,
+        snackbarHost = snackbarHost,
         floatingActionButton = {
-            if (!isReadOnly && state is EditorState.Success) {
+            if (floatingActionButton != null) {
+                floatingActionButton()
+            } else if (!isReadOnly && state is EditorState.Success) {
                 FloatingActionButton(
                     onClick = onSaveClick
                 ) {
@@ -82,11 +107,15 @@ fun SoraEditor(
                     )
                 }
             }
-        }
+        },
+        floatingActionButtonPosition = floatingActionButtonPosition,
     ) { paddingValues ->
         var view by remember {
             mutableStateOf<CodeEditor?>(null)
         }
+
+        val currentOnTextChange = rememberUpdatedState(onTextChange)
+        val currentOnEditorCreated = rememberUpdatedState(onEditorCreated)
 
         val controller = LocalSoftwareKeyboardController.current
         DisposableEffect(Unit) {
@@ -117,7 +146,15 @@ fun SoraEditor(
                                 setPinLineNumber(true)
                                 isEditable = !isReadOnly
                                 setText(state.content, true, null)
-                            }.also { view = it }
+                                subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
+                                    if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
+                                        currentOnTextChange.value?.invoke()
+                                    }
+                                }
+                            }.also {
+                                view = it
+                                currentOnEditorCreated.value?.invoke(it)
+                            }
                         },
                         update = { view ->
                             if (view.text != state.content) {
@@ -139,6 +176,8 @@ fun SoraEditor(
                     )
                 }
             }
+
+            content?.invoke(this@Box)
         }
     }
 }

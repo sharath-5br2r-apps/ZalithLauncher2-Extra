@@ -100,6 +100,7 @@ import com.movtery.zalithlauncher.ui.control.input.TextInputMode
 import com.movtery.zalithlauncher.ui.screens.game.elements.OpenFolderLayer
 import com.movtery.zalithlauncher.ui.screens.game.elements.OpenFolderOperation
 import com.movtery.zalithlauncher.ui.theme.ZalithLauncherTheme
+import com.movtery.zalithlauncher.ui.toAndroidString
 import com.movtery.zalithlauncher.utils.device.PhysicalMouseChecker
 import com.movtery.zalithlauncher.utils.getDisplayFriendlyRes
 import com.movtery.zalithlauncher.utils.getParcelableSafely
@@ -448,6 +449,13 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                     }
                     is EventViewModel.Event.Game.KeyHandle -> {
                         vmViewModel.keyHandle = event.handle
+                    }
+                    is EventViewModel.Event.ShowToast -> {
+                        Toast.makeText(
+                            this@VMActivity,
+                            event.text.toAndroidString(this@VMActivity),
+                            event.duration
+                        ).show()
                     }
                     else -> { /* Ignore */ }
                 }

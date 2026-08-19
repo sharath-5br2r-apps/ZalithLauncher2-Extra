@@ -54,7 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -102,6 +102,7 @@ import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.TitleAndSummary
 import com.movtery.zalithlauncher.ui.components.WarningCard
 import com.movtery.zalithlauncher.ui.components.fadeEdge
+import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.components.toColorOrNull
 import com.movtery.zalithlauncher.ui.components.toHex
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
@@ -803,13 +804,14 @@ private fun CustomThemeDialog(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.55f)
+                .heightIn(max = rememberDialogMaxHeight())
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 16.dp)
-                    .heightIn(max = maxHeight - 32.dp)
+                    .heightIn(max = (maxHeight - 32.dp).coerceAtMost(rememberDialogMaxHeight()))
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -844,8 +846,8 @@ private fun CustomThemeDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fadeEdge(scrollState)
-                                    .scrollbar(
-                                        state = scrollState.scrollIndicatorState,
+                                    .nonInteractiveScrollbar(
+                                        state = scrollState.scrollIndicatorState!!,
                                         orientation = Orientation.Vertical,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),

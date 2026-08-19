@@ -52,6 +52,7 @@ import com.movtery.zalithlauncher.context.copyLocalFile
 import com.movtery.zalithlauncher.contract.MediaPickerContract
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
+import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
@@ -191,7 +192,12 @@ fun VersionOverViewScreen(
                             )
                             return@VersionQuickActions
                         }
-                        onOpenFolder(folder.absolutePath)
+                        eventViewModel.sendEvent(
+                            EventViewModel.Event.OpenFileManager(
+                                rootPath = GamePathManager.currentPath.value,
+                                currentPath = folder.absolutePath,
+                            )
+                        )
                     }
                 )
             }

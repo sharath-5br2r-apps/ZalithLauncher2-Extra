@@ -1007,6 +1007,7 @@
     <string name="game_styles_joystick_hide_when_mouse">物理マウス使用時に非表示</string>
     <string name="game_styles_joystick_hide_when_gamepad">ゲームパッド使用時に非表示</string>
     <string name="game_styles_save_failed">スタイルの保存に失敗しました</string>
+    <string name="generic_saving">保存中…</string>
     <string name="account_change_cape_cache_all">すべてのマントをキャッシュ</string>
     <string name="cape_name_zombie_horse">Zombie Horseマント</string>
     <string name="control_editor_special_joystick_style">ジョイスティックのスタイル</string>

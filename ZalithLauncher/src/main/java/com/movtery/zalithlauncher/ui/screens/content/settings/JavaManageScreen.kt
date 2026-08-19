@@ -40,7 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -183,8 +183,8 @@ fun JavaManageScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .scrollbar(
-                        state = scrollState.scrollIndicatorState,
+                    .nonInteractiveScrollbar(
+                        state = scrollState.scrollIndicatorState!!,
                         orientation = Orientation.Vertical,
                     ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),

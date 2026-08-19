@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -566,8 +566,8 @@ fun UpdateLoaderScreen(
         AnimatedLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .scrollbar(
-                    state = scrollState.scrollIndicatorState,
+                .nonInteractiveScrollbar(
+                    state = scrollState.scrollIndicatorState!!,
                     orientation = Orientation.Vertical,
                 ),
             isVisible = isVisible,

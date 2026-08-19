@@ -51,6 +51,7 @@
     <string name="generic_unspecified">ไม่มีข้อมูล</string>
     <string name="generic_save">บันทึก</string>
     <string name="generic_saved">บันทึกแล้ว</string>
+    <string name="generic_saving">กำลังบันทึก…</string>
     <string name="generic_share">แชร์</string>
     <string name="generic_copied">คัดลอกเรียบร้อย</string>
     <string name="generic_no_matching_items">ไม่พบข้อมูลที่ตรงตามข้อมูลที่ป้อนของคุณ</string>

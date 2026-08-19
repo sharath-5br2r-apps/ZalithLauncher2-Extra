@@ -69,7 +69,7 @@ import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -1136,8 +1136,8 @@ private fun ModsList(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .scrollbar(
-                    state = scrollState.scrollIndicatorState,
+                .nonInteractiveScrollbar(
+                    state = scrollState.scrollIndicatorState!!,
                     orientation = Orientation.Vertical,
                 ),
             contentPadding = PaddingValues(all = 12.dp),

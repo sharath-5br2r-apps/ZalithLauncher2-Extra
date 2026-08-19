@@ -13,3 +13,23 @@ CLAUDE.md
 AGENTS.md
 .claudeignore
 .local/
+.oauth_client_id.txt
+.store_password.txt
+.key_password.txt
+.curseforge_api.txt
+
+# AI agent
+.zcode/
+.agent/
+.claude/
+.cursor/
+.codex/
+.continue/
+.aider/
+.roo/
+.windsurf/
+.trae/
+.gemini/
+.ampersand/
+
+.vscode/

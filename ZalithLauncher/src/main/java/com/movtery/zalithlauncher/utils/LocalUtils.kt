@@ -83,6 +83,23 @@ fun formatDate(
  * 格式化时间戳
  */
 fun formatDate(
+    timestamp: Long,
+    pattern: String = DEFAULT_DATE_PATTERN,
+    locale: Locale = Locale.getDefault(),
+    timeZone: TimeZone = TimeZone.getDefault()
+): String {
+    return formatDate(
+        date = Date(timestamp),
+        pattern = pattern,
+        locale = locale,
+        timeZone = timeZone
+    )
+}
+
+/**
+ * 格式化时间戳
+ */
+fun formatDate(
     input: String,
     pattern: String = DEFAULT_DATE_PATTERN,
     locale: Locale = Locale.getDefault(),

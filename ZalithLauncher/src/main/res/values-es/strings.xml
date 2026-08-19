@@ -342,6 +342,7 @@
     <string name="notification_data_terracotta_message">Durante las sesiones multijugador, el launcher utiliza un servicio en primer plano para mostrar el estado de la conexión, por lo que se requiere permiso de notificación.</string>
     <string name="generic_no_matching_items">No se encontraron elementos</string>
     <string name="generic_saved">Guardado</string>
+    <string name="generic_saving">Guardando…</string>
     <string name="sort_by_last_played">Ordenar por última vez jugado</string>
     <string name="import_modpack">Importar modpack</string>
     <string name="import_modpack_tip">Puedes importar modpacks locales. El launcher actualmente soporta estos formatos:</string>

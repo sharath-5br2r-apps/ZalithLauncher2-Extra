@@ -43,7 +43,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -73,6 +73,7 @@ import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
+import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.content.elements.CommonVersionInfoLayout
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
@@ -254,13 +255,14 @@ private fun DownloadDialog(
                     .fillMaxWidth(
                         fraction = if (hasDeps) 0.8f else 0.5f
                     )
+                    .heightIn(max = rememberDialogMaxHeight())
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
                     modifier = Modifier
                         .padding(all = 6.dp)
-                        .heightIn(max = maxHeight - 12.dp)
+                        .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
                         .wrapContentHeight(),
                     shape = MaterialTheme.shapes.extraLarge,
                     color = cardColor(false),
@@ -285,8 +287,8 @@ private fun DownloadDialog(
                                     modifier = Modifier
                                         .fadeEdge(state = listState)
                                         .weight(1f)
-                                        .scrollbar(
-                                            state = listState.scrollIndicatorState,
+                                        .nonInteractiveScrollbar(
+                                            state = listState.scrollIndicatorState!!,
                                             orientation = Orientation.Vertical,
                                         ),
                                     contentPadding = PaddingValues(vertical = 8.dp),
@@ -376,6 +378,7 @@ private fun DownloadDialog(
                             }
                             Button(
                                 modifier = Modifier.weight(0.5f),
+                                enabled = selectedVersions.isNotEmpty(),
                                 onClick = {
                                     if (selectedVersions.isNotEmpty()) {
                                         onInstall(selectedVersions)
@@ -403,8 +406,8 @@ private fun ChoseGameVersionLayout(
 ) {
     if (versions.isNotEmpty()) {
         LazyColumn(
-            modifier = modifier.scrollbar(
-                state = listState.scrollIndicatorState,
+            modifier = modifier.nonInteractiveScrollbar(
+                state = listState.scrollIndicatorState!!,
                 orientation = Orientation.Vertical,
             ),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),

@@ -986,6 +986,7 @@
     <string name="settings_control_mouse_enable_click_summary">Mengetuk layar dianggap sebagai klik kiri, tekan lama dianggap sebagai tahan klik kiri; pengaturan ini tidak memengaruhi kontrol dengan mouse fisik atau kontrol ketuk</string>
     <string name="settings_launcher_dark_mode_title">Mode Gelap</string>
     <string name="generic_saved">Tersimpan</string>
+    <string name="generic_saving">Menyimpan…</string>
     <string name="sort_by_name">Urutkan berdasarkan nama</string>
     <string name="sort_by_file_name">Urutkan berdasarkan nama File</string>
     <string name="sort_by_last_modified">Urutkan berdasarkan terakhir diubah</string>

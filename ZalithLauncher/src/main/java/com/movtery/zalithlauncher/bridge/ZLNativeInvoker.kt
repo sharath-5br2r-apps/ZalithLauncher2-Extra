@@ -52,7 +52,7 @@ object ZLNativeInvoker {
 
                     val file = File(newLink)
                     if (link.endsWith('/')) {
-                        //可能是一个目录，创建并发起浏览目录请�?
+                        //可能是一个目录，创建并发起浏览目录请求
                         file.mkdirs()
                         staticLauncher?.openPath(file)
                     } else {

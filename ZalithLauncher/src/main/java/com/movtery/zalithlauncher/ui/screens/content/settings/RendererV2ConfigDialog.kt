@@ -46,7 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +70,7 @@ import com.movtery.zalithlauncher.ui.components.SimpleListItem
 import com.movtery.zalithlauncher.ui.components.SingleLineTextCheck
 import com.movtery.zalithlauncher.ui.components.TitleAndSummary
 import com.movtery.zalithlauncher.ui.components.fadeEdge
+import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPosition
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.rememberSettingsCardShape
 import com.movtery.zalithlauncher.ui.theme.cardColor
@@ -94,13 +95,14 @@ fun RendererV2ConfigDialog(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.6f)
+                .heightIn(max = rememberDialogMaxHeight())
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 3.dp)
-                    .heightIn(max = maxHeight - 6.dp)
+                    .heightIn(max = (maxHeight - 6.dp).coerceAtMost(rememberDialogMaxHeight()))
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -124,8 +126,8 @@ fun RendererV2ConfigDialog(
                             .fadeEdge(state = scrollState)
                             .weight(1f, fill = false)
                             .fillMaxWidth()
-                            .scrollbar(
-                                state = scrollState.scrollIndicatorState,
+                            .nonInteractiveScrollbar(
+                                state = scrollState.scrollIndicatorState!!,
                                 orientation = Orientation.Vertical,
                             ),
                         state = scrollState,

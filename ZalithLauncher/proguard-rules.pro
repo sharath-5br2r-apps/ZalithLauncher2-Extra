@@ -1,5 +1,6 @@
 -dontwarn org.slf4j.impl.StaticLoggerBinder
 -dontwarn com.github.luben.zstd.**
+-dontwarn org.brotli.dec.**
 -dontwarn java.lang.management.**
 -dontwarn io.ktor.util.debug.**
 

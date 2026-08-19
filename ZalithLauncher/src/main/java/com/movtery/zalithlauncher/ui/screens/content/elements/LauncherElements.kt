@@ -73,11 +73,11 @@ import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.sendToast
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -438,14 +438,6 @@ private fun Modifier.glass(
         (blur / 80f).coerceIn(0f, 1f)
     }
 
-    val inputScale = remember(t) {
-        val scale = lerp(
-            start = 0.66f,
-            stop = 0.8f,
-            fraction = sqrt(t)
-        )
-        HazeInputScale.Fixed(scale)
-    }
     val noiseFactor = remember(t) {
         lerp(
             start = 0.3f,
@@ -467,16 +459,18 @@ private fun Modifier.glass(
         }
     }
 
-    return this
-        .hazeEffect(hazeState) {
-            this.inputScale = inputScale
-            blurEffect {
-                this.blurEnabled = true
-                this.blurRadius = blur.dp
-                this.noiseFactor = noiseFactor
-                this.colorEffects = colorEffects
-            }
+    // null 表示没有外部模糊源（背景模式），直接模糊自身内容
+    val input = if (hazeState != null) HazeInput.Sources(hazeState) else HazeInput.Content
+
+    return this.hazeBlur(
+        input = input,
+        style = HazeBlurStyle {
+            blurEnabled(true)
+            blurRadius(blur.dp)
+            noiseFactor(noiseFactor)
+            colorEffects(colorEffects)
         }
+    )
 }
 
 @Composable

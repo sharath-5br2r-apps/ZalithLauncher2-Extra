@@ -318,6 +318,7 @@
     <string name="sort_by_last_played">الترتيب حسب آخر تشغيل</string>
     <string name="generic_tip">نصيحة</string>
     <string name="generic_saved">محفوض</string>
+    <string name="generic_saving">جارٍ الحفظ…</string>
     <string name="generic_follow_system">أتباع اعدادات الهاتف</string>
     <string name="error_unauthorized">ليس لديك صلاحيات</string>
     <string name="notification_data_terracotta_message">أثناء جلسات اللعب الجماعي، يستخدم المشغل خدمة في المقدمة لعرض حالة الاتصال الحالية، لذا يلزم الحصول على إذن الإشعار.</string>

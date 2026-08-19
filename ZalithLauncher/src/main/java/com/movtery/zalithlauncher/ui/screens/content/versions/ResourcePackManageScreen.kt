@@ -60,7 +60,7 @@ import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -753,8 +753,8 @@ private fun ResourcePackList(
         if (list.isNotEmpty()) {
             val scrollState = rememberLazyListState()
             LazyColumn(
-                modifier = modifier.scrollbar(
-                    state = scrollState.scrollIndicatorState,
+                modifier = modifier.nonInteractiveScrollbar(
+                    state = scrollState.scrollIndicatorState!!,
                     orientation = Orientation.Vertical,
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),

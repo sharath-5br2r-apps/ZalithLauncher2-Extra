@@ -42,7 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +57,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.setting.enums.isLauncherInDarkTheme
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.fadeEdge
+import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.InfoLayoutItem
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.InfoLayoutTextItem
 import com.movtery.zalithlauncher.ui.theme.cardColor
@@ -83,13 +84,14 @@ fun StyleListDialog(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.6f)
+                .heightIn(max = rememberDialogMaxHeight())
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 3.dp)
-                    .heightIn(max = maxHeight - 6.dp)
+                    .heightIn(max = (maxHeight - 6.dp).coerceAtMost(rememberDialogMaxHeight()))
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -114,8 +116,8 @@ fun StyleListDialog(
                                 .fadeEdge(state = scrollState)
                                 .weight(1f, fill = false)
                                 .fillMaxWidth()
-                                .scrollbar(
-                                    state = scrollState.scrollIndicatorState,
+                                .nonInteractiveScrollbar(
+                                    state = scrollState.scrollIndicatorState!!,
                                     orientation = Orientation.Vertical,
                                 )
                                 .animateContentSize(),

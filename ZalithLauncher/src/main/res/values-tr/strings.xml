@@ -761,6 +761,7 @@
     <string name="generic_enabled">Etkinleştirilmiş</string>
     <string name="generic_disabled">Devre dışı bırakmak</string>
     <string name="generic_saved">Kaydedildi</string>
+    <string name="generic_saving">Kaydediliyor…</string>
     <string name="generic_no_matching_items">Eşleşen ürün bulunamadı</string>
     <string name="sort_by">Sırala</string>
     <string name="sort_by_name">İsme Göre Sırala</string>

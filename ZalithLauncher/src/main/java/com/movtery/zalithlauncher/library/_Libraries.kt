@@ -40,9 +40,9 @@ private const val LICENSE_BSD_3_CLAUSE = "BSD 3-Clause License"
 private const val URL_KTOR = "https://ktor.io"
 
 val libraryData = listOf(
+    LibraryInfo("androidx-appcompat", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/appcompat"),
     LibraryInfo("androidx-constraintlayout-compose", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/develop/ui/compose/layouts/constraintlayout"),
-    LibraryInfo("androidx-material-icons-core", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/compose-material"),
-    LibraryInfo("androidx-material-icons-extended", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/compose-material"),
+    LibraryInfo("androidx-webkit", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/webkit"),
     LibraryInfo("ANGLE", "Copyright 2018 The ANGLE Project Authors", License(LICENSE_BSD_3_CLAUSE, R.raw.angle_license), "http://angleproject.org/"),
     LibraryInfo("Apache Commons Codec", null, LICENSE_APACHE_2, "https://commons.apache.org/proper/commons-codec"),
     LibraryInfo("Apache Commons Compress", null, LICENSE_APACHE_2, "https://commons.apache.org/proper/commons-compress"),
@@ -56,11 +56,12 @@ val libraryData = listOf(
     LibraryInfo("gl4es_extra_extra", "Copyright © 2016-2018 Sebastien Chevalier; Copyright © 2013-2016 Ryan Hileman", License(LICENSE_MIT, R.raw.gl4es_license), "https://github.com/PojavLauncherTeam/gl4es_extra_extra"),
     LibraryInfo("Gson", "Copyright © 2008 Google Inc.", LICENSE_APACHE_2, "https://github.com/google/gson"),
     LibraryInfo("kotlinx.coroutines", "Copyright © 2000-2020 JetBrains s.r.o.", LICENSE_APACHE_2, "https://github.com/Kotlin/kotlinx.coroutines"),
-    LibraryInfo("ktor-client-cio", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
     LibraryInfo("ktor-client-content-negotiation", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
     LibraryInfo("ktor-client-core", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
+    LibraryInfo("ktor-client-okhttp", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
     LibraryInfo("ktor-http", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
     LibraryInfo("ktor-serialization-kotlinx-json", COPYRIGHT_KTOR, LICENSE_APACHE_2, URL_KTOR),
+    LibraryInfo("language-textmate", "Copyright © 2020-2024 Rosemoe", License("LGPL-2.1 License", R.raw.sora_editor_license), "https://github.com/Rosemoe/sora-editor/tree/main/language-textmate"),
     LibraryInfo("LWJGL - Lightweight Java Game Library", "Copyright © 2012-present Lightweight Java Game Library All rights reserved.", License(LICENSE_BSD_3_CLAUSE, R.raw.lwjgl_license), "https://github.com/LWJGL/lwjgl3"),
     LibraryInfo("material-color-utilities", "Copyright 2021 Google LLC", LICENSE_APACHE_2, "https://github.com/material-foundation/material-color-utilities"),
     LibraryInfo("Maven Artifact", "Copyright © The Apache Software Foundation", LICENSE_APACHE_2, "https://github.com/apache/maven/tree/maven-3.9.9/maven-artifact"),
@@ -78,5 +79,6 @@ val libraryData = listOf(
     LibraryInfo("skinview3d", "Copyright © 2014-2018 Kent Rasmussen; Copyright © 2017-2022 Haowei Wen, Sean Boult and contributors", License(LICENSE_MIT, R.raw.skinview3d_license), "https://github.com/bs-community/skinview3d"),
     LibraryInfo("sora-editor", "Copyright © 1991, 1999 Free Software Foundation, Inc.", License("LGPL-2.1 License", R.raw.sora_editor_license), "https://github.com/Rosemoe/sora-editor"),
     LibraryInfo("Terracotta", "Copyright © 2025 Burning_TNT", License(LICENSE_AGPL_3, net.burningtnt.terracotta.R.raw.terracotta_license), "https://github.com/burningtnt/Terracotta"),
+    LibraryInfo("tm4e (TextMate for Eclipse)", "Copyright © Eclipse Foundation", License("EPL-2.0 License", R.raw.tm4e_license), "https://github.com/eclipse-tm4e/tm4e"),
     LibraryInfo("XZ for Java", "Copyright © The XZ for Java authors and contributors", License("0BSD License", R.raw.xz_java_license), "https://tukaani.org/xz/java.html")
 )

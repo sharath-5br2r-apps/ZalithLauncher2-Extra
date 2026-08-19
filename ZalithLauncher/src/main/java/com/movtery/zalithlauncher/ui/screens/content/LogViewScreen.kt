@@ -27,12 +27,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.NavBackStack
 import com.movtery.zalithlauncher.setting.enums.isLauncherInDarkTheme
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.code_editor.EditorState
 import com.movtery.zalithlauncher.ui.code_editor.SoraEditor
-import com.movtery.zalithlauncher.ui.code_editor.lang.LogLanguage
+import com.movtery.zalithlauncher.ui.code_editor.TextMateRegistry
 import com.movtery.zalithlauncher.ui.code_editor.scheme.SchemeIDEADark
 import com.movtery.zalithlauncher.ui.code_editor.scheme.SchemeIDEALight
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
@@ -40,7 +41,9 @@ import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
+import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.text.Content
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -61,6 +64,7 @@ fun LogViewScreen(
     backStackViewModel: ScreenBackStackViewModel
 ) {
     val isDark = isLauncherInDarkTheme()
+    val context = LocalContext.current
 
     var editorState by remember { mutableStateOf<EditorState>(EditorState.Loading) }
 
@@ -86,14 +90,19 @@ fun LogViewScreen(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            val scheme = remember(isDark) {
+            val fallbackScheme = remember(isDark) {
                 if (isDark) SchemeIDEADark() else SchemeIDEALight()
             }
-            val language = remember { LogLanguage() }
+            var language by remember { mutableStateOf<Language?>(null) }
+            var scheme by remember { mutableStateOf<EditorColorScheme?>(null) }
+            LaunchedEffect(isDark) {
+                language = TextMateRegistry.languageFor("text.log", context)
+                scheme = TextMateRegistry.colorScheme(isDark, context)
+            }
 
             SoraEditor(
                 state = editorState,
-                scheme = scheme,
+                scheme = scheme ?: fallbackScheme,
                 language = language,
                 isReadOnly = true,
                 onSaveClick = {}

@@ -24,7 +24,7 @@ import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
@@ -248,8 +248,8 @@ fun Modifier.verticalScrollWithBar(
     enabled: Boolean = true,
     flingBehavior: FlingBehavior? = null,
     reverseScrolling: Boolean = false
-): Modifier = this.scrollbar(
-    state = state.scrollIndicatorState,
+): Modifier = this.nonInteractiveScrollbar(
+    state = state.scrollIndicatorState!!,
     orientation = Orientation.Vertical
 ).verticalScroll(
     state = state,
@@ -265,8 +265,8 @@ fun Modifier.verticalScrollWithBar(
     enabled: Boolean = true,
     flingBehavior: FlingBehavior? = null,
     reverseScrolling: Boolean = false
-): Modifier = this.scrollbar(
-    state = state.scrollIndicatorState,
+): Modifier = this.nonInteractiveScrollbar(
+    state = state.scrollIndicatorState!!,
     orientation = Orientation.Vertical
 ).verticalScroll(
     state = state,
@@ -280,7 +280,7 @@ fun Modifier.verticalScrollWithBar(
 fun Modifier.lazyScrollWithBar(
     state: LazyListState,
     orientation: Orientation = Orientation.Vertical
-): Modifier = this.scrollbar(
-    state = state.scrollIndicatorState,
+): Modifier = this.nonInteractiveScrollbar(
+    state = state.scrollIndicatorState!!,
     orientation = orientation
 )
