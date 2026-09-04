@@ -378,7 +378,7 @@
     <string name="files_select_dir">Pilih Folder</string>
     <string name="files_current_path">Jalur saat ini: %s</string>
     <string name="files_no_selectable_content">Tidak ada konten untuk dipilih</string>
-    <string name="file_invalid_length">Nama terlalu panjang! (Saat ini: %d, Maks: %d)</string>
+    <string name="file_invalid_length" formatted="false">Nama terlalu panjang! (Saat ini: %d, Maks: %d)</string>
     <string name="multirt_runtime_corrupt">Java runtime rusak</string>
     <string name="multirt_runtime_incompatible_arch">Arsitektur tidak kompatibel: %s</string>
     <string name="multirt_runtime_delete_message">Kamu yakin ingin menghapus Java runtime %s? Tindakan ini tidak bisa dibatalkan!</string>
@@ -500,6 +500,7 @@
     <string name="minecraft_download_downloading_game_files">Mengunduh file\n(%1$d/%2$d, %3$s/%4$s)</string>
     <string name="minecraft_download_failed">Terjadi kesalahan saat mengunduh Minecraft</string>
     <string name="generic_reset">Reset</string>
+    <string name="skin_reset">Reset skin</string>
     <string name="generic_cancel">Batal</string>
     <string name="generic_confirm">Konfirmasi</string>
     <string name="generic_error">Kesalahan</string>
@@ -565,6 +566,7 @@
     <string name="game_menu_option_send_keycode">Kirim Input</string>
     <string name="shader_pack_manage_delete_warning">Yakin ingin menghapus shader %s? Tindakan ini tidak dapat dibatalkan!</string>
     <string name="shader_pack_manage_no_packs">Tidak ada shader untuk versi ini</string>
+    <string name="shader_pack_manage_info">Informasi Paket Shader</string>
     <string name="minecraft_download_stat_download_task">Bersiap mengunduh</string>
     <string name="minecraft_download_stat_verify_task">Mempersiapkan verifikasi</string>
     <string name="minecraft_download_verifying_and_repairing_files">Memverifikasi file\n(%1$d/%2$d, %3$s/%4$s)</string>
@@ -981,6 +983,15 @@
     <string name="sort_by_last_modified">Urutkan berdasarkan terakhir diubah</string>
     <string name="sort_by_last_played">Urutkan berdasarkan terakhir dimainkan</string>
     <string name="game_menu_option_menu_ball_opacity">Transparansi Overlay Menu</string>
+    <string name="game_styles_joystick">Atur Joystick</string>
+    <string name="game_styles_joystick_enable">Nyalakan Joystick</string>
+    <string name="game_styles_joystick_x">Posisi X Joystick</string>
+    <string name="game_styles_joystick_y">Posisi Y Joystick</string>
+    <string name="game_styles_joystick_size">Ukuran Joystick</string>
+    <string name="game_styles_joystick_edit">Edit Gaya Joystick</string>
+    <string name="game_styles_joystick_hide_when_mouse">Sembunyikan Saat Menggunakan Mouse Fisik</string>
+    <string name="game_styles_joystick_hide_when_gamepad">Sembunyikan Saat Menggunakan Gamepad</string>
+    <string name="game_styles_save_failed">Gagal menyimpan gaya</string>
     <string name="settings_launcher_background_video_volume_title">Volume Video Latar Belakang</string>
     <string name="settings_launcher_background_video_volume_summary">Jika latarnya berupa video, kamu bisa mengatur volumenya lewat opsi ini.</string>
     <string name="control_editor_edit_text_size">Ukuran teks</string>
@@ -988,12 +999,19 @@
     <string name="control_editor_special_joystick_style_joystick_can_lock_color">Warna Joystick (Bisa dikunci)</string>
     <string name="control_editor_special_joystick_style_joystick_locked_color">Warna Joystick (Terkunci)</string>
     <string name="control_editor_special_joystick_style_joystick_size">Ukuran Joystick</string>
+    <string name="control_editor_special_joystick_style_create_title">Buat Gaya Joystick</string>
+    <string name="control_editor_special_joystick_style_create_summary">Buat konfigurasi gaya joystick berdasarkan layout kontrol. Jika layout kontrol saat ini tidak menyediakan gaya joystick, maka gaya joystick dari launcher akan digunakan.</string>
+    <string name="game_styles_joystick_can_lock">Kunci Gerak Maju</string>
     <string name="control_editor_special_joystick_style_lock_mark_color">Warna Indikator Kunci Gerak Maju</string>
     <string name="account_change_cape_cache_all">Menyimpan semua cape ke cache</string>
     <string name="versions_manage_pin">Sematkan</string>
+    <string name="control_editor_special_joystick_style">Gaya Joystick</string>
     <string name="control_editor_special_joystick_style_delete_title">Hapus Gaya Joystick</string>
+    <string name="control_editor_special_joystick_style_delete_summary">Hapus konfigurasi gaya joystick untuk layout kontrol saat ini dan gunakan gaya joystick dari launcher.</string>
     <string name="control_editor_special_joystick_style_background_rounded_corner">Radius Sudut Latar Belakang</string>
     <string name="control_editor_special_joystick_style_joystick_rounded_corner">Sudut Membulat Joystick</string>
+    <string name="game_styles_joystick_edit_use_control_layout">Gunakan gaya yang disediakan oleh layout kontrol</string>
+    <string name="game_styles_joystick_lock_sprint">Paksa Lari Saat Dikunci</string>
     <string name="upgrade_title">Cek Pembaruan</string>
     <string name="upgrade_new">Versi Baru Ditemukan</string>
     <string name="upgrade_more">Lihat</string>
@@ -1004,9 +1022,14 @@
     <string name="upgrade_version_create_at">Terakhir Diperbarui: %s</string>
     <string name="upgrade_get_remote_failed">Gagal cek pembaruan. Coba lagi nanti.</string>
     <string name="upgrade_is_latest">Kamu sudah menggunakan versi terbaru</string>
+    <string name="game_styles_joystick_deadzone">Rentang Deadzone Joystick</string>
+    <string name="control_editor_special_joystick_style_tip_summary">Karena tingkat implementasinya cukup rumit, sistem layout kontrol belum bisa langsung mengintegrasikan komponen joystick. Untuk pakai joystick, kamu hanya bisa mengaktifkan joystick universal lewat menu di dalam game. Meski begitu, kamu tetap bisa menentukan tampilan joystick lewat layout kontrol supaya gayanya tetap konsisten.</string>
     <string name="upgrade_cloud_drive">Penyimpanan Cloud</string>
     <string name="cape_name_zombie_horse">Kuda Zombi</string>
     <string name="control_editor_edit_text_size_custom">Ukuran Teks Kustom</string>
+    <string name="control_editor_special_joystick_style_tip_title">Tidak bisa membuat joystick?</string>
+    <string name="settings_launcher_mirror_assets_search_title">Sumber Pencarian Platform Aset</string>
+    <string name="settings_launcher_mirror_assets_download_title">Sumber Unduhan Platform Aset</string>
     <string name="about_acknowledgements_mcim_text">%s menggunakan sumber mirror MCIM</string>
     <string name="generic_copied">Disalin</string>
     <string name="crash_link_share_button">Bagikan Tautan</string>
@@ -1038,6 +1061,7 @@
     <string name="servers_list_edit_server">Ubah Server</string>
     <string name="servers_list_copy_server_address">Salin Alamat</string>
     <string name="download_install_warning_mobile_data">Anda sedang menggunakan data seluler. Melanjutkan unduhan akan mengonsumsi kuota data.</string>
+    <string name="game_styles_joystick_lock_threshold">Batas Kunci Joystick Ke Depan</string>
     <string name="game_saponsorship_finished_game">Launcher sudah berhasil menjalankan game sebanyak %s kali! Kalau kamu merasa terbantu, silakan pertimbangkan untuk mendukung developernya! :)</string>
     <string name="versions_export">Ekspor Modpack</string>
     <string name="versions_export_type_mcbbs">MCBBS Modpack</string>
@@ -1117,6 +1141,7 @@
     <string name="control_editor_layers_delete">Apakah Anda yakin ingin menghapus layer kontrol %s?</string>
     <string name="control_editor_layers_attribute_hide_when_mouse">Sembunyikan saat menggunakan mouse</string>
     <string name="control_editor_layers_attribute_hide_when_gamepad">Sembunyikan saat menggunakan gamepad</string>
+    <string name="control_editor_layers_attribute_hide_when_joystick">Sembunyikan saat joystick diaktifkan</string>
     <string name="control_editor_edit_dialog_delete_widget">Apakah Anda yakin ingin menghapus widget ini?</string>
     <string name="control_editor_edit_style_config_common_style">Abaikan tema gelap</string>
     <string name="control_editor_edit_style_config_delete">Apakah Anda yakin ingin menghapus tampilan kontrol %s?</string>

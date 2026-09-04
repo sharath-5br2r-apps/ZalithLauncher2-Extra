@@ -46,7 +46,8 @@ fun mergeGameJson(
     fabricFolder: File? = null,
     legacyFabricFolder: File? = null,
     quiltFolder: File? = null,
-    cleanroomFolder: File? = null
+    cleanroomFolder: File? = null,
+    babricFolder: File? = null
 ) {
     Logger.info(TAG,
         "Start merge version json, output: $outputFolder, Minecraft: $clientFolder\n" +
@@ -56,7 +57,8 @@ fun mergeGameJson(
                 (if (fabricFolder != null) "，${ModLoader.FABRIC.displayName}: $fabricFolder" else "") +
                 (if (legacyFabricFolder != null) "，${ModLoader.LEGACY_FABRIC.displayName}: $legacyFabricFolder" else "") +
                 (if (quiltFolder != null) "，${ModLoader.QUILT.displayName}: $quiltFolder" else "") +
-                (if (cleanroomFolder != null) "，${ModLoader.CLEANROOM.displayName}: $cleanroomFolder" else "")
+                (if (cleanroomFolder != null) "，${ModLoader.CLEANROOM.displayName}: $cleanroomFolder" else "") +
+                (if (babricFolder != null) "，${ModLoader.BABRIC.displayName}: $babricFolder" else "")
     )
 
     outputFolder.mkdirs()
@@ -74,6 +76,7 @@ fun mergeGameJson(
     val legacyFabricJsonPath = legacyFabricFolder.gameFileOrNull("json")
     val quiltJsonPath = quiltFolder.gameFileOrNull("json")
     val cleanroomJsonPath = cleanroomFolder.gameFileOrNull("json")
+    val babricJsonPath = babricFolder.gameFileOrNull("json")
 
     //读取和验证 Json
     val minecraftJson = minecraftJsonPath.getJsonOrNull("Minecraft")!!
@@ -85,6 +88,7 @@ fun mergeGameJson(
     val legacyFabricJson = legacyFabricJsonPath.getJsonOrNull(ModLoader.LEGACY_FABRIC.displayName)
     val quiltJson = quiltJsonPath.getJsonOrNull(ModLoader.FABRIC.displayName)
     val cleanroomJson = cleanroomJsonPath.getJsonOrNull(ModLoader.CLEANROOM.displayName)
+    val babricJson = babricJsonPath.getJsonOrNull(ModLoader.BABRIC.displayName)
 
     //处理 minecraftArguments
     val allArgs = listOfNotNull(
@@ -109,7 +113,8 @@ fun mergeGameJson(
         forgeJson, neoForgeJson,
         fabricJson, quiltJson,
         legacyFabricJson,
-        cleanroomJson
+        cleanroomJson,
+        babricJson
     ).forEach { json ->
         json.remove("releaseTime")
         json.remove("time")
@@ -166,6 +171,7 @@ private fun addLaunchForInfo(
     info.neoforge?.toLaunchForInfo()?.let { infos.add(it) }
     info.fabric?.toLaunchForInfo()?.let { infos.add(it) }
     info.quilt?.toLaunchForInfo()?.let { infos.add(it) }
+    info.babric?.toLaunchForInfo()?.let { infos.add(it) }
 
     val launchFor = LaunchFor(
         infos = infos.toTypedArray()

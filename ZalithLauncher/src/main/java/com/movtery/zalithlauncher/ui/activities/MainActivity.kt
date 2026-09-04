@@ -19,6 +19,7 @@
 package com.movtery.zalithlauncher.ui.activities
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -30,8 +31,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -52,6 +61,8 @@ import com.movtery.zalithlauncher.game.plugin.PluginLoader
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.ui.activities.EXTRA_LAUNCH_VERSION
+import com.movtery.zalithlauncher.ui.activities.EXTRA_OPEN_LOG
 import com.movtery.zalithlauncher.notification.NotificationManager
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_SUPPORT
@@ -89,6 +100,7 @@ import com.movtery.zalithlauncher.utils.isChinese
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.network.openLink
 import com.movtery.zalithlauncher.utils.network.openLinkInternal
+import com.movtery.zalithlauncher.utils.PlayerNoticeManager
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
@@ -239,6 +251,12 @@ class MainActivity : BaseAppCompatActivity() {
                             this@MainActivity.openLink(url)
                         }
                     }
+                    is EventViewModel.Event.OpenWeb -> {
+                        val url = event.url
+                        withContext(Dispatchers.Main) {
+                            screenBackStackModel.mainScreen.backStack.navigateToWeb(url)
+                        }
+                    }
                     is EventViewModel.Event.CheckUpdate -> {
                         checkUpdate()
                     }
@@ -287,12 +305,10 @@ class MainActivity : BaseAppCompatActivity() {
                     is EventViewModel.Event.VulkanCheck -> {
                         checkVulkan()
                     }
-                    is EventViewModel.Event.ShowToast -> {
-                        Toast.makeText(
-                            this@MainActivity,
-                            event.text.toAndroidString(this@MainActivity),
-                            event.duration
-                        ).show()
+                    is EventViewModel.Event.OpenLog -> {
+                        screenBackStackModel.mainScreen.backStack.navigateToLogView(
+                            logPath = event.path
+                        )
                     }
                     is EventViewModel.Event.OpenFileManager -> {
                         FileManagerLauncher.launch(
@@ -523,6 +539,8 @@ class MainActivity : BaseAppCompatActivity() {
                         AllSettings.autoVulkanChecker.save(false)
                     }
                 )
+
+                PlayerNoticeDialog()
             }
         }
     }
@@ -804,6 +822,24 @@ class MainActivity : BaseAppCompatActivity() {
     private fun handleImportIfNeeded(intent: Intent?): Boolean {
         if (intent == null) return false
 
+        val logPath = intent.getStringExtra(EXTRA_OPEN_LOG)
+        if (logPath != null) {
+            intent.removeExtra(EXTRA_OPEN_LOG)
+            eventViewModel.sendEvent(EventViewModel.Event.OpenLog(logPath))
+            return true
+        }
+
+        val versionName = intent.getStringExtra(EXTRA_LAUNCH_VERSION)
+        if (versionName != null) {
+            intent.removeExtra(EXTRA_LAUNCH_VERSION)
+            val version = VersionsManager.getVersion(versionName)
+            if (version != null) {
+                VersionsManager.saveVersion(version)
+                launchGameViewModel.tryLaunch(version)
+            }
+            return true
+        }
+
         val type = intent.getStringExtra(EXTRA_IMPORT_TYPE) ?: return false
 
         val importing = when (type) {
@@ -866,6 +902,13 @@ class MainActivity : BaseAppCompatActivity() {
         ControlManager.checkDefaultAndRefresh(this@MainActivity)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) {
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
+    }
+
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (isCaptureKey) {
@@ -874,5 +917,52 @@ class MainActivity : BaseAppCompatActivity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+}
+
+@Composable
+private fun PlayerNoticeDialog() {
+    var content by remember { mutableStateOf("") }
+    var isDismissed by remember { mutableStateOf(true) }
+
+    suspend fun fetch() {
+        val notice = PlayerNoticeManager.fetchNotice()
+        if (notice.isNotEmpty()) {
+            if (PlayerNoticeManager.isDismissed(notice)) {
+                if (content != notice) {
+                    isDismissed = false
+                }
+                content = notice
+            } else {
+                content = notice
+                isDismissed = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        fetch()
+        while (true) {
+            delay(10_000)
+            fetch()
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            fetch()
+        }
+    }
+
+    if (content.isNotEmpty() && !isDismissed) {
+        SimpleAlertDialog(
+            title = stringResource(R.string.generic_info),
+            text = content,
+            onDismiss = {
+                PlayerNoticeManager.dismiss(content)
+                isDismissed = true
+            }
+        )
     }
 }

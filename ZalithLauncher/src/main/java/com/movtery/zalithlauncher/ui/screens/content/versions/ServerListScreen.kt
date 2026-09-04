@@ -693,7 +693,11 @@ private fun ServerListBody(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 state = scrollState,
             ) {
-                items(list) { server ->
+                items(
+                    items = list,
+                    key = { it.name + ":" + it.originIp },
+                    contentType = { "server" }
+                ) { server ->
                     ServerItem(
                         modifier = Modifier.fillMaxWidth(),
                         item = server,

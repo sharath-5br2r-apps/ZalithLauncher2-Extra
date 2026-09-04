@@ -57,6 +57,8 @@ private const val TAG = "SplashActivity"
 const val EXTRA_IMPORT_ACTION = "EXTRA_IMPORT_ACTION"
 const val EXTRA_IMPORT_URI    = "EXTRA_IMPORT_URI"
 const val EXTRA_IMPORT_TYPE   = "EXTRA_IMPORT_TYPE"
+const val EXTRA_LAUNCH_VERSION = "EXTRA_LAUNCH_VERSION"
+const val EXTRA_OPEN_LOG = "EXTRA_OPEN_LOG"
 
 const val IMPORT_TYPE_MODPACK = "modpack"
 const val IMPORT_TYPE_CONTROLS = "controls"
@@ -115,6 +117,17 @@ class SplashActivity : BaseAppCompatActivity() {
 
         if (isImportIntent(intent) && !isLauncherIntent(intent)) {
             handleImportIntent(intent)
+            finish()
+            return
+        }
+
+        val versionName = intent.getStringExtra(EXTRA_LAUNCH_VERSION)
+        if (versionName != null) {
+            val forward = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(EXTRA_LAUNCH_VERSION, versionName)
+            }
+            startActivity(forward)
             finish()
         }
     }
@@ -271,7 +284,7 @@ class SplashActivity : BaseAppCompatActivity() {
         val uri: Uri? = when (source.action) {
             Intent.ACTION_SEND -> {
                 source.clipData?.getItemAt(0)?.uri
-                    ?: source.getParcelableExtra(Intent.EXTRA_STREAM)
+                    ?: @Suppress("DEPRECATION") source.getParcelableExtra(Intent.EXTRA_STREAM)
             }
             Intent.ACTION_VIEW -> source.data
             else -> null

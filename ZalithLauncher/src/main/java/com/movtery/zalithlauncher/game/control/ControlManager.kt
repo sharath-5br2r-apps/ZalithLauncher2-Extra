@@ -21,7 +21,6 @@ package com.movtery.zalithlauncher.game.control
 import android.content.Context
 import com.movtery.layer_controller.layout.ControlLayout
 import com.movtery.layer_controller.layout.loadLayoutFromFile
-import com.movtery.layer_controller.layout.loadLayoutFromFileUncheck
 import com.movtery.layer_controller.layout.loadLayoutFromString
 import com.movtery.layer_controller.observable.ObservableControlLayout
 import com.movtery.layer_controller.utils.newRandomFileName
@@ -29,7 +28,6 @@ import com.movtery.layer_controller.utils.saveToFile
 import com.movtery.zalithlauncher.context.copyAssetFile
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.utils.file.readString
 import com.movtery.zalithlauncher.utils.logging.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +63,8 @@ object ControlManager {
     /** 是否正在刷新控制布局 */
     val isRefreshing = _isRefreshing.asStateFlow()
 
+    private var cachedContext: Context? = null
+
     /**
      * 获取一个新的布局文件文件，名称随机
      */
@@ -75,6 +75,7 @@ object ControlManager {
      * @param context 访问assets的上下文
      */
     fun checkDefaultAndRefresh(context: Context) {
+        cachedContext = context
         scope.launch(Dispatchers.IO) {
             val files = (PathManager.DIR_CONTROL_LAYOUTS.listFiles() ?: emptyArray())
                 .filter { file ->
@@ -93,35 +94,25 @@ object ControlManager {
             _isRefreshing.update { true }
 
             _dataList.update { emptyList() }
+
             PathManager.DIR_CONTROL_LAYOUTS.listFiles()?.mapNotNull { file ->
                 if (!(file.isFile && file.exists() && file.extension.equals("json", true))) return@mapNotNull null
 
-                var isSupport = true
-                val layout: ControlLayout = try {
+                val layout = try {
                     loadLayoutFromFile(file)
-                } catch (_: IllegalArgumentException) {
-                    isSupport = false
-                    runCatching {
-                        loadLayoutFromFileUncheck(file)
-                    }.onFailure { e ->
-                        Logger.warning(TAG, "Failed to load control layout! file = $file", e)
-                    }.getOrNull() ?: return@mapNotNull null
-                } catch (e: Exception) {
-                    Logger.warning(TAG, "Failed to load control layout! file = $file", e)
+                } catch (_: Exception) {
+                    Logger.warning(TAG, "Failed to load control layout! file = $file")
                     return@mapNotNull null
                 }
 
                 ControlData(
                     file = file,
                     controlLayout = ObservableControlLayout(layout),
-                    isSupport = isSupport
+                    isSupport = true
                 )
             }?.let { list ->
                 _dataList.update {
-                    list.sortedBy {
-                        if (it.isSupport) it.controlLayout.info.name.default
-                        else it.file.name
-                    }
+                    list.sortedBy { it.controlLayout.info.name.default }
                 }
             }
             checkSettings()
@@ -216,7 +207,7 @@ object ControlManager {
         val file = getNewRandomFile()
         try {
             inputStream.use { stream ->
-                val jsonString = stream.readString()
+                val jsonString = stream.bufferedReader().readText()
                 val layout = loadLayoutFromString(jsonString)
                 layout.saveToFile(file)
             }

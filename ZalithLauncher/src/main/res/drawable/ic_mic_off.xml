@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <!--
+        Mic-off icon: fully opaque — no evenOdd/transparency.
+
+        Two solid filled paths rendered in the same colour:
+          1. Full mic (capsule + arm) — identical to ic_mic
+          2. Diagonal slash parallelogram drawn on top
+
+        Because both paths share the same fill colour, they merge into one
+        solid shape. The "off" slash is visible as a diagonal bar that
+        protrudes slightly outside the mic outline at both ends, which is
+        the standard Material Design mic-off visual treatment.
+
+        Slash geometry (centre line (136,824)→(824,136), width 80 px):
+          Band corners: (108,796) (164,852) (852,164) (796,108)
+    -->
+
+    <!-- 1 · Mic capsule + arm (solid) -->
+    <path
+        android:fillColor="#1f1f1f"
+        android:pathData="M480,560q-75,0 -127.5,-52.5T300,380v-200q0,-75 52.5,-127.5T480,0q75,0 127.5,52.5T660,180v200q0,75 -52.5,127.5T480,560ZM440,880v-124q-116,-14 -198,-95.5T142,460h80q18,98 94,159t164,61q88,0 164,-61t94,-159h80q-18,118 -100,199.5T520,756v124h-80Z" />
+
+    <!-- 2 · Diagonal slash (solid, same colour → merges with mic fill) -->
+    <path
+        android:fillColor="#1f1f1f"
+        android:pathData="M108,796 L164,852 L852,164 L796,108 Z" />
+
+</vector>

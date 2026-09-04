@@ -30,12 +30,18 @@ static void replaceLibPathInEnvBlock(JNIEnv *env, jbyteArray* envBlock, jint* en
         printf("exec_hooks WARN: replaceLibPathInEnvBlock does not preserve original env. Please notify PojavLauncherTeam if you need that feature\n");
         env_block_replacement_warning = true;
     }
+    // Preload our namespace shim (dlopens libnativewindow with RTLD_GLOBAL)
+    // and libc++_shared.so for __emutls_get_address (Clang TLS).
+    // Use absolute paths in LD_PRELOAD so the linker can find them regardless
+    // of linker namespace restrictions.
+    const char* nativeDir = getenv("POJAV_NATIVEDIR");
+    if (!nativeDir) nativeDir = directory;
     char envStr[1024];
-    jsize new_envl = snprintf(envStr, sizeof(envStr) / sizeof(char), "LD_LIBRARY_PATH=%s%cPATH=%s", directory, 0 ,directory) + 1;
+    jsize new_envl = snprintf(envStr, sizeof(envStr) / sizeof(char), "LD_LIBRARY_PATH=%s:/system/lib64:/vendor/lib64%cLD_PRELOAD=%s/libnamespace_shim.so:%s/libc++_shared.so%cPATH=%s", directory, 0, nativeDir, directory, 0, directory) + 1;
     jbyteArray newBlock = (*env)->NewByteArray(env, new_envl);
     (*env)->SetByteArrayRegion(env, newBlock, 0, new_envl, (jbyte*) envStr);
     *envBlock = newBlock;
-    *envc = 2;
+    *envc = 3;
 }
 
 /**

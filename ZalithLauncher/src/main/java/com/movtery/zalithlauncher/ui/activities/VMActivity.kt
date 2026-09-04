@@ -60,6 +60,7 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CompletableDeferred
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.jakewharton.processphoenix.ProcessPhoenix
@@ -84,10 +85,14 @@ import com.movtery.zalithlauncher.game.launch.handler.AbstractHandler
 import com.movtery.zalithlauncher.game.launch.handler.GameHandler
 import com.movtery.zalithlauncher.game.launch.handler.HandlerType
 import com.movtery.zalithlauncher.game.launch.handler.JVMHandler
+import com.movtery.zalithlauncher.game.path.getGameHome
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
+import com.movtery.zalithlauncher.game.recorder.GameSurfaceRegistry
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
+import com.movtery.zalithlauncher.game.renderer.renderers.KopperZinkRenderer
+import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.terracotta.TerracottaVPNService
@@ -107,6 +112,7 @@ import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -139,6 +145,7 @@ data class LaunchSession(
  */
 class VMViewModel : ViewModel() {
     var isRunning = false
+    var startTime = 0L
 
     /**
      * 是否允许VMActivity处理按键
@@ -182,6 +189,7 @@ class VMViewModel : ViewModel() {
         exitListener: (Int, Boolean) -> Unit,
     ) {
         if (_session != null) return
+        startTime = System.currentTimeMillis()
 
         _session = when {
             bundle.getBoolean(INTENT_RUN_GAME) -> {
@@ -192,6 +200,14 @@ class VMViewModel : ViewModel() {
                     activity = activity,
                     config = config,
                     onExit = { code, isSignal ->
+                        val endTime = System.currentTimeMillis()
+                        val duration = endTime - startTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                            PlayTimeRepository.recordSession(config.version.getVersionName(), startTime, endTime)
+                        }
+
                         if (code == 0) {
                             val finishedCount = AllSettings.finishedGame.getValue()
                             if (finishedCount < Int.MAX_VALUE)  {
@@ -232,7 +248,14 @@ class VMViewModel : ViewModel() {
                 val launcher = JvmLauncher(
                     context = activity,
                     jvmLaunchInfo = jvmLaunchInfo,
-                    onExit = exitListener,
+                    onExit = { code, isSignal ->
+                        val duration = System.currentTimeMillis() - startTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                        }
+                        exitListener(code, isSignal)
+                    },
                     openPath = { folder ->
                         _openFolderOperation.update {
                             OpenFolderOperation.OpenFolder(folder)
@@ -352,6 +375,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         super.onCreate(savedInstanceState)
         //加载渲染器
         Renderers.init()
@@ -379,7 +403,15 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                     val logPath = withLauncher {
                         getLogFile().absolutePath
                     }
-                    showExitMessage(this@VMActivity, exitCode, isSignal, logPath)
+                    showExitMessage(
+                        this@VMActivity,
+                        exitCode,
+                        isSignal,
+                        logPath,
+                        gameHome = getGameHome(),
+                        allocatedRamMb = AllSettings.ramAllocation.getValue() ?: 0,
+                        renderer = AllSettings.renderer.getValue()
+                    )
                 } else {
                     //重启启动器
                     ProcessPhoenix.triggerRebirth(this@VMActivity)
@@ -602,6 +634,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     }
 
     override fun onDestroy() {
+        GameSurfaceRegistry.unregister()
         stopAllService()
         withHandler { onDestroy() }
         SdlBridge.reset()
@@ -698,7 +731,9 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
         withHandler { mIsSurfaceDestroyed = false }
         lifecycleScope.launch(Dispatchers.Default) {
             val screenSize = vmViewModel.screenSizeBridge.awaitData()
-            val currentSize = refreshWindowSize(screenSize = screenSize)
+            val currentSize = withContext(Dispatchers.Main) {
+                refreshWindowSize(screenSize = screenSize)
+            }
             withHandler {
                 execute(
                     surface = Surface(surface),
@@ -729,6 +764,9 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
     }
 
+    private var surfaceGeneration = 0L
+    private var pendingNewSurface: CompletableDeferred<Surface>? = null
+
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (withHandler { mIsSurfaceDestroyed }) return
         refreshWindowSize(screenSize = IntSize(width, height))
@@ -737,8 +775,10 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     override fun surfaceCreated(holder: SurfaceHolder) {
         val surface = holder.surface
         SdlBridge.prepareSurface(this, surface, gameSurfaceView?.parent as? ViewGroup, holder)
+        surfaceGeneration++
+        pendingNewSurface?.complete(holder.surface)
         if (vmViewModel.isRunning) {
-            ZLBridge.setupBridgeWindow(surface)
+            ZLBridge.setupBridgeWindow(holder.surface)
             return
         }
         vmViewModel.isRunning = true
@@ -746,10 +786,27 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
         withHandler { mIsSurfaceDestroyed = false }
         lifecycleScope.launch(Dispatchers.Default) {
             val screenSize = vmViewModel.screenSizeBridge.awaitData()
-            val currentSize = refreshWindowSize(screenSize = screenSize)
+            val (currentSize, genBefore) = withContext(Dispatchers.Main) {
+                pendingNewSurface = CompletableDeferred()
+                val gen = surfaceGeneration
+                val size = refreshWindowSize(screenSize = screenSize)
+                size to gen
+            }
+            val finalSurface = withContext(Dispatchers.Main) {
+                if (surfaceGeneration > genBefore) {
+                    pendingNewSurface = null
+                    holder.surface
+                } else {
+                    val newSurface = withTimeoutOrNull(100L) {
+                        pendingNewSurface!!.await()
+                    }
+                    pendingNewSurface = null
+                    newSurface ?: holder.surface
+                }
+            }
             withHandler {
                 execute(
-                    surface = surface,
+                    surface = finalSurface,
                     screenSize = currentSize,
                     scope = lifecycleScope
                 )
@@ -803,13 +860,15 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                         IntOffset(0, -bottomPadding)
                     },
                 factory = { context ->
-                    val view = if (AllSettings.useSurfaceView.getValue()) {
-                        //使用 SurfaceView 渲染
+                    val useSurfaceView = AllSettings.useSurfaceView.getValue() &&
+                        (!Renderers.isCurrentRendererValid() ||
+                        Renderers.getCurrentRenderer().getUniqueIdentifier() != KopperZinkRenderer.getUniqueIdentifier())
+                    val view = if (useSurfaceView) {
                         SurfaceView(context).apply {
                             holder.addCallback(this@VMActivity)
-                            // SDL 模式需要父 ViewGroup（输入法 EditText 附加用）
                             gameSurfaceView = this
                         }.also { surface ->
+                            GameSurfaceRegistry.register(surface)
                             applySizeToSurface = { width, height ->
                                 surface.holder.setFixedSize(width, height)
                             }
@@ -822,6 +881,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                             surfaceTextureListener = this@VMActivity
                         }.also { texture ->
                             gameSurfaceView = texture
+                            GameSurfaceRegistry.register(texture)
                             applySizeToSurface = { width, height ->
                                 texture.surfaceTexture?.setDefaultBufferSize(width, height)
                             }

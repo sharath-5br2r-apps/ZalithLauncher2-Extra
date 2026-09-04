@@ -22,6 +22,7 @@ import android.content.Context
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor
+import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.coroutine.TitledTask
 import com.movtery.zalithlauncher.coroutine.addTask
 import com.movtery.zalithlauncher.coroutine.buildPhase
@@ -43,6 +44,7 @@ import com.movtery.zalithlauncher.utils.network.withSpeedReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
@@ -326,6 +328,40 @@ class ModPackInstaller(
             clearTempModPackDir()
         }
     )
+
+    /**
+     * 创建一个用于 TaskSystem 的代理任务，镜像当前安装进度
+     * 用于最小化安装对话框，同时让安装在后台继续运行
+     */
+    fun createBackgroundTask(onCancelRequest: () -> Unit): Task {
+        return Task.runTask(
+            id = "modpack_install_${version.platformSha1() ?: version.platformFileName()}",
+            task = { proxyTask ->
+                val mirrorJob = launch {
+                    while (true) {
+                        kotlinx.coroutines.delay(150)
+                        val titledTasks = tasksFlow.value
+                        val running = titledTasks.firstOrNull { it.task.stage.value == TaskStage.RUNNING }
+                            ?: titledTasks.lastOrNull()
+                        running?.task?.let { t ->
+                            proxyTask.updateProgress(t.progress.value)
+                            proxyTask.updateMessage(t.message.value)
+                            t.rateBytesPerSec.value?.let { proxyTask.updateSpeed(it) } ?: proxyTask.clearSpeed()
+                        }
+                    }
+                }
+                try {
+                    taskExecutor.awaitCompletion()
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                } finally {
+                    mirrorJob.cancel()
+                }
+            },
+            onCancel = onCancelRequest
+        )
+    }
 
     private fun File.createDirAndLog(): File {
         this.mkdirs()

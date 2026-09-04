@@ -42,7 +42,9 @@ import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
 import com.movtery.zalithlauncher.path.GLOBAL_JSON
+import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT_INFO
 import com.movtery.zalithlauncher.path.URL_PROJECT_INFO
+import com.movtery.zalithlauncher.path.URL_PROJECT_RELEASES_LATEST
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleListDialog
@@ -50,6 +52,7 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.DisabledAlpha
 import com.movtery.zalithlauncher.ui.upgrade.UpgradeDialog
 import com.movtery.zalithlauncher.ui.upgrade.UpgradeFilesDialog
 import com.movtery.zalithlauncher.upgrade.GithubContentApi
+import com.movtery.zalithlauncher.upgrade.GithubReleaseApi
 import com.movtery.zalithlauncher.upgrade.RemoteData
 import com.movtery.zalithlauncher.upgrade.TooFrequentOperationException
 import com.movtery.zalithlauncher.utils.logging.Logger
@@ -82,7 +85,8 @@ sealed interface LauncherUpgradeOperation {
  */
 private const val LATEST_VERSION = "latest_version_md.json"
 private const val LATEST_API_URL = "$URL_PROJECT_INFO/$LATEST_VERSION"
-private const val LATEST_API_CHINESE_URL = "https://repo.miawa.cn/zalith-info/v2/$LATEST_VERSION"
+private const val LATEST_API_CHINESE_URL = LATEST_API_URL
+private const val LATEST_RELEASE_URL = URL_PROJECT_RELEASES_LATEST
 
 /**
  * 用于记录启动器更新 ViewModel
@@ -192,28 +196,54 @@ class LauncherUpgradeViewModel: ViewModel() {
     private suspend fun fetchRemoteData(): RemoteData? {
         return withContext(Dispatchers.IO) {
             runCatching {
-                withRetry(logTag = "LauncherUpgrade", maxRetries = 2) {
-                    //获取最新的启动器信息
-                    val api = GLOBAL_CLIENT.get(LATEST_API_URL).safeBodyAsJson<GithubContentApi>()
-                    //需要Base64解密
-                    val contentString = decodeBase64(api.content)
-                    GLOBAL_JSON.decodeFromString(RemoteData.serializer(), contentString)
+                withRetry(logTag = "LauncherUpgrade_Release", maxRetries = 2) {
+                    val release = GLOBAL_CLIENT.get(LATEST_RELEASE_URL).safeBodyAsJson<GithubReleaseApi>()
+                    val code = release.tagName.filter { it.isDigit() }.take(6).toIntOrNull()
+                        ?: return@withRetry null
+                    val files = release.assets.map { asset ->
+                        RemoteData.RemoteFile(
+                            fileName = asset.name,
+                            uri = asset.browserDownloadUrl,
+                            arch = RemoteData.RemoteFile.Arch.ALL,
+                            size = asset.size
+                        )
+                    }
+                    val defaultBody = RemoteData.RemoteBody(
+                        language = "en",
+                        markdown = release.body
+                    )
+                    RemoteData(
+                        code = code,
+                        version = release.tagName,
+                        createdAt = release.publishedAt,
+                        files = files,
+                        defaultBody = defaultBody,
+                        bodies = listOf(defaultBody)
+                    )
                 }
             }.getOrElse { e ->
-                if (Locale.getDefault().language == "zh") {
-                    runCatching {
+                Logger.info(TAG, "Release API failed, trying content API: ${e.message}")
+                runCatching {
+                    withRetry(logTag = "LauncherUpgrade_Custom", maxRetries = 1) {
+                        val api = GLOBAL_CLIENT.get(LATEST_API_URL).safeBodyAsJson<GithubContentApi>()
+                        val contentString = decodeBase64(api.content)
+                        GLOBAL_JSON.decodeFromString(RemoteData.serializer(), contentString)
+                    }
+                }.getOrElse { e2 ->
+                    if (Locale.getDefault().language == "zh") {
                         Logger.info(TAG, "Check for updates in the Chinese region.")
-                        //在中国地区，可能因为无法访问 Github API 导致获取更新信息失败
-                        withRetry(logTag = "LauncherUpgrade_Chinese", maxRetries = 2) {
-                            GLOBAL_CLIENT.get(LATEST_API_CHINESE_URL).safeBodyAsJson<RemoteData>()
+                        runCatching {
+                            withRetry(logTag = "LauncherUpgrade_Chinese", maxRetries = 2) {
+                                GLOBAL_CLIENT.get(LATEST_API_CHINESE_URL).safeBodyAsJson<RemoteData>()
+                            }
+                        }.getOrElse { e3 ->
+                            Logger.warning(TAG, "Failed to check for launcher upgrade!", e3)
+                            null
                         }
-                    }.getOrElse { e ->
-                        Logger.warning(TAG, "Failed to check for launcher upgrade!", e)
+                    } else {
+                        Logger.warning(TAG, "Failed to check for launcher upgrade!", e2)
                         null
                     }
-                } else {
-                    Logger.warning(TAG, "Failed to check for launcher upgrade!", e)
-                    null
                 }
             }
         }

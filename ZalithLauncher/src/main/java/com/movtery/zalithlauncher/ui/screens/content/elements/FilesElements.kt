@@ -138,6 +138,35 @@ fun CreateNewDirDialog(
 }
 
 @Composable
+fun CreateNewFileDialog(
+    onDismissRequest: () -> Unit = {},
+    createFile: (name: String) -> Unit = {}
+) {
+    var value by remember { mutableStateOf("") }
+
+    val filenameInvalidMessage = key(value) {
+        isFilenameInvalid(value)
+    }
+    val isError = value.isEmpty() || filenameInvalidMessage != null
+
+    SimpleEditDialog(
+        title = stringResource(R.string.files_create_file),
+        value = value,
+        onValueChange = { value = it },
+        isError = isError,
+        supportingText = {
+            when {
+                value.isEmpty() -> Text(text = stringResource(R.string.generic_cannot_empty))
+                filenameInvalidMessage != null -> Text(text = filenameInvalidMessage)
+            }
+        },
+        singleLine = true,
+        onDismissRequest = onDismissRequest,
+        onConfirm = { if (!isError) createFile(value) }
+    )
+}
+
+@Composable
 fun isFilenameInvalid(
     str: String
 ): String? {

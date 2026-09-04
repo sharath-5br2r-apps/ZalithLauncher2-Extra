@@ -164,6 +164,7 @@ fun FileSelectorScreen(
         currentPath = currentPath,
         onCreatePath = { newDir ->
             createDir(newDir.name)
+            operation = SelectorOperation.None
         }
     )
 

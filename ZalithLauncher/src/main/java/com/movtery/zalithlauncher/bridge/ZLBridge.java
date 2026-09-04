@@ -78,10 +78,19 @@ public final class ZLBridge {
 
     //Utils
     @Keep public static native int chdir(String path);
+    @Keep public static native void fsrInit(int qualityPreset);
+    @Keep public static native void fsrSetQuality(int qualityPreset);
+    @Keep public static native void fpsLimitSet(int fps);
 
     static {
         NativeLibraryLoader.loadExitHookLib();
         NativeLibraryLoader.loadPojavLib();
         NativeLibraryLoader.loadPojavAWTLib();
+
+        //Android 14'te native_handle_create libnativewindow.so'ya taşındı.
+        //Ana çözüm: java_exec_hooks.c ile FFmpeg subprocess'inin LD_PRELOAD'ına
+        //libnativewindow.so eklendi. Ayrıca burada RTLD_GLOBAL ile in-process
+        //yüklemelere karşı ek güvence sağlıyoruz. RTLD_LOCAL kullanılmaz.
+        NativeLibraryLoader.reloadFFmpegSystemDependenciesGlobally();
     }
 }

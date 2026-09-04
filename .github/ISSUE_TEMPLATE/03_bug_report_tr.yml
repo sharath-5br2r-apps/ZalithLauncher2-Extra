@@ -1,0 +1,68 @@
+name: Hata Raporu (Türkçe)
+description: Bir hata bildir
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Açıklama
+      description: Karşılaştığınız sorunu açıkça belirtin.
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log Dosyası
+      description: Log dosyasını ekleyin. Lütfen log eklemeyi unutmayın!
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Ekran Görüntüleri / Videolar
+      description: İsteğe bağlı ama yardımcı olur.
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Tekrarlama Adımları
+      description: Sorunu tekrarlamak için adımlar.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: android-version
+    attributes:
+      label: Android Sürümü
+      options:
+        - '16'
+        - '15'
+        - '14'
+        - '13'
+        - '12'
+        - '11'
+        - '10'
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Başlatıcı Sürümü
+      placeholder: 2.3.3
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Cihaz Bilgisi
+      placeholder: örn. Samsung S24, arm64
+    validations:
+      required: true

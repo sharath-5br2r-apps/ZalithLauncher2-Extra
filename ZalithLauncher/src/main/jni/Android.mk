@@ -35,6 +35,7 @@ LOCAL_SRC_FILES := \
     stdio_is.c \
     java_exec_hooks.c \
     lwjgl_dlopen_hook.c \
+    framegen/fps_limit.c
 
 ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
 LOCAL_CFLAGS += -DADRENO_POSSIBLE
@@ -112,4 +113,22 @@ include $(BUILD_SHARED_LIBRARY)
 
 # delete fake libs after linked
 $(info $(shell (rm $(HERE_PATH)/../jniLibs/*/libawt_headless.so)))
+
+
+LOCAL_PATH := $(HERE_PATH)
+include $(CLEAR_VARS)
+LOCAL_LDLIBS := -ldl -llog
+LOCAL_MODULE := namespace_shim
+LOCAL_SRC_FILES := namespace_shim.c
+include $(BUILD_SHARED_LIBRARY)
+
+
+include $(CLEAR_VARS)
+LOCAL_PATH := $(HERE_PATH)
+LOCAL_MODULE := zl_fsr
+LOCAL_CFLAGS += -rdynamic
+LOCAL_LDLIBS := -ldl -llog -lEGL -lGLESv2
+LOCAL_SRC_FILES := \
+    fsr/fsr_hook.cpp
+include $(BUILD_SHARED_LIBRARY)
 

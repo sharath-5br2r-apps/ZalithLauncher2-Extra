@@ -7,6 +7,7 @@
     <string name="generic_back">رجوع</string>
     <string name="generic_refresh">إعادة تحميل</string>
     <string name="generic_reset">إعادة تعيين</string>
+    <string name="skin_reset">إعادة تعيين المظهر</string>
     <string name="generic_delete">حذف</string>
     <string name="generic_rename">إعادة تسمية</string>
     <string name="generic_copy">نسخ</string>
@@ -357,6 +358,19 @@
     <string name="game_menu_option_show_menu_hided">تم تعطيل تراكب قائمة اللعبة. يمكنك فتح قائمة اللعبة باستخدام زر الرجوع في النظام.</string>
     <string name="game_menu_option_controls_opacity">تحكم في شفافية التخطيط</string>
     <string name="date_format">محدد تنسيق التاريخ الإقليمي، والذي يسمح بتحديد التنسيق وفقًا لاتفاقيات اللغة المحلية، ويتطلب وضع أي نص حرفي بين علامتي اقتباس مفردتين \'...\' حتى لا يتم تفسيره على أنه رموز تنسيق.</string>
+    <string name="game_styles_joystick">إدارة عصا التحكم</string>
+    <string name="game_styles_joystick_enable">تفعيل عصا التحكم</string>
+    <string name="game_styles_joystick_x">موقع عصا التحكم (محور X)</string>
+    <string name="game_styles_joystick_y">موقع عصا التحكم (محور Y)</string>
+    <string name="game_styles_joystick_size">حجم عصا التحكم</string>
+    <string name="game_styles_joystick_edit">تعديل نمط عصا التحكم</string>
+    <string name="game_styles_joystick_edit_use_control_layout">استخدام النمط المحدد في تخطيط عناصر التحكم</string>
+    <string name="game_styles_joystick_deadzone">نطاق منطقة الخمول لعصا التحكم</string>
+    <string name="game_styles_joystick_can_lock">قفل التحرك للأمام</string>
+    <string name="game_styles_joystick_lock_sprint">فرض الركض عند القفل</string>
+    <string name="game_styles_joystick_hide_when_mouse">إخفاء عند استخدام ماوس خارجي</string>
+    <string name="game_styles_joystick_hide_when_gamepad">إخفاء عند استخدام ذراع التحكم</string>
+    <string name="game_styles_save_failed">فشل حفظ النمط</string>
     <string name="renderer_version_support">دعم إصدارات MC:</string>
     <string name="renderer_version_unsupported_warning">العارض الحالي %s لا يدعم إصدار هذه اللعبة. الاستمرار في استخدامه قد يؤدي إلى أخطاء في العرض أو توقف مفاجئ! هل أنت متأكد من رغبتك في المتابعة؟</string>
     <string name="renderer_version_storage_permissions">يمكن ضبط العارض الحالي %s عبر ملف إعدادات. يرجى تفعيل إذن الوصول إلى وحدة التخزين الخارجية للمشغل أولاً، وإلا فلن يتمكن من قراءة وتحميل إعدادات العارض!</string>
@@ -491,7 +505,7 @@
     <string name="files_select_dir">اختيار مجلد</string>
     <string name="files_current_path">المسار الحالي: %s</string>
     <string name="files_no_selectable_content">لا يوجد محتوى قابل للاختيار</string>
-    <string name="file_invalid_length">الاسم طويل جداً! (الحالي: %d، الحد الأقصى: %d)</string>
+    <string name="file_invalid_length" formatted="false">الاسم طويل جداً! (الحالي: %d، الحد الأقصى: %d)</string>
     <string name="file_invalid_leading_or_trailing_space">لا يمكن البدء أو الانتهاء بمسافة!</string>
     <string name="multirt_runtime_corrupt">بيئة تشغيل Java تالفة</string>
     <string name="multirt_runtime_incompatible_arch">بنية غير متوافقة: %s</string>

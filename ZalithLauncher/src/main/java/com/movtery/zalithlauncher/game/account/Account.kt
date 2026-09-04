@@ -22,6 +22,8 @@ import android.os.Parcelable
 import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+import com.movtery.zalithlauncher.game.account.wardrobe.AccountCapeCollection
 import com.movtery.zalithlauncher.game.account.wardrobe.CapeFileDownloader
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinFileDownloader
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
@@ -42,6 +44,7 @@ private const val TAG = "Account"
 @Keep
 @Parcelize
 @Entity(tableName = "accounts")
+@Serializable
 data class Account(
     /**
      * 唯一 UUID，标识该账号
@@ -66,7 +69,11 @@ data class Account(
 
     fun getSkinFile() = File(PathManager.DIR_ACCOUNT_SKIN, "$uniqueUUID.png")
 
-    fun getCapeFile() = File(PathManager.DIR_ACCOUNT_CAPE, "$uniqueUUID.png")
+    fun getCapeFile(): File {
+        AccountCapeCollection.migrateLegacy(uniqueUUID)
+        return AccountCapeCollection.getActiveCapeFile(uniqueUUID)
+            ?: File(PathManager.DIR_ACCOUNT_CAPE, "$uniqueUUID.png")
+    }
 
     private fun getTempSkinFile() = File(PathManager.DIR_CACHE, "account_skin_${uniqueUUID}.tmp.png")
     private fun getTempCapeFile() = File(PathManager.DIR_CACHE, "account_cape_${uniqueUUID}.tmp.png")

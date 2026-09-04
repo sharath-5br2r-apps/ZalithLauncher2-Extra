@@ -81,6 +81,7 @@ import com.movtery.zalithlauncher.ui.control.mouse.notAllowedPointerFile
 import com.movtery.zalithlauncher.ui.control.mouse.resizeAllPointerFile
 import com.movtery.zalithlauncher.ui.control.mouse.resizeEWPointerFile
 import com.movtery.zalithlauncher.ui.control.mouse.resizeNSPointerFile
+
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -164,8 +165,8 @@ fun ControlSettingsScreen(
                             eventViewModel = eventViewModel
                         )
                     }
+                    }
                 }
-            }
 
             AnimatedItem(scope) { yOffset ->
                 SettingsCardColumn(
@@ -726,6 +727,13 @@ private fun MousePointerCard(
                     centerIcon = true,
                     triggerRefresh = triggerState,
                     crossfade = true
+                )
+
+                IconTextButton(
+                    onClick = { filePicker.launch(Unit) },
+                    painter = painterResource(R.drawable.ic_upload),
+                    contentDescription = stringResource(R.string.generic_import),
+                    text = stringResource(R.string.generic_import)
                 )
 
                 IconTextButton(

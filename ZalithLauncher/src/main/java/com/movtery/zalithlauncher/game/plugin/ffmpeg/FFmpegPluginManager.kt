@@ -22,6 +22,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.movtery.zalithlauncher.game.plugin.ApkPlugin
 import com.movtery.zalithlauncher.game.plugin.cacheAppIcon
+import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.utils.logging.Logger
 import java.io.File
 
@@ -36,15 +37,9 @@ object FFmpegPluginManager {
     var executablePath: String? = null
         private set
 
-    /**
-     * 插件是否可用
-     */
     var isAvailable: Boolean = false
         private set
 
-    /**
-     * 加载 FFmpeg 插件
-     */
     fun loadPlugin(
         context: Context,
         loaded: (ApkPlugin) -> Unit = {}
@@ -57,25 +52,32 @@ object FFmpegPluginManager {
                     PackageManager.GET_SHARED_LIBRARY_FILES
                 )
             } catch (_: PackageManager.NameNotFoundException) {
-                //未安装
-                return
+                null
             }
-            val applicationInfo = info.applicationInfo!!
-            libraryPath = applicationInfo.nativeLibraryDir
+            if (info != null) {
+                val applicationInfo = info.applicationInfo!!
+                libraryPath = applicationInfo.nativeLibraryDir
+                val ffmpegExecutable = File(libraryPath, "libffmpeg.so")
+                executablePath = ffmpegExecutable.absolutePath
+                isAvailable = ffmpegExecutable.exists()
+
+                if (isAvailable) {
+                    cacheAppIcon(context, applicationInfo)
+                    runCatching {
+                        ApkPlugin(
+                            packageName = PLUGIN_PACKAGE_NAME,
+                            appName = applicationInfo.loadLabel(manager).toString(),
+                            appVersion = manager.getPackageInfo(PLUGIN_PACKAGE_NAME, 0).versionName ?: ""
+                        )
+                    }.getOrNull()?.let { loaded(it) }
+                    return
+                }
+            }
+            // 内置 FFmpeg
+            libraryPath = PathManager.DIR_NATIVE_LIB
             val ffmpegExecutable = File(libraryPath, "libffmpeg.so")
             executablePath = ffmpegExecutable.absolutePath
             isAvailable = ffmpegExecutable.exists()
-
-            if (isAvailable) {
-                cacheAppIcon(context, applicationInfo)
-                runCatching {
-                    ApkPlugin(
-                        packageName = PLUGIN_PACKAGE_NAME,
-                        appName = applicationInfo.loadLabel(manager).toString(),
-                        appVersion = manager.getPackageInfo(PLUGIN_PACKAGE_NAME, 0).versionName ?: ""
-                    )
-                }.getOrNull()?.let { loaded(it) }
-            }
         }.onFailure { e ->
             Logger.warning(TAG, "Failed to discover plugin", e)
         }

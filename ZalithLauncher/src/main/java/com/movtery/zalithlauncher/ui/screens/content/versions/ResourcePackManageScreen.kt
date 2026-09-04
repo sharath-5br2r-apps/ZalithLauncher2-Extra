@@ -47,6 +47,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,7 +55,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Surface
@@ -89,11 +89,12 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
+import com.movtery.zalithlauncher.game.download.assets.platform.Platform
+import com.movtery.zalithlauncher.game.version.resource_pack.RemoteResourcePack
 import com.movtery.zalithlauncher.game.version.resource_pack.ResourcePackInfo
 import com.movtery.zalithlauncher.game.version.resource_pack.parseResourcePack
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
-import com.movtery.zalithlauncher.ui.components.ContentCheckBox
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.ProgressDialog
@@ -111,12 +112,14 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.SortByEnum
 import com.movtery.zalithlauncher.ui.screens.content.elements.rememberMultipleUriImportTaskBuilder
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ByteArrayIcon
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.DeleteAllOperation
-import com.movtery.zalithlauncher.ui.screens.content.versions.elements.FileNameInputDialog
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.DisabledStateIcon
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.LoadingState
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.MinecraftColorTextNormal
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.PackStateFilter
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ResourcePackFilter
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ResourcePackOperation
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.filterPacks
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.filterRemotePacks
 import com.movtery.zalithlauncher.ui.screens.content.versions.layouts.VersionChunkBackground
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
@@ -128,21 +131,27 @@ import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
+import java.util.LinkedList
+import kotlin.time.Duration.Companion.milliseconds
 
 private class ResourcePackManageViewModel(
     val resourcePackDir: File
 ) : ViewModel() {
-    var packFilter by mutableStateOf(ResourcePackFilter(false, ""))
+    var packFilter by mutableStateOf(ResourcePackFilter())
         private set
 
-    var allPacks by mutableStateOf<List<ResourcePackInfo>>(emptyList())
+    var allPacks by mutableStateOf<List<RemoteResourcePack>>(emptyList())
         private set
-    var filteredPacks by mutableStateOf<List<ResourcePackInfo>?>(null)
+    var filteredPacks by mutableStateOf<List<RemoteResourcePack>?>(null)
         private set
     var sortByEnum by mutableStateOf(SortByEnum.Name)
         private set
@@ -152,22 +161,17 @@ private class ResourcePackManageViewModel(
     var packState by mutableStateOf<LoadingState>(LoadingState.None)
         private set
 
-    /**
-     * 已选择的文件
-     */
-    val selectedPacks = mutableStateListOf<ResourcePackInfo>()
+    var enabledCount by mutableStateOf(-1)
+        private set
+    var disabledCount by mutableStateOf(-1)
+        private set
 
-    /**
-     * 删除所有已选择文件的操作流程
-     */
+    val selectedPacks = mutableStateListOf<RemoteResourcePack>()
+
     var deleteAllOperation by mutableStateOf<DeleteAllOperation>(DeleteAllOperation.None)
 
-    /** 临时记录的资源包数量 */
     private var packCount = FolderFileCounter(resourcePackDir)
 
-    /**
-     * 全选所有文件
-     */
     fun selectAllFiles() {
         filteredPacks?.forEach { pack ->
             if (!selectedPacks.contains(pack)) selectedPacks.add(pack)
@@ -180,31 +184,86 @@ private class ResourcePackManageViewModel(
         }
     }
 
+    fun refreshCounter() {
+        allPacks.also { list ->
+            val counts = list.fold(Pair(0, 0)) { (enabled, disabled), pack ->
+                if (pack.info.isEnabled) Pair(enabled + 1, disabled) else Pair(enabled, disabled + 1)
+            }
+            enabledCount = counts.first
+            disabledCount = counts.second
+        }
+    }
+
+    fun enableSelectedPacks() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                selectedPacks.forEach { pack ->
+                    val info = pack.info
+                    if (!info.isEnabled) {
+                        val newName = info.file.name.dropLast(9)
+                        info.file.renameTo(File(resourcePackDir, newName))
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) { selectedPacks.clear() }
+            refresh(checkCount = false)
+        }
+    }
+
+    fun disableSelectedPacks() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                selectedPacks.forEach { pack ->
+                    val info = pack.info
+                    if (info.isEnabled) {
+                        info.file.renameTo(File(resourcePackDir, "${info.file.name}.disabled"))
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) { selectedPacks.clear() }
+            refresh(checkCount = false)
+        }
+    }
+
+    fun togglePackEnabled(pack: RemoteResourcePack) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val info = pack.info
+                if (info.isEnabled) {
+                    info.file.renameTo(File(resourcePackDir, "${info.file.name}.disabled"))
+                } else {
+                    val newName = info.file.name.dropLast(9)
+                    info.file.renameTo(File(resourcePackDir, newName))
+                }
+            }
+            refresh(checkCount = false)
+        }
+    }
+
     private var job: Job? = null
-    /**
-     * @param checkCount 刷新目录内文件数量记录
-     */
     fun refresh(
         checkCount: Boolean = true
     ) {
+        job?.cancel()
         job = viewModelScope.launch {
             packState = LoadingState.Loading
             selectedPacks.clear()
             if (checkCount) packCount.checkDir()
 
             withContext(Dispatchers.IO) {
-                val tempList = mutableListOf<ResourcePackInfo>()
+                val tempList = mutableListOf<RemoteResourcePack>()
                 try {
                     resourcePackDir.listFiles()?.forEach { file ->
                         parseResourcePack(file)?.let {
                             ensureActive()
-                            tempList.add(it)
+                            tempList.add(RemoteResourcePack(it))
                         }
                     }
                 } catch (_: CancellationException) {
                     return@withContext
                 }
-                allPacks = tempList.sortedBy { it.rawName }
+                allPacks = tempList.sortedBy { it.info.rawName }
+                refreshCounter()
                 filterPacks()
             }
 
@@ -220,8 +279,14 @@ private class ResourcePackManageViewModel(
         }
     }
 
+    private val queueMutex = Mutex()
+    private val packsToLoad = mutableListOf<RemoteResourcePack>()
+    private val loadQueue = LinkedList<Pair<RemoteResourcePack, Boolean>>()
+    private val semaphore = Semaphore(8)
+
     init {
         refresh(checkCount = false)
+        startQueueProcessor()
     }
 
     fun updateFilter(filter: ResourcePackFilter) {
@@ -246,19 +311,59 @@ private class ResourcePackManageViewModel(
     private fun filterPacks() {
         filteredPacks = allPacks
             .takeIf { it.isNotEmpty() }
-            ?.filterPacks(packFilter)
-            ?.sortedWith { o1, o2 ->
+            ?.filterRemotePacks(packFilter)
+            ?.sortedWith { o1: RemoteResourcePack, o2: RemoteResourcePack ->
+                val info1 = o1.info
+                val info2 = o2.info
                 val value = when (sortByEnum) {
-                    SortByEnum.Name -> o1.displayName.compareTo(o2.displayName)
-                    SortByEnum.FileModifiedTime -> o2.file.lastModified().compareTo(o1.file.lastModified())
+                    SortByEnum.Name -> info1.displayName.compareTo(info2.displayName)
+                    SortByEnum.FileModifiedTime -> info2.file.lastModified().compareTo(info1.file.lastModified())
                     else -> error("This sorting method is not supported: $sortByEnum")
                 }
-                if (isAscending) {
-                    value
-                } else {
-                    -value
+                if (isAscending) value else -value
+            }
+    }
+
+    private fun startQueueProcessor() {
+        viewModelScope.launch {
+            while (true) {
+                try {
+                    ensureActive()
+                } catch (_: Exception) {
+                    break
+                }
+
+                val task = queueMutex.withLock {
+                    loadQueue.poll()
+                } ?: run {
+                    delay(100.milliseconds)
+                    continue
+                }
+
+                val (pack, loadFromCache) = task
+                semaphore.acquire()
+
+                launch {
+                    try {
+                        pack.load(loadFromCache)
+                    } finally {
+                        semaphore.release()
+                        packsToLoad.remove(pack)
+                    }
                 }
             }
+        }
+    }
+
+    fun loadResourcePack(pack: RemoteResourcePack, loadFromCache: Boolean = true) {
+        if (packsToLoad.contains(pack)) return
+
+        packsToLoad.add(pack)
+        viewModelScope.launch {
+            queueMutex.withLock {
+                loadQueue.add(pack to loadFromCache)
+            }
+        }
     }
 
     override fun onCleared() {
@@ -286,6 +391,7 @@ fun ResourcePackManageScreen(
     version: Version,
     backToMainScreen: () -> Unit,
     swapToDownload: () -> Unit,
+    onSwapMoreInfo: (id: String, Platform) -> Unit = { _, _ -> },
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     if (!version.isValid()) {
@@ -341,18 +447,9 @@ fun ResourcePackManageScreen(
                             viewModel.refresh()
                         }
                     }
-                    ResourcePackOperation(
-                        resourcePackDir = resourcePackDir,
+                    ResourcePackOperationHandler(
                         resourcePackOperation = resourcePackOperation,
                         updateOperation = { resourcePackOperation = it },
-                        onRename = { newName, packInfo ->
-                            runProgress {
-                                val extension = if (packInfo.file.isFile) {
-                                    ".${packInfo.file.extension}"
-                                } else ""
-                                packInfo.file.renameTo(File(resourcePackDir, "$newName$extension"))
-                            }
-                        },
                         onDelete = { packInfo ->
                             runProgress {
                                 FileUtils.deleteQuietly(packInfo.file)
@@ -370,6 +467,9 @@ fun ResourcePackManageScreen(
                             onSortByChanged = { viewModel.updateSortBy(it) },
                             isAscending = viewModel.isAscending,
                             onToggleSortOrder = { viewModel.updateSortOrder() },
+                            allPacksCount = viewModel.allPacks.size,
+                            enabledCount = viewModel.enabledCount.takeIf { it >= 0 },
+                            disabledCount = viewModel.disabledCount.takeIf { it >= 0 },
                             resourcePackDir = resourcePackDir,
                             onDeleteAll = {
                                 val selected = viewModel.selectedPacks
@@ -378,19 +478,17 @@ fun ResourcePackManageScreen(
                                     selected.isNotEmpty()
                                 ) {
                                     viewModel.deleteAllOperation = DeleteAllOperation.Warning(
-                                        files = selected.map { pack ->
-                                            pack.file
-                                        }
+                                        files = selected.map { pack -> pack.info.file }
                                     )
                                 }
                             },
                             isFilesSelected = viewModel.selectedPacks.isNotEmpty(),
                             onSelectAll = { viewModel.selectAllFiles() },
                             onClearFilesSelected = { viewModel.clearSelected() },
+                            onEnableAll = { viewModel.enableSelectedPacks() },
+                            onDisableAll = { viewModel.disableSelectedPacks() },
                             swapToDownload = swapToDownload,
-                            onRefresh = {
-                                viewModel.refresh()
-                            },
+                            onRefresh = { viewModel.refresh() },
                             submitError = submitError,
                         )
 
@@ -402,7 +500,10 @@ fun ResourcePackManageScreen(
                             selectedPacks = viewModel.selectedPacks,
                             removeFromSelected = { viewModel.selectedPacks.remove(it) },
                             addToSelected = { viewModel.selectedPacks.add(it) },
-                            updateOperation = { resourcePackOperation = it }
+                            onToggleEnabled = { viewModel.togglePackEnabled(it) },
+                            updateOperation = { resourcePackOperation = it },
+                            onSwapMoreInfo = onSwapMoreInfo,
+                            onLoad = { viewModel.loadResourcePack(it) }
                         )
                     }
                 }
@@ -429,11 +530,16 @@ private fun ResourcePackHeader(
     onSortByChanged: (SortByEnum) -> Unit,
     isAscending: Boolean,
     onToggleSortOrder: () -> Unit,
+    allPacksCount: Int,
+    enabledCount: Int?,
+    disabledCount: Int?,
     resourcePackDir: File,
     onDeleteAll: () -> Unit,
     isFilesSelected: Boolean,
     onSelectAll: () -> Unit,
     onClearFilesSelected: () -> Unit,
+    onEnableAll: () -> Unit,
+    onDisableAll: () -> Unit,
     swapToDownload: () -> Unit,
     onRefresh: () -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
@@ -448,11 +554,54 @@ private fun ResourcePackHeader(
                 .padding(top = 4.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 状态过滤器
                 Box {
                     var expanded by remember { mutableStateOf(false) }
-                    IconButton(
-                        onClick = { expanded = !expanded }
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_filter_alt_outlined),
+                            contentDescription = stringResource(R.string.mods_update_task_filter)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        shape = MaterialTheme.shapes.large
                     ) {
+                        PackStateFilter.entries.forEach { filter ->
+                            val count = when (filter) {
+                                PackStateFilter.Enabled -> enabledCount
+                                PackStateFilter.Disabled -> disabledCount
+                                else -> allPacksCount
+                            }
+                            DropdownMenuItem(
+                                text = {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(text = stringResource(filter.textRes))
+                                        if (count != null) Text(text = "($count)")
+                                    }
+                                },
+                                onClick = {
+                                    changePackFilter(packFilter.copy(stateFilter = filter))
+                                    expanded = false
+                                },
+                                trailingIcon = if (filter == packFilter.stateFilter) {
+                                    {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_check),
+                                            contentDescription = null
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
+                // 排序
+                Box {
+                    var expanded by remember { mutableStateOf(false) }
+                    IconButton(onClick = { expanded = !expanded }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_sort),
                             contentDescription = stringResource(R.string.sort_by)
@@ -478,7 +627,7 @@ private fun ResourcePackHeader(
                     hint = {
                         Text(
                             text = stringResource(R.string.generic_search),
-                            style = TextStyle(color = LocalContentColor.current).copy(fontSize = 12.sp)
+                            style = TextStyle(color = androidx.compose.ui.graphics.Color.Unspecified).copy(fontSize = 12.sp)
                         )
                     },
                     color = inputFieldColor,
@@ -491,32 +640,40 @@ private fun ResourcePackHeader(
                     visible = isFilesSelected
                 ) {
                     Row {
-                        IconButton(
-                            onClick = onDeleteAll
-                        ) {
+                        IconButton(onClick = onDeleteAll) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_delete_outlined),
                                 contentDescription = null
                             )
                         }
 
-                        IconButton(
-                            onClick = onSelectAll
-                        ) {
+                        IconButton(onClick = onSelectAll) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_select_all),
                                 contentDescription = null
                             )
                         }
 
-                        IconButton(
-                            onClick = {
-                                if (isFilesSelected) onClearFilesSelected()
-                            }
-                        ) {
+                        IconButton(onClick = { if (isFilesSelected) onClearFilesSelected() }) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_deselect),
                                 contentDescription = null
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        IconButton(onClick = onEnableAll) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_outlined),
+                                contentDescription = stringResource(R.string.generic_enable)
+                            )
+                        }
+
+                        IconButton(onClick = onDisableAll) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_off_outlined),
+                                contentDescription = stringResource(R.string.generic_disable)
                             )
                         }
 
@@ -548,18 +705,6 @@ private fun ResourcePackHeader(
                         .horizontalScroll(scrollState),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ContentCheckBox(
-                        checked = packFilter.onlyShowValid,
-                        onCheckedChange = { changePackFilter(packFilter.copy(onlyShowValid = it)) }
-                    ) {
-                        Text(
-                            text = stringResource(R.string.manage_only_show_valid),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
                     val taskBuilder = rememberMultipleUriImportTaskBuilder(
                         id = "ContentManager.ResourcePacks.Import",
                         targetDir = resourcePackDir,
@@ -570,9 +715,7 @@ private fun ResourcePackHeader(
                     ImportMultipleFileButton(
                         extension = "zip",
                         progressUris = { uris ->
-                            TaskSystem.submitTask(
-                                taskBuilder(uris)
-                            )
+                            TaskSystem.submitTask(taskBuilder(uris))
                         }
                     )
 
@@ -582,9 +725,7 @@ private fun ResourcePackHeader(
                         text = stringResource(R.string.generic_download)
                     )
 
-                    IconButton(
-                        onClick = onRefresh
-                    ) {
+                    IconButton(onClick = onRefresh) {
                         Icon(
                             painter = painterResource(R.drawable.ic_refresh),
                             contentDescription = stringResource(R.string.generic_refresh)
@@ -599,11 +740,14 @@ private fun ResourcePackHeader(
 @Composable
 private fun ResourcePackList(
     modifier: Modifier = Modifier,
-    packList: List<ResourcePackInfo>?,
-    selectedPacks: List<ResourcePackInfo>,
-    removeFromSelected: (ResourcePackInfo) -> Unit,
-    addToSelected: (ResourcePackInfo) -> Unit,
-    updateOperation: (ResourcePackOperation) -> Unit
+    packList: List<RemoteResourcePack>?,
+    selectedPacks: List<RemoteResourcePack>,
+    removeFromSelected: (RemoteResourcePack) -> Unit,
+    addToSelected: (RemoteResourcePack) -> Unit,
+    onToggleEnabled: (RemoteResourcePack) -> Unit,
+    updateOperation: (ResourcePackOperation) -> Unit,
+    onSwapMoreInfo: (id: String, Platform) -> Unit,
+    onLoad: (RemoteResourcePack) -> Unit
 ) {
     packList?.let { list ->
         if (list.isNotEmpty()) {
@@ -616,27 +760,29 @@ private fun ResourcePackList(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 state = scrollState,
             ) {
-                items(list) { pack ->
+                items(
+                    items = list,
+                    key = { it.info.file.absolutePath },
+                    contentType = { "pack" }
+                ) { pack ->
                     ResourcePackItemLayout(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp),
-                        resourcePackInfo = pack,
+                        resourcePack = pack,
                         selected = selectedPacks.contains(pack),
                         onClick = {
-                            if (selectedPacks.contains(pack)) {
-                                removeFromSelected(pack)
-                            } else {
-                                addToSelected(pack)
-                            }
+                            if (selectedPacks.contains(pack)) removeFromSelected(pack)
+                            else addToSelected(pack)
                         },
-                        updateOperation = updateOperation
+                        onToggleEnabled = { onToggleEnabled(pack) },
+                        onDelete = { updateOperation(ResourcePackOperation.DeletePack(pack.info)) },
+                        onSwapMoreInfo = onSwapMoreInfo,
+                        onLoad = { onLoad(pack) }
                     )
                 }
             }
         } else {
-            //如果列表是空的，则是由搜索导致的
-            //展示“无匹配项”文本
             Box(modifier = Modifier.fillMaxSize()) {
                 ScalingLabel(
                     modifier = Modifier.align(Alignment.Center),
@@ -645,7 +791,6 @@ private fun ResourcePackList(
             }
         }
     } ?: run {
-        //如果为null，则代表本身就没有资源包可以展示
         Box(modifier = Modifier.fillMaxSize()) {
             ScalingLabel(
                 modifier = Modifier.align(Alignment.Center),
@@ -659,18 +804,22 @@ private fun ResourcePackList(
 @Composable
 private fun ResourcePackItemLayout(
     modifier: Modifier = Modifier,
-    resourcePackInfo: ResourcePackInfo,
+    resourcePack: RemoteResourcePack,
     selected: Boolean,
     onClick: () -> Unit = {},
+    onToggleEnabled: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onSwapMoreInfo: (id: String, Platform) -> Unit = { _, _ -> },
+    onLoad: () -> Unit = {},
     itemColor: Color = itemColor(),
     itemContentColor: Color = onItemColor(),
     borderColor: Color = MaterialTheme.colorScheme.primary,
     shape: Shape = MaterialTheme.shapes.large,
-    updateOperation: (ResourcePackOperation) -> Unit
 ) {
+    val resourcePackInfo = resourcePack.info
+
     val borderWidth by animateDpAsState(
-        if (selected) 2.dp
-        else (-1).dp
+        if (selected) 2.dp else (-1).dp
     )
 
     val scale = remember { Animatable(initialValue = 0.95f) }
@@ -678,14 +827,14 @@ private fun ResourcePackItemLayout(
         scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
     }
 
+    LaunchedEffect(resourcePack) {
+        onLoad()
+    }
+
     Surface(
         modifier = modifier
             .graphicsLayer(scaleY = scale.value, scaleX = scale.value)
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = shape
-            ),
+            .border(width = borderWidth, color = borderColor, shape = shape),
         onClick = onClick,
         shape = shape,
         color = itemColor,
@@ -695,13 +844,19 @@ private fun ResourcePackItemLayout(
             modifier = Modifier.padding(all = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ByteArrayIcon(
+            DisabledStateIcon(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(shape = RoundedCornerShape(10.dp)),
-                triggerRefresh = resourcePackInfo,
-                icon = resourcePackInfo.icon
-            )
+                isDisabled = !resourcePackInfo.isEnabled
+            ) { colorFilter ->
+                ByteArrayIcon(
+                    modifier = Modifier.fillMaxSize(),
+                    triggerRefresh = resourcePackInfo,
+                    icon = resourcePackInfo.icon,
+                    colorFilter = colorFilter
+                )
+            }
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -724,27 +879,41 @@ private fun ResourcePackItemLayout(
 
             Row(
                 modifier = Modifier.align(Alignment.CenterVertically),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (resourcePackInfo.isValid) {
-                    //详细信息展示
-                    TooltipIconButton(
-                        modifier = Modifier.size(38.dp),
-                        tooltip = {
-                            RichTooltip(
-                                modifier = Modifier.padding(all = 3.dp),
-                                title = { Text(text = stringResource(R.string.resource_pack_manage_info)) },
-                                shadowElevation = 3.dp
-                            ) {
-                                ResourcePackInfoTooltip(resourcePackInfo)
+                    val projectInfo = resourcePack.projectInfo
+                    if (projectInfo != null) {
+                        IconButton(
+                            modifier = Modifier.size(38.dp),
+                            onClick = {
+                                onSwapMoreInfo(projectInfo.id, projectInfo.platform)
                             }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info_outlined),
+                                contentDescription = stringResource(R.string.resource_pack_manage_info)
+                            )
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_info_outlined),
-                            contentDescription = stringResource(R.string.saves_manage_info)
-                        )
+                    } else {
+                        TooltipIconButton(
+                            modifier = Modifier.size(38.dp),
+                            tooltip = {
+                                RichTooltip(
+                                    modifier = Modifier.padding(all = 3.dp),
+                                    title = { Text(text = stringResource(R.string.resource_pack_manage_info)) },
+                                    shadowElevation = 3.dp
+                                ) {
+                                    ResourcePackInfoTooltip(resourcePackInfo)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info_outlined),
+                                contentDescription = stringResource(R.string.saves_manage_info)
+                            )
+                        }
                     }
                 } else {
                     Text(
@@ -754,94 +923,30 @@ private fun ResourcePackItemLayout(
                     )
                 }
 
-                //更多操作
-                ResourcePackOperationMenu(
-                    resourcePackInfo = resourcePackInfo,
-                    buttonSize = 38.dp,
-                    iconSize = 26.dp,
-                    onRenameClick = {
-                        updateOperation(ResourcePackOperation.RenamePack(resourcePackInfo))
-                    },
-                    onDeleteClick = {
-                        updateOperation(ResourcePackOperation.DeletePack(resourcePackInfo))
-                    }
+                Checkbox(
+                    checked = resourcePackInfo.isEnabled,
+                    onCheckedChange = { onToggleEnabled() }
                 )
+
+                IconButton(
+                    modifier = Modifier.size(38.dp),
+                    onClick = onDelete
+                ) {
+                    Icon(
+                        modifier = Modifier.size(26.dp),
+                        painter = painterResource(R.drawable.ic_delete_outlined),
+                        contentDescription = stringResource(R.string.generic_delete)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ResourcePackOperationMenu(
-    resourcePackInfo: ResourcePackInfo,
-    buttonSize: Dp,
-    iconSize: Dp = buttonSize,
-    onRenameClick: () -> Unit = {},
-    onDeleteClick: () -> Unit = {}
-) {
-    Row {
-        var menuExpanded by remember { mutableStateOf(false) }
-
-        IconButton(
-            modifier = Modifier.size(buttonSize),
-            onClick = { menuExpanded = !menuExpanded }
-        ) {
-            Icon(
-                modifier = Modifier.size(iconSize),
-                painter = painterResource(R.drawable.ic_more_horiz),
-                contentDescription = stringResource(R.string.generic_more)
-            )
-        }
-
-        DropdownMenu(
-            expanded = menuExpanded,
-            shape = MaterialTheme.shapes.large,
-            shadowElevation = 3.dp,
-            onDismissRequest = { menuExpanded = false }
-        ) {
-            DropdownMenuItem(
-                enabled = resourcePackInfo.isValid,
-                text = {
-                    Text(text = stringResource(R.string.generic_rename))
-                },
-                leadingIcon = {
-                    Icon(
-                        modifier = Modifier.size(20.dp),
-                        painter = painterResource(R.drawable.ic_edit_filled),
-                        contentDescription = stringResource(R.string.generic_rename)
-                    )
-                },
-                onClick = {
-                    onRenameClick()
-                    menuExpanded = false
-                }
-            )
-            DropdownMenuItem(
-                text = {
-                    Text(text = stringResource(R.string.generic_delete))
-                },
-                leadingIcon = {
-                    Icon(
-                        modifier = Modifier.size(20.dp),
-                        painter = painterResource(R.drawable.ic_delete_filled),
-                        contentDescription = stringResource(R.string.generic_delete)
-                    )
-                },
-                onClick = {
-                    onDeleteClick()
-                    menuExpanded = false
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun ResourcePackOperation(
-    resourcePackDir: File,
+private fun ResourcePackOperationHandler(
     resourcePackOperation: ResourcePackOperation,
     updateOperation: (ResourcePackOperation) -> Unit,
-    onRename: (String, ResourcePackInfo) -> Unit,
     onDelete: (ResourcePackInfo) -> Unit
 ) {
     when (resourcePackOperation) {
@@ -849,41 +954,12 @@ private fun ResourcePackOperation(
         is ResourcePackOperation.Progress -> {
             ProgressDialog()
         }
-        is ResourcePackOperation.RenamePack -> {
-            val packInfo = resourcePackOperation.packInfo
-            FileNameInputDialog(
-                initValue = packInfo.displayName,
-                existsCheck = { value ->
-                    val fileName = if (packInfo.file.isDirectory) {
-                        value //文件夹类型，不做扩展名处理
-                    } else {
-                        "$value.${packInfo.file.extension}"
-                    }
-
-                    if (File(resourcePackDir, fileName).exists()) {
-                        stringResource(R.string.resource_pack_manage_exists)
-                    } else {
-                        null
-                    }
-                },
-                title = stringResource(R.string.generic_rename),
-                label = stringResource(R.string.resource_pack_manage_name),
-                onDismissRequest = {
-                    updateOperation(ResourcePackOperation.None)
-                },
-                onConfirm = { value ->
-                    onRename(value, packInfo)
-                }
-            )
-        }
         is ResourcePackOperation.DeletePack -> {
             val packInfo = resourcePackOperation.packInfo
             SimpleAlertDialog(
                 title = stringResource(R.string.generic_warning),
                 text = stringResource(R.string.resource_pack_manage_delete_warning, packInfo.file.name),
-                onDismiss = {
-                    updateOperation(ResourcePackOperation.None)
-                },
+                onDismiss = { updateOperation(ResourcePackOperation.None) },
                 onConfirm = {
                     onDelete(packInfo)
                     updateOperation(ResourcePackOperation.None)
@@ -898,7 +974,6 @@ private fun ResourcePackInfoTooltip(
     resourcePackInfo: ResourcePackInfo
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        //资源包类型
         Text(
             text = stringResource(
                 R.string.resource_pack_manage_type,
@@ -909,13 +984,10 @@ private fun ResourcePackInfoTooltip(
                 }
             )
         )
-        //文件名称
         Text(text = stringResource(R.string.generic_file_name, resourcePackInfo.file.name))
-        //文件大小
         resourcePackInfo.fileSize?.let { fileSize ->
             Text(text = stringResource(R.string.generic_file_size, formatFileSize(fileSize)))
         }
-        //格式版本
         resourcePackInfo.packFormat?.let { packFormat ->
             Text(text = stringResource(R.string.resource_pack_manage_formats, packFormat.toString()))
         }

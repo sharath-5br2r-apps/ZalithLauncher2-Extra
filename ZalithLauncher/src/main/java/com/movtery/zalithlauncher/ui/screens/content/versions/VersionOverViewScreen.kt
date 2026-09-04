@@ -90,6 +90,7 @@ fun VersionOverViewScreen(
     versionsScreenKey: TitledNavKey?,
     backToMainScreen: () -> Unit,
     onExport: () -> Unit,
+    onOpenFolder: (path: String) -> Unit,
     eventViewModel: EventViewModel,
     version: Version,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit

@@ -1,0 +1,68 @@
+name: Bug 反馈 (中文)
+description: 报告一个 Bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 清晰详细地描述您遇到的问题。
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志文件
+      description: 请附上日志文件。请不要忘记添加日志！
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或视频
+      description: 可选，但有帮助。
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 复现问题的步骤。
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: android-version
+    attributes:
+      label: Android 版本
+      options:
+        - '16'
+        - '15'
+        - '14'
+        - '13'
+        - '12'
+        - '11'
+        - '10'
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 启动器版本
+      placeholder: 2.3.3
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备信息
+      placeholder: 例如 Samsung S24, arm64
+    validations:
+      required: true

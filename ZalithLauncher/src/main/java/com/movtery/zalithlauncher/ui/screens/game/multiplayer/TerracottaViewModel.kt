@@ -107,7 +107,22 @@ class TerracottaViewModel(
         if (!Terracotta.initialized) initialize()
         if (allJobs.isEmpty()) initJobs()
 
+        //提前申请VPN权限，避免等到实际开始联机（Host/Guest）后才弹出授权对话框
+        requestVpnPermissionEarly()
+
         operation = TerracottaOperation.ShowMenu
+    }
+
+    /**
+     * 在打开联机菜单时提前申请一次VPN权限。
+     * 如果已经授权，则什么都不做——真正的VPN服务启动时机仍然由原生层的 RequestVPN 事件决定。
+     */
+    private fun requestVpnPermissionEarly() {
+        val activity = gameHandler.activity
+        val intent = VpnService.prepare(activity)
+        if (intent != null) {
+            vpnLauncher?.launch(intent)
+        }
     }
 
     private val logMutex = Mutex()

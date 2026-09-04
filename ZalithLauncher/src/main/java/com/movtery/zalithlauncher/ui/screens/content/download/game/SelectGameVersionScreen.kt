@@ -131,10 +131,10 @@ private data class VersionFilter(
     val snapshot: Boolean = false,
     val aprilFools: Boolean = false,
     val old: Boolean = false,
-    val id: String = ""
+    val id: String = "",
 )
 
-private class VersionsViewModel: ViewModel() {
+private class VersionsViewModel : ViewModel() {
     var versionState by mutableStateOf<VersionState>(VersionState.Loading)
         private set
 
@@ -177,7 +177,6 @@ private class VersionsViewModel: ViewModel() {
     }
 
     init {
-        //初始化后，刷新版本列表
         refresh()
     }
 
@@ -284,17 +283,18 @@ fun SelectGameVersionScreen(
  */
 private fun List<MinecraftVersion>.filterVersions(
     versionFilter: VersionFilter
-) = this.filter { version ->
-    version.isType(
-        release = versionFilter.release,
-        snapshot = versionFilter.snapshot,
-        aprilFools = versionFilter.aprilFools,
-        old = versionFilter.old
-    )
-}.filter { version ->
-    //Fix：单独过滤版本名称
-    val versionId = versionFilter.id
-    versionId.isEmptyOrBlank() || version.version.id.contains(versionId)
+): List<MinecraftVersion> {
+    return this.filter { version ->
+        version.isType(
+            release = versionFilter.release,
+            snapshot = versionFilter.snapshot,
+            aprilFools = versionFilter.aprilFools,
+            old = versionFilter.old
+        )
+    }.filter { version ->
+        val versionId = versionFilter.id
+        versionId.isEmptyOrBlank() || version.version.id.contains(versionId)
+    }
 }
 
 @Composable

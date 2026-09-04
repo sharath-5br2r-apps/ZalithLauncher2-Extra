@@ -21,15 +21,21 @@ package com.movtery.zalithlauncher.ui.screens.game
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -46,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalContext
@@ -83,9 +90,13 @@ import com.movtery.zalithlauncher.game.sdl.SdlTextSender
 import com.movtery.zalithlauncher.game.support.touch_controller.touchControllerInputModifier
 import com.movtery.zalithlauncher.game.support.touch_controller.touchControllerTouchModifier
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.game.recorder.GameRecorder
+import com.movtery.zalithlauncher.game.recorder.RecordingState
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.isLauncherInDarkTheme
 import com.movtery.zalithlauncher.setting.enums.toAction
+import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.terracotta.Terracotta
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MenuState
@@ -108,6 +119,8 @@ import com.movtery.zalithlauncher.ui.screens.game.elements.GameMenuSubscreen
 import com.movtery.zalithlauncher.ui.screens.game.elements.GamepadModePromptDialog
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogBox
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogState
+import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsDialog
+import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsOperation
 import com.movtery.zalithlauncher.ui.screens.game.elements.ReplacementControlOperation
 import com.movtery.zalithlauncher.ui.screens.game.elements.ReplacementControlState
 import com.movtery.zalithlauncher.ui.screens.game.elements.SendKeycodeOperation
@@ -131,6 +144,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.projection.MediaProjectionManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.movtery.zalithlauncher.game.recorder.MediaProjectionForegroundService
 import org.lwjgl.glfw.CallbackBridge
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
@@ -151,6 +172,8 @@ private class GameViewModel(
     var sendKeycodeState by mutableStateOf<SendKeycodeState>(SendKeycodeState.None)
     /** 更换控制布局操作状态 */
     var replacementControlState by mutableStateOf<ReplacementControlState>(ReplacementControlState.None)
+    /** 性能设置弹窗操作状态 */
+    var performanceSettingsState by mutableStateOf<PerformanceSettingsOperation>(PerformanceSettingsOperation.None)
     /** 被控制布局层标记为仅滑动的指针列表 */
     var moveOnlyPointers = mutableSetOf<PointerId>()
     /** 鼠标触摸指针处理层占用指针列表 */
@@ -504,6 +527,9 @@ fun GameScreen(
         eventViewModel.sendEvent(EventViewModel.Event.Game.SwitchIme(mode))
     }
     val editorViewModel = rememberEditorViewModel("ControlEditor_Times=${viewModel.editorRefresh}")
+    val recordingState by GameRecorder.state.collectAsStateWithLifecycle()
+    val elapsedMs by GameRecorder.elapsedMs.collectAsStateWithLifecycle()
+    val micEnabled by GameRecorder.micEnabled.collectAsStateWithLifecycle()
     val cursorMode by ZLBridgeStates.cursorMode.collectAsStateWithLifecycle()
     val isGrabbing = remember(cursorMode) {
         cursorMode == CURSOR_DISABLED
@@ -536,12 +562,16 @@ fun GameScreen(
         },
         text = stringResource(R.string.game_menu_option_force_close_text)
     )
-
     ReplacementControlOperation(
         operation = viewModel.replacementControlState,
         onChange = { viewModel.replacementControlState = it },
         currentLayout = viewModel.currentControlFile,
         replacementControl = { viewModel.replaceControlLayout(it) }
+    )
+
+    PerformanceSettingsDialog(
+        operation = viewModel.performanceSettingsState,
+        onDismissRequest = { viewModel.performanceSettingsState = PerformanceSettingsOperation.None }
     )
 
     TerracottaOperation(
@@ -550,6 +580,60 @@ fun GameScreen(
             eventViewModel.sendToast(text, duration)
         }
     )
+
+    // ── Recording launchers ───────────────────────────────────────────────────
+    // Flow: RECORD_AUDIO permission → MediaProjection consent dialog → start.
+    val mediaProjectionManager = remember {
+        context.getSystemService(MediaProjectionManager::class.java)
+    }
+    var pendingStartRecording by remember { mutableStateOf(false) }
+
+    fun stopProjectionService() {
+        context.stopService(Intent(context, MediaProjectionForegroundService::class.java))
+    }
+
+    // Step 2: consent dialog result — stopProjectionService is already in scope above.
+    val requestProjection = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        pendingStartRecording = false
+        if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
+            try {
+                val projection = mediaProjectionManager
+                    .getMediaProjection(result.resultCode, result.data!!)
+                if (projection != null) {
+                    GameRecorder.start(context, projection)
+                    eventViewModel.sendToast(androidText(R.string.recorder_started), Toast.LENGTH_SHORT)
+                } else {
+                    eventViewModel.sendToast(androidText(R.string.recorder_error), Toast.LENGTH_SHORT)
+                }
+            } catch (e: SecurityException) {
+                eventViewModel.sendToast(androidText(R.string.recorder_error), Toast.LENGTH_SHORT)
+            }
+            stopProjectionService()
+        } else {
+            stopProjectionService()
+        }
+    }
+
+    // launchProjectionConsent references requestProjection, so it must come after it.
+    fun launchProjectionConsent() {
+        context.startForegroundService(
+            Intent(context, MediaProjectionForegroundService::class.java)
+        )
+        requestProjection.launch(mediaProjectionManager.createScreenCaptureIntent())
+    }
+
+    // Step 1: RECORD_AUDIO permission — launchProjectionConsent is in scope above.
+    val requestAudioPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (pendingStartRecording && granted) {
+            launchProjectionConsent()
+        } else {
+            pendingStartRecording = false
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
@@ -589,7 +673,8 @@ fun GameScreen(
             }
 
             //控制布局层
-            ControlBoxLayout(
+            val hideControls = showGameInfo && AllSettings.hideControlsDuringLoading.state
+            if (!hideControls) ControlBoxLayout(
                 modifier = Modifier.fillMaxSize(),
                 observedLayout = viewModel.observableLayout,
                 eventHandler = viewModel.eventHandler,
@@ -623,7 +708,7 @@ fun GameScreen(
             }
 
             //物品栏触发层
-            MinecraftHotbar(
+            if (!hideControls) MinecraftHotbar(
                 screenSize = screenSize,
                 rule = AllSettings.hotbarRule.state,
                 widthPercentage = AllSettings.hotbarWidth.state.hotbarPercentage(),
@@ -636,6 +721,7 @@ fun GameScreen(
                 onOccupiedPointer = { viewModel.occupiedPointers.add(it) },
                 onReleasePointer = { viewModel.occupiedPointers.remove(it) }
             )
+
         }
 
         //陀螺仪控制
@@ -663,8 +749,7 @@ fun GameScreen(
                 .padding(all = 16.dp),
             versionName = version.getVersionName(),
             versionInfo = version.getVersionInfo()?.getInfoString(),
-            visible = showGameInfo,
-            onClose = onInfoBoxClose
+            visible = showGameInfo && !AllSettings.disableLoadingPopup.state
         )
 
         LogBox(
@@ -683,11 +768,27 @@ fun GameScreen(
             closeScreen = { viewModel.gameMenuState = MenuState.HIDE },
             onForceClose = { viewModel.forceCloseState = ForceCloseOperation.Show },
             onSwitchLog = { onLogStateChange(logState.next()) },
+            onOpenPerformanceFps = { viewModel.performanceSettingsState = PerformanceSettingsOperation.Fps },
+            onOpenPerformanceRam = { viewModel.performanceSettingsState = PerformanceSettingsOperation.Ram },
             enableTerracotta = AllSettings.enableTerracotta.state,
             onOpenTerracottaMenu = { terracottaViewModel.openMenu() },
             onRefreshWindowSize = { eventViewModel.sendEvent(EventViewModel.Event.Game.RefreshSize) },
             onInputMethod = {
                 eventViewModel.sendEvent(EventViewModel.Event.Game.SwitchIme(null))
+            },
+            onStartRecording = {
+                viewModel.gameMenuState = MenuState.HIDE
+                if (recordingState == RecordingState.IDLE) {
+                    val hasAudio = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    pendingStartRecording = true
+                    if (hasAudio) {
+                        launchProjectionConsent()
+                    } else {
+                        requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
             },
             onSendKeycode = { viewModel.sendKeycodeState = SendKeycodeState.ShowDialog },
             onReplacementControl = { viewModel.replacementControlState = ReplacementControlState.Show },
@@ -765,7 +866,20 @@ fun GameScreen(
                     alpha = AllSettings.menuBallOpacity.state / 100f,
                     onClick = {
                         viewModel.switchMenu()
-                    }
+                    },
+                    recordingState = recordingState,
+                    elapsedMs = elapsedMs,
+                    micEnabled = micEnabled,
+                    onPauseRecording = { GameRecorder.pause() },
+                    onResumeRecording = { GameRecorder.resume() },
+                    onStopRecording = {
+                        GameRecorder.stopAndSave(context)
+                        eventViewModel.sendToast(
+                            androidText(R.string.recorder_saved),
+                            android.widget.Toast.LENGTH_SHORT
+                        )
+                    },
+                    onToggleMic = { GameRecorder.toggleMicrophone() }
                 )
             }
         }
@@ -813,7 +927,6 @@ private fun GameInfoBox(
     versionName: String,
     versionInfo: String?,
     visible: Boolean,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -861,16 +974,7 @@ private fun GameInfoBox(
                     }
                 }
 
-                IconButton(
-                    modifier = Modifier.padding(top = 4.dp, end = 4.dp),
-                    onClick = onClose
-                ) {
-                    Icon(
-                        modifier = Modifier.size(18.dp),
-                        painter = painterResource(R.drawable.ic_close),
-                        contentDescription = stringResource(R.string.generic_close)
-                    )
-                }
+
             }
         }
     }
@@ -883,8 +987,7 @@ private fun PreviewGameInfoBox() {
         GameInfoBox(
             versionName = "1.21.11",
             versionInfo = "1.21.11",
-            visible = true,
-            onClose = {}
+            visible = true
         )
     }
 }

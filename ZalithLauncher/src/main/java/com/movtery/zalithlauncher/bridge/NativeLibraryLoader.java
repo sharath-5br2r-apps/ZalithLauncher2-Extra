@@ -18,7 +18,45 @@
 
 package com.movtery.zalithlauncher.bridge;
 
+import android.util.Log;
+
 public class NativeLibraryLoader {
+    private static final String TAG = "NativeLibraryLoader";
+
+    /**
+     * Android 14 (API 34) üzerinde FFmpeg subprocess'te
+     * "cannot locate symbol native_handle_create referenced by libandroid.so"
+     * hatası alınıyor. native_handle_create Android 13 ve öncesinde
+     * libcutils.so'da, Android 14+ ise libnativewindow.so'da tanımlı.
+     * <p>
+     * Ana çözüm java_exec_hooks.c'de: FFmpeg subprocess'inin LD_PRELOAD'ına
+     * libnativewindow.so eklendi. Bu sayede subprocess başlar başlamaz
+     * native_handle_create global olarak çözümlenebilir hale geliyor.
+     * <p>
+     * Buradaki dlopen(RTLD_GLOBAL) ise olası in-process FFmpeg yüklemelerine
+     * karşı ek güvence. RTLD_LOCAL fallback kullanılmaz çünkü RTLD_LOCAL
+     * ile yüklenen bir lib sonradan RTLD_GLOBAL'a çevrilemez.
+     */
+    public static void reloadFFmpegSystemDependenciesGlobally() {
+        dlopenSystemLibGlobally("libcutils.so");
+        dlopenSystemLibGlobally("libandroid.so");
+        dlopenSystemLibGlobally("libmediandk.so");
+        dlopenSystemLibGlobally("libnativewindow.so");
+    }
+
+    private static void dlopenSystemLibGlobally(String libName) {
+        try {
+            boolean ok = ZLBridge.dlopen(libName);
+            if (ok) {
+                Log.i(TAG, "Globally loaded: " + libName);
+                return;
+            }
+            Log.w(TAG, "ZLBridge.dlopen failed for " + libName + " (no RTLD_LOCAL fallback)");
+        } catch (Exception e) {
+            Log.w(TAG, "Error globally loading " + libName + " via ZLBridge", e);
+        }
+    }
+
     public static void loadPojavLib() {
         System.loadLibrary("pojavexec");
     }

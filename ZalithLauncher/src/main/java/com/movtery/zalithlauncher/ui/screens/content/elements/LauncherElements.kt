@@ -18,10 +18,16 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.elements
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Parcelable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -56,9 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.ImageLoader
 import coil3.compose.AsyncImage
-import coil3.gif.GifDecoder
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
@@ -77,6 +81,7 @@ import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.launcherMMKV
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
@@ -159,7 +164,7 @@ sealed interface LaunchGameOperation {
         val quickPlay: QuickPlay? = null
     ) : LaunchGameOperation
 
-    /** 账号凭据已被服务端拒绝，需要重新登录 */
+    /** Account credentials rejected by server, re-login required */
     data class AccountRelogin(
         val account: Account,
         val version: Version,
@@ -168,10 +173,16 @@ sealed interface LaunchGameOperation {
         val error: Throwable? = null
     ) : LaunchGameOperation
 
-    /** 账号刷新失败，可选择跳过刷新继续启动 */
+    /** Account refresh failed, option to skip refresh and launch */
     data class AccountRefreshFailed(
         val account: Account,
         val error: Throwable,
+        val version: Version,
+        val quickPlay: QuickPlay?
+    ) : LaunchGameOperation
+
+    /** Needs microphone permission */
+    data class MicrophonePermission(
         val version: Version,
         val quickPlay: QuickPlay?
     ) : LaunchGameOperation
@@ -282,6 +293,36 @@ fun LaunchGameOperation(
                 }
             )
         }
+        is LaunchGameOperation.MicrophonePermission -> {
+            val version = operation.version
+            val quickPlay = operation.quickPlay
+
+            val requestPermissionLauncher =
+                rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                    launcherMMKV().putBoolean("microphone_asked", true)
+                    launchGameViewModel.updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
+                }
+
+            SimpleAlertDialog(
+                title = stringResource(R.string.microphone_check_title),
+                text = activity.getString(R.string.microphone_launch_dialog),
+                confirmText = stringResource(R.string.microphone_allow),
+                dismissText = stringResource(R.string.microphone_skip_ask),
+                dismissByDialog = false,
+                onConfirm = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        launcherMMKV().putBoolean("microphone_asked", true)
+                        launchGameViewModel.updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
+                    }
+                },
+                onDismiss = {
+                    launcherMMKV().putBoolean("microphone_asked", true)
+                    launchGameViewModel.updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
+                }
+            )
+        }
         is LaunchGameOperation.TryLaunch -> {
             LaunchedEffect(Unit) {
                 val version = operation.version ?: run {
@@ -303,32 +344,21 @@ fun LaunchGameOperation(
                     return@LaunchedEffect
                 }
 
-                //开始检查渲染器的版本支持情况
-                Renderers.setCurrentRenderer(version.getRenderer())
-                val currentRenderer = Renderers.getCurrentRenderer()
-                val rendererMinVer = currentRenderer.getMinMCVersion()
-                val rendererMaxVer = currentRenderer.getMaxMCVersion()
-
-                val mcVer = version.getVersionInfo()!!.minecraftVersion
-
-                val isRendererUnsupported =
-                    (rendererMinVer?.let { mcVer.isLowerTo(it) } ?: false) ||
-                            (rendererMaxVer?.let { mcVer.isBiggerTo(it) } ?: false)
-
-                if (isRendererUnsupported) {
+                val currentRenderer = version.getRenderer()
+                val isRendererAvailable = Renderers.isRendererAvailable(currentRenderer)
+                if (!isRendererAvailable) {
                     launchGameViewModel.updateOperation(LaunchGameOperation.UnsupportedRenderer(currentRenderer, version, quickPlay))
                     return@LaunchedEffect
                 }
 
-                val unsupportedPlugins = NativePluginManager.getCheckedPlugins().filter { plugin ->
-                    (plugin.minMCVer?.let { mcVer.isLowerTo(it) } ?: false) ||
-                            (plugin.maxMCVer?.let { mcVer.isBiggerTo(it) } ?: false)
-                }
+                val unsupportedPlugins = NativePluginManager.checkDeviceSupport(activity, version.getPluginConfig())
                 if (unsupportedPlugins.isNotEmpty()) {
                     launchGameViewModel.updateOperation(LaunchGameOperation.UnsupportedPlugins(unsupportedPlugins, version, quickPlay))
                     return@LaunchedEffect
                 }
 
+                val canHandlePermission = canHandlePermission()
+                val hasStoragePermission = checkStoragePermissions(activity)
                 //为可配置的渲染器检查文件管理权限
                 //前提：系统支持这个设置
                 if (
@@ -336,6 +366,14 @@ fun LaunchGameOperation(
                     RendererPluginManager.isConfigurablePlugin(version.getRenderer())
                 ) {
                     launchGameViewModel.updateOperation(LaunchGameOperation.RendererNoStoragePermission(currentRenderer, version, quickPlay))
+                    return@LaunchedEffect
+                }
+
+                //首次启动时请求麦克风权限（Simple Voice Chat等mod需要）
+                if (!launcherMMKV().getBoolean("microphone_asked", false) &&
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    launchGameViewModel.updateOperation(LaunchGameOperation.MicrophonePermission(version, quickPlay))
                     return@LaunchedEffect
                 }
 
@@ -661,12 +699,7 @@ private fun BackgroundImage(
 ) {
     val context = LocalContext.current
 
-    val imageLoader = remember(refreshTrigger) {
-        ImageLoader.Builder(context)
-            .components { add(GifDecoder.Factory()) }
-            .build()
-    }
-    val request = remember(refreshTrigger) {
+    val request = remember(refreshTrigger, imageFile) {
         ImageRequest.Builder(context)
             .data(imageFile)
             .allowHardware(false)
@@ -677,7 +710,6 @@ private fun BackgroundImage(
     AsyncImage(
         modifier = modifier,
         model = request,
-        imageLoader = imageLoader,
         contentDescription = null,
         contentScale = ContentScale.Crop
     )

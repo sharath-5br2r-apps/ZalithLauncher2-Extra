@@ -70,6 +70,14 @@ class PlayerSkin(
         .append("steve.png")
         .toString()
 
+    // Holds the identifier of the currently loaded cape (if any). This helps preserve the cape when the skin is reset.
+    private var currentCapeId: String? = null
+
+    // State tracking to prevent redundant JS calls
+    private var currentSkinUrl: String? = null
+    private var currentSkinModel: String? = null
+    private var currentCapeUrl: String? = null
+
     fun loadWebView(
         context: Context,
         onPageFinished: () -> Unit = {}
@@ -88,12 +96,19 @@ class PlayerSkin(
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             webViewClient = object : WebViewClient() {
-                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): WebResourceResponse? {
                     return assetLoader.shouldInterceptRequest(request.url)
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
+                    // Reset state tracking when page is reloaded
+                    currentSkinUrl = null
+                    currentSkinModel = null
+                    currentCapeUrl = null
                     onPageFinished()
                 }
             }
@@ -106,7 +121,12 @@ class PlayerSkin(
                     return true
                 }
 
-                override fun onJsAlert(view: WebView?, url: String?, message: String, result: JsResult): Boolean {
+                override fun onJsAlert(
+                    view: WebView?,
+                    url: String?,
+                    message: String,
+                    result: JsResult
+                ): Boolean {
                     Log.d("WebViewAlert", message)
                     result.confirm()
                     return true
@@ -127,40 +147,97 @@ class PlayerSkin(
                 .append("$id.png")
                 .toString()
         } ?: defaultSkin
+
+        if (currentSkinUrl == jsUrl && currentSkinModel == modelString) return
+        currentSkinUrl = jsUrl
+        currentSkinModel = modelString
+
         webview?.evaluateJavascript("loadSkin('$jsUrl', '$modelString')", null)
     }
 
     fun loadSkin(inputStream: InputStream?, model: SkinModelType?) {
-        inputStream?.asBase64Image()?.let { dataUrl ->
-            val modelString = model.takeIf { it != SkinModelType.NONE }?.modelType ?: "auto-detect"
-            webview?.evaluateJavascript("loadSkin('$dataUrl', '$modelString')", null)
-        } ?: run {
-            loadSkin(skinId = null, model)
-        }
+        val dataUrl = inputStream?.asBase64Image() ?: defaultSkin
+        val modelString = model?.takeIf { it != SkinModelType.NONE }?.modelType ?: "auto-detect"
+
+        if (currentSkinUrl == dataUrl && currentSkinModel == modelString) return
+        currentSkinUrl = dataUrl
+        currentSkinModel = modelString
+
+        webview?.evaluateJavascript("loadSkin('$dataUrl', '$modelString')", null)
     }
 
     fun loadCape(cape: PlayerProfile.Cape?) {
+        // Store the cape id so that a later skin reset can restore it.
+        currentCapeId = cape?.takeIf { it != EmptyCape }?.id
         val path = cape?.takeIf { it != EmptyCape }?.id?.let { id ->
             AssetsUrlBuilder()
                 .append("capes")
                 .append("$id.png")
                 .toString()
         }
-        val jsUrl = path?.let { "'$it'" } ?: "null"
-        webview?.evaluateJavascript("loadCape($jsUrl)", null)
+        val jsUrl = path ?: "null"
+
+        if (currentCapeUrl == jsUrl) return
+        currentCapeUrl = jsUrl
+
+        val jsCall = if (path != null) "'$path'" else "null"
+        webview?.evaluateJavascript("loadCape($jsCall)", null)
     }
 
     fun loadCape(inputStream: InputStream?) {
-        inputStream?.asBase64Image()?.let { dataUrl ->
-            webview?.evaluateJavascript("loadCape('$dataUrl')", null)
-        } ?: run {
-            loadCape(cape = null)
-        }
+        val dataUrl = inputStream?.asBase64Image() ?: "null"
+
+        if (currentCapeUrl == dataUrl) return
+        currentCapeUrl = dataUrl
+
+        // When loading from a raw InputStream we cannot determine an ID, so we clear the stored ID.
+        currentCapeId = null
+        val jsCall = if (dataUrl != "null") "'$dataUrl'" else "null"
+        webview?.evaluateJavascript("loadCape($jsCall)", null)
     }
 
+    /**
+     * Load skin and cape simultaneously to ensure stable rendering.
+     */
+    fun loadSkinAndCape(
+        skinInputStream: InputStream?,
+        skinModel: SkinModelType?,
+        capeInputStream: InputStream?
+    ) {
+        val skinDataUrl = skinInputStream?.asBase64Image() ?: defaultSkin
+        val modelString = skinModel?.takeIf { it != SkinModelType.NONE }?.modelType ?: "auto-detect"
+        val capeDataUrl = capeInputStream?.asBase64Image() ?: "null"
+
+        if (currentSkinUrl == skinDataUrl && currentSkinModel == modelString && currentCapeUrl == capeDataUrl) return
+        currentSkinUrl = skinDataUrl
+        currentSkinModel = modelString
+        currentCapeUrl = capeDataUrl
+        currentCapeId = null
+
+        val capeJsCall = if (capeDataUrl != "null") "'$capeDataUrl'" else "null"
+        webview?.evaluateJavascript(
+            "loadSkinAndCape('$skinDataUrl', '$modelString', $capeJsCall)",
+            null
+        )
+    }
+
+    /**
+     * Reset the skin while preserving the currently loaded cape (if any).
+     */
     fun resetSkin() {
+        // Preserve the currently loaded cape (if any) by re‑applying it after resetting the skin.
+        val preservedCapeId = currentCapeId
+        // Reset skin to default (no skin, model NONE)
         loadSkin(skinId = null, SkinModelType.NONE)
-        loadCape(cape = null)
+        // Re‑apply the previously loaded cape if we have its ID.
+        if (preservedCapeId != null) {
+            // Create a lightweight Cape implementation to trigger loading.
+            val dummyCape = PlayerProfile.Cape(preservedCapeId, "ACTIVE", "", "")
+            loadCape(dummyCape)
+        } else {
+            // No cape to preserve – clear it.
+            loadCape(cape = null)
+        }
     }
 
     fun startAnim(

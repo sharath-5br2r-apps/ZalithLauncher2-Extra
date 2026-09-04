@@ -1,0 +1,13 @@
+<!--
+  Solid/filled variant of ic_videocam_outlined.
+  Outer boundary path only — inner hollow subpath removed.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+  <path
+      android:pathData="M160,760q-33,0 -56.5,-23.5T80,680v-400q0,-33 23.5,-56.5T160,200h480q33,0 56.5,23.5T720,280v170l160,-160v340L720,470v210q0,33 -23.5,56.5T640,760L160,760Z"
+      android:fillColor="#1f1f1f"/>
+</vector>

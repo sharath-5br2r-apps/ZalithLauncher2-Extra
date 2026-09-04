@@ -1,0 +1,68 @@
+name: Bug Report (English)
+description: Report a bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Clearly describe the issue you encountered.
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log File
+      description: Attach the log file. Please don't forget the logs!
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Videos
+      description: Optional but helpful.
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction Steps
+      description: Steps to reproduce the issue.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: android-version
+    attributes:
+      label: Android Version
+      options:
+        - '16'
+        - '15'
+        - '14'
+        - '13'
+        - '12'
+        - '11'
+        - '10'
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Launcher Version
+      placeholder: 2.3.3
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device Info
+      placeholder: e.g. Samsung S24, arm64
+    validations:
+      required: true

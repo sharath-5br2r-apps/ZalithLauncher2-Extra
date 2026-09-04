@@ -42,7 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.components.MarkdownView
-import com.movtery.zalithlauncher.ui.components.defaultRichTextStyle
+import com.movtery.zalithlauncher.ui.components.defaultMarkdownConfig
+import com.iffly.compose.markdown.config.MarkdownRenderConfig
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -116,7 +117,7 @@ fun UpgradeDialog(
                             .padding(horizontal = 20.dp)
                             .verticalScrollWithBar(rememberScrollState()),
                         content = markdownBody,
-                        richTextStyle = defaultRichTextStyle(),
+                        config = defaultMarkdownConfig(),
                     )
                 }
 

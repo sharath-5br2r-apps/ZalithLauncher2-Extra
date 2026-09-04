@@ -24,6 +24,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.context.GlobalContext
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor
+import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.coroutine.TitledTask
 import com.movtery.zalithlauncher.coroutine.addTask
 import com.movtery.zalithlauncher.coroutine.buildPhase
@@ -66,6 +67,7 @@ import com.movtery.zalithlauncher.utils.network.withSpeedReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
@@ -207,7 +209,8 @@ class GameInstaller(
         val fabricDir: File?,
         val legacyFabricDir: File?,
         val quiltDir: File?,
-        val cleanroomDir: File?
+        val cleanroomDir: File?,
+        val babricDir: File?
     )
 
     /**
@@ -260,6 +263,7 @@ class GameInstaller(
         val legacyFabricDir = info.legacyFabric?.let { File(tempGameVersionsDir, "legacy-fabric-loader-${it.version}-${info.gameVersion}") }
         val quiltDir = info.quilt?.let { File(tempGameVersionsDir, "quilt-loader-${it.version}-${info.gameVersion}") }
         val cleanroomDir = info.cleanroom?.let { File(tempGameVersionsDir, "cleanroom-${it.version}-${info.gameVersion}") }
+        val babricDir = info.babric?.let { File(tempGameVersionsDir, "babric-loader-${it.version}-${info.gameVersion}") }
 
         //Mods临时目录
         val tempModsDir = File(tempGameDir, ".temp_mods")
@@ -277,7 +281,8 @@ class GameInstaller(
             fabricDir = fabricDir,
             legacyFabricDir = legacyFabricDir,
             quiltDir = quiltDir,
-            cleanroomDir = cleanroomDir
+            cleanroomDir = cleanroomDir,
+            babricDir = babricDir
         )
     }
 
@@ -309,6 +314,7 @@ class GameInstaller(
                     pathConfig.legacyFabricDir?.createDirAndLog()
                     pathConfig.quiltDir?.createDirAndLog()
                     pathConfig.cleanroomDir?.createDirAndLog()
+                    pathConfig.babricDir?.createDirAndLog()
                     pathConfig.tempModsDir.createDirAndLog()
                 }
 
@@ -328,6 +334,7 @@ class GameInstaller(
                     legacyFabricDir = pathConfig.legacyFabricDir,
                     quiltDir = pathConfig.quiltDir,
                     cleanroomDir = pathConfig.cleanroomDir,
+                    babricDir = pathConfig.babricDir,
                     tempModsDir = pathConfig.tempModsDir
                 )
 
@@ -344,6 +351,7 @@ class GameInstaller(
                         pathConfig.legacyFabricDir != null ||
                         pathConfig.quiltDir != null ||
                         pathConfig.cleanroomDir != null ||
+                        pathConfig.babricDir != null ||
                         pathConfig.tempModsDir.listFiles()?.isNotEmpty() == true
                     ) {
                         createGameInstalledTask(
@@ -360,6 +368,7 @@ class GameInstaller(
                             legacyFabricFolder = pathConfig.legacyFabricDir,
                             quiltFolder = pathConfig.quiltDir,
                             cleanroomFolder = pathConfig.cleanroomDir,
+                            babricFolder = pathConfig.babricDir,
                             onComplete = {
                                 onInstalled(pathConfig.targetClientDir)
                                 targetClientDir = null
@@ -406,6 +415,7 @@ class GameInstaller(
                     pathConfig.legacyFabricDir?.createDirAndLog()
                     pathConfig.quiltDir?.createDirAndLog()
                     pathConfig.cleanroomDir?.createDirAndLog()
+                    pathConfig.babricDir?.createDirAndLog()
                     pathConfig.tempModsDir.createDirAndLog()
                 }
 
@@ -476,6 +486,7 @@ class GameInstaller(
                     legacyFabricDir = pathConfig.legacyFabricDir,
                     quiltDir = pathConfig.quiltDir,
                     cleanroomDir = pathConfig.cleanroomDir,
+                    babricDir = pathConfig.babricDir,
                     tempModsDir = pathConfig.tempModsDir
                 )
 
@@ -497,6 +508,7 @@ class GameInstaller(
                         legacyFabricFolder = pathConfig.legacyFabricDir,
                         quiltFolder = pathConfig.quiltDir,
                         cleanroomFolder = pathConfig.cleanroomDir,
+                        babricFolder = pathConfig.babricDir,
                         onComplete = {
                             onInstalled()
                             targetClientDir = null
@@ -516,6 +528,7 @@ class GameInstaller(
         legacyFabricDir: File?,
         quiltDir: File?,
         cleanroomDir: File?,
+        babricDir: File?,
         tempModsDir: File
     ) {
         // OptiFine 安装
@@ -672,6 +685,11 @@ class GameInstaller(
                     addTask(title = title, icon = icon, task = task)
                 }
             )
+        }
+
+        // Babric 安装
+        info.babric?.let { babricVersion ->
+            addFabricLike(babricVersion, babricDir!!.name)
         }
     }
 
@@ -976,6 +994,7 @@ class GameInstaller(
         legacyFabricFolder: File? = null,
         quiltFolder: File? = null,
         cleanroomFolder: File? = null,
+        babricFolder: File? = null,
         onComplete: suspend () -> Unit = {}
     ) = Task.runTask(
         id = GAME_JSON_MERGER_ID,
@@ -993,7 +1012,8 @@ class GameInstaller(
                 fabricFolder = fabricFolder,
                 legacyFabricFolder = legacyFabricFolder,
                 quiltFolder = quiltFolder,
-                cleanroomFolder = cleanroomFolder
+                cleanroomFolder = cleanroomFolder,
+                babricFolder = babricFolder
             )
 
             //迁移游戏文件
@@ -1064,6 +1084,40 @@ class GameInstaller(
 
                 onComplete()
             }
+        )
+    }
+
+    /**
+     * 创建一个用于 TaskSystem 的代理任务，镜像当前安装进度
+     * 用于最小化安装对话框，同时让安装在后台继续运行
+     */
+    fun createBackgroundTask(onCancelRequest: () -> Unit): Task {
+        return Task.runTask(
+            id = "game_install_${info.gameVersion}_${info.customVersionName}",
+            task = { proxyTask ->
+                val mirrorJob = launch {
+                    while (true) {
+                        kotlinx.coroutines.delay(150)
+                        val titledTasks = tasksFlow.value
+                        val running = titledTasks.firstOrNull { it.task.stage.value == TaskStage.RUNNING }
+                            ?: titledTasks.lastOrNull()
+                        running?.task?.let { t ->
+                            proxyTask.updateProgress(t.progress.value)
+                            t.message.value?.let { proxyTask.updateMessage(it) }
+                            t.rateBytesPerSec.value?.let { proxyTask.updateSpeed(it) } ?: proxyTask.clearSpeed()
+                        }
+                    }
+                }
+                try {
+                    taskExecutor.awaitCompletion()
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                } finally {
+                    mirrorJob.cancel()
+                }
+            },
+            onCancel = onCancelRequest
         )
     }
 

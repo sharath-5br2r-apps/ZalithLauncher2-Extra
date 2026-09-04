@@ -18,22 +18,40 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,22 +59,34 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.movtery.zalithlauncher.R
+import kotlinx.coroutines.Dispatchers
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.movtery.zalithlauncher.game.plugin.driver.Driver
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer_v2.RendererV2Data
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
+import com.movtery.zalithlauncher.game.renderer.renderers.KopperZinkRenderer
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.path.URL_CLOUD_DRIVE_DRIVER_PLUGINS
 import com.movtery.zalithlauncher.path.URL_CLOUD_RENDERER_PLUGINS
 import com.movtery.zalithlauncher.path.URL_GITHUB_DRIVER_PLUGINS
+import com.movtery.zalithlauncher.utils.driver.TurnipDownloader
 import com.movtery.zalithlauncher.path.URL_GITHUB_RENDERER_PLUGINS
+import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.unit.floatRange
 import com.movtery.zalithlauncher.ui.base.BaseScreen
+import com.movtery.zalithlauncher.utils.settings.MobileGluesConfig
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
@@ -66,8 +96,10 @@ import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPosition
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.IntSliderSettingsCard
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.ListSettingsCard
+import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCard
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCardColumn
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSettingsCard
+import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.utils.device.checkVulkanSupport
 import com.movtery.zalithlauncher.utils.isAdrenoGPU
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
@@ -84,6 +116,44 @@ fun RendererSettingsScreen(
         Triple(key, mainScreenKey, false),
         Triple(NormalNavKey.Settings.Renderer, settingsScreenKey, false)
     ) { isVisible ->
+        val context = LocalContext.current
+        var showMobileGluesSettings by remember { mutableStateOf(false) }
+        var showBenchmark by remember { mutableStateOf(false) }
+        var driverToDelete by remember { mutableStateOf<Driver?>(null) }
+
+        if (showMobileGluesSettings) {
+            MobileGluesSettingsDialog(onDismissRequest = { showMobileGluesSettings = false })
+        }
+
+        if (showBenchmark) {
+            Dialog(
+                onDismissRequest = { showBenchmark = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                RendererBenchmarkOverlay(
+                    availableRenderers = Renderers.getRenderers(),
+                    onDismiss = { showBenchmark = false }
+                )
+            }
+        }
+
+        driverToDelete?.let { driver ->
+            SimpleAlertDialog(
+                title = stringResource(R.string.generic_delete),
+                text = stringResource(R.string.turnip_driver_delete_confirm, driver.name),
+                confirmText = stringResource(R.string.generic_delete),
+                onConfirm = {
+                    java.io.File(driver.path).deleteRecursively()
+                    DriverPluginManager.scanExternalDrivers(context)
+                    if (AllSettings.vulkanDriver.getValue() == driver.id) {
+                        AllSettings.vulkanDriver.save(AllSettings.vulkanDriver.defaultValue)
+                    }
+                    driverToDelete = null
+                },
+                onDismiss = { driverToDelete = null }
+            )
+        }
+
         AnimatedColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -97,6 +167,12 @@ fun RendererSettingsScreen(
                         .fillMaxWidth()
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
+                    RunBenchmarkPill(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        onClick = { showBenchmark = true }
+                    )
                     val currentRendererId = AllSettings.renderer.state
                     val v2PluginEnvUnits = remember(currentRendererId) {
                         Renderers.getRenderers()
@@ -115,8 +191,30 @@ fun RendererSettingsScreen(
                         summary = stringResource(R.string.settings_renderer_global_renderer_summary),
                         getItemText = { it.getRendererName() },
                         getItemId = { it.getUniqueIdentifier() },
-                        getItemSummary = {
-                            RendererSummaryLayout(it)
+                        getItemSummary = { renderer ->
+                            Column {
+                                RendererSummaryLayout(renderer)
+                                if (renderer.getRendererName() == "MobileGlues") {
+                                    val hasConfig = remember { MobileGluesConfig.load() != null }
+                                    if (hasConfig) {
+                                        Text(
+                                            text = "✓ Configured",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        getItemTrailing = { renderer ->
+                            if (renderer.getRendererName() == "MobileGlues") {
+                                IconButton(onClick = { showMobileGluesSettings = true }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_settings_filled),
+                                        contentDescription = stringResource(R.string.generic_setting)
+                                    )
+                                }
+                            }
                         },
                         trailingIcon = {
                             //选中新一代渲染器插件且存在可配置项时，提供配置入口
@@ -170,6 +268,18 @@ fun RendererSettingsScreen(
                         getItemSummary = {
                             DriverSummaryLayout(it)
                         },
+                        getItemTrailing = { driver ->
+                            if (driver.isExternal) {
+                                IconButton(onClick = { driverToDelete = driver }) {
+                                    Icon(
+                                        modifier = Modifier.padding(4.dp),
+                                        painter = painterResource(R.drawable.ic_delete_filled),
+                                        contentDescription = stringResource(R.string.generic_delete),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -187,6 +297,35 @@ fun RendererSettingsScreen(
                                 Icon(
                                     painter = painterResource(R.drawable.ic_download_2_filled),
                                     contentDescription = stringResource(R.string.generic_download)
+                                )
+                            }
+                        }
+                    )
+
+                    SettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        title = stringResource(R.string.settings_renderer_download_turnip),
+                        summary = stringResource(R.string.settings_renderer_download_turnip_summary),
+                        onClick = {
+                            key.backStack.navigateTo(NormalNavKey.Settings.TurnipDrivers)
+                        },
+                        trailingIcon = {
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        eventViewModel.sendEvent(EventViewModel.Event.OpenWeb(TurnipDownloader.getRepoReleasesUrl()))
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_link),
+                                        contentDescription = stringResource(R.string.generic_open_link)
+                                    )
+                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_download),
+                                    contentDescription = null,
+                                    modifier = Modifier.align(Alignment.CenterVertically).padding(end = 12.dp)
                                 )
                             }
                         }
@@ -243,34 +382,32 @@ fun RendererSettingsScreen(
                         summary = stringResource(R.string.settings_renderer_sustained_performance_summary)
                     )
 
-                    if (checkVulkanSupport(LocalContext.current.packageManager)) {
-                        var adrenoGPUAlert by remember { mutableStateOf(false) }
+                    var adrenoGPUAlert by remember { mutableStateOf(false) }
 
-                        SwitchSettingsCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            position = CardPosition.Middle,
-                            unit = AllSettings.zinkPreferSystemDriver,
-                            title = stringResource(R.string.settings_renderer_vulkan_driver_system_title),
-                            summary = stringResource(R.string.settings_renderer_vulkan_driver_system_summary),
-                            onCheckedChange = { checked ->
-                                if (checked && isAdrenoGPU()) adrenoGPUAlert = true
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        unit = AllSettings.zinkPreferSystemDriver,
+                        title = stringResource(R.string.settings_renderer_vulkan_driver_system_title),
+                        summary = stringResource(R.string.settings_renderer_vulkan_driver_system_summary),
+                        onCheckedChange = { checked ->
+                            if (checked && isAdrenoGPU()) adrenoGPUAlert = true
+                        }
+                    )
+
+                    if (adrenoGPUAlert) {
+                        SimpleAlertDialog(
+                            title = stringResource(R.string.generic_warning),
+                            text = stringResource(R.string.settings_renderer_zink_driver_adreno),
+                            onConfirm = {
+                                AllSettings.zinkPreferSystemDriver.save(true)
+                                adrenoGPUAlert = false
+                            },
+                            onDismiss = {
+                                AllSettings.zinkPreferSystemDriver.save(false)
+                                adrenoGPUAlert = false
                             }
                         )
-
-                        if (adrenoGPUAlert) {
-                            SimpleAlertDialog(
-                                title = stringResource(R.string.generic_warning),
-                                text = stringResource(R.string.settings_renderer_zink_driver_adreno),
-                                onConfirm = {
-                                    AllSettings.zinkPreferSystemDriver.save(true)
-                                    adrenoGPUAlert = false
-                                },
-                                onDismiss = {
-                                    AllSettings.zinkPreferSystemDriver.save(false)
-                                    adrenoGPUAlert = false
-                                }
-                            )
-                        }
                     }
 
                     SwitchSettingsCard(
@@ -284,20 +421,110 @@ fun RendererSettingsScreen(
                     SwitchSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Middle,
-                        unit = AllSettings.useSurfaceView,
-                        title = stringResource(R.string.settings_renderer_surface_title),
-                        summary = stringResource(R.string.settings_renderer_surface_summary)
+                        unit = AllSettings.bigCoreAffinity,
+                        title = stringResource(R.string.settings_renderer_force_big_core_title),
+                        summary = stringResource(R.string.settings_renderer_force_big_core_summary)
                     )
+
+                    val display = LocalContext.current.display
 
                     SwitchSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
-                        position = CardPosition.Bottom,
+                        position = CardPosition.Middle,
+                        unit = AllSettings.fpsLimitEnabled,
+                        title = stringResource(R.string.settings_renderer_fps_limit_title),
+                        summary = stringResource(R.string.settings_renderer_fps_limit_summary),
+                        onCheckedChange = { checked ->
+                            AllSettings.fpsLimitEnabled.save(checked)
+                            if (checked) {
+                                val hz = display?.refreshRate?.roundToInt() ?: 60
+                                AllSettings.fpsLimit.save(hz)
+                                ZLBridge.fpsLimitSet(hz)
+                            } else {
+                                ZLBridge.fpsLimitSet(0)
+                            }
+                        }
+                    )
+
+                    if (AllSettings.fpsLimitEnabled.state) {
+                        IntSliderSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            value = AllSettings.fpsLimit.state,
+                            onValueChange = { AllSettings.fpsLimit.updateState(it) },
+                            onValueChangeFinished = {
+                                val fps = AllSettings.fpsLimit.state
+                                AllSettings.fpsLimit.save(fps)
+                                ZLBridge.fpsLimitSet(fps)
+                            },
+                            title = stringResource(R.string.settings_renderer_fps_limit_title),
+                            valueRange = AllSettings.fpsLimit.floatRange,
+                            suffix = " FPS",
+                            fineTuningControl = false
+                        )
+                    }
+
+                    val isKopperZinkSelected = AllSettings.renderer.state == KopperZinkRenderer.getUniqueIdentifier()
+                    var surfaceViewAutoDisabledAlert by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(isKopperZinkSelected) {
+                        if (isKopperZinkSelected && AllSettings.useSurfaceView.state) {
+                            AllSettings.useSurfaceView.save(false)
+                            if (!AllSettings.surfaceViewKopperWarningDontShow.state) {
+                                surfaceViewAutoDisabledAlert = true
+                            }
+                        }
+                    }
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        //Kopper Zink 选中时，无论保存的偏好值是什么，都在界面上显示为关闭+禁用状态
+                        checked = AllSettings.useSurfaceView.state && !isKopperZinkSelected,
+                        enabled = !isKopperZinkSelected,
+                        onCheckedChange = { checked ->
+                            AllSettings.useSurfaceView.save(checked)
+                        },
+                        title = stringResource(R.string.settings_renderer_surface_title),
+                        summary = if (isKopperZinkSelected) {
+                            stringResource(R.string.settings_renderer_surface_summary_kopper_disabled)
+                        } else {
+                            stringResource(R.string.settings_renderer_surface_summary)
+                        }
+                    )
+
+                    if (surfaceViewAutoDisabledAlert) {
+                        AlertDialog(
+                            onDismissRequest = { surfaceViewAutoDisabledAlert = false },
+                            title = { Text(stringResource(R.string.generic_warning)) },
+                            text = { Text(stringResource(R.string.settings_renderer_surface_kopper_warning)) },
+                            confirmButton = {
+                                Button(onClick = {
+                                    AllSettings.surfaceViewKopperWarningDontShow.save(true)
+                                    surfaceViewAutoDisabledAlert = false
+                                }) {
+                                    Text(stringResource(R.string.settings_renderer_surface_kopper_warning_dont_show))
+                                }
+                            },
+                            dismissButton = {
+                                OutlinedButton(onClick = { surfaceViewAutoDisabledAlert = false }) {
+                                    Text(stringResource(R.string.generic_confirm))
+                                }
+                            }
+                        )
+                    }
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
                         unit = AllSettings.dumpShaders,
                         title = stringResource(R.string.settings_renderer_shader_dump_title),
                         summary = stringResource(R.string.settings_renderer_shader_dump_summary)
                     )
+
                 }
             }
+
         }
     }
 }
@@ -348,3 +575,46 @@ fun DriverSummaryLayout(driver: Driver) {
         }
     }
 }
+
+@Composable
+private fun RunBenchmarkPill(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val gradient = remember(colorScheme) {
+        Brush.horizontalGradient(
+            listOf(colorScheme.primary, colorScheme.tertiary)
+        )
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = Color.Transparent,
+        shadowElevation = 3.dp,
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .background(brush = gradient, shape = CircleShape)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_rocket_launch_filled),
+                contentDescription = null,
+                tint = colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                modifier = Modifier.padding(start = 10.dp),
+                text = stringResource(R.string.benchmark_run),
+                style = MaterialTheme.typography.titleSmall,
+                color = colorScheme.onPrimary
+            )
+        }
+    }
+}
+

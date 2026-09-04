@@ -24,7 +24,7 @@
     <string name="terracotta_confirm_law">Çok oyunculu süreç boyunca, ülkenizin ve bölgenizin tüm yas ve yönetmeliklerine kesinlikle uymanız gerekmektedir.</string>
     <string name="terracotta_menu">Çok Oyunculu Menü</string>
     <string name="terracotta_notification_title">Terracotta | Çok Oyunculu Çalışıyor</string>
-    <string name="terracotta_notification_desc">Kimlik: %s, Eyalet: %s</string>
+    <string name="terracotta_notification_desc" formatted="false">Kimlik: %s, Eyalet: %s</string>
     <string name="terracotta_status_waiting_host_title">Bir oturum düzenlemek istiyorum</string>
     <string name="terracotta_status_waiting_host_desc">Arkadaşlarınızla oynamak için bir oda oluşturun ve davet kodu üretin</string>
     <string name="terracotta_status_waiting_guest_title">Bir oturuma katılmak istiyorum</string>

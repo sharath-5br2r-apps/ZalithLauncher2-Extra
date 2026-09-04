@@ -1,0 +1,290 @@
+/*
+ * Zalith Launcher 2
+ * Copyright (C) 2025 MovTery <movtery228@qq.com> and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
+ */
+
+package com.movtery.zalithlauncher.utils.driver
+
+import android.content.Context
+import android.widget.Toast
+import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.coroutine.Task
+import com.movtery.zalithlauncher.coroutine.TaskSystem
+import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.ui.androidText
+import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
+import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.upgrade.GithubReleaseApi
+import com.movtery.zalithlauncher.utils.file.extractFromZip
+import com.movtery.zalithlauncher.utils.logging.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okio.buffer
+import okio.sink
+import java.io.File
+import java.util.zip.ZipFile
+import kotlinx.serialization.json.Json
+
+data class TurnipRelease(
+    val tagName: String,
+    val assets: List<GithubReleaseApi.Asset>
+)
+
+object TurnipDownloader {
+    private const val TAG = "TurnipDownloader"
+    private val client = OkHttpClient()
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun getRepo(): String = AllSettings.turnipRepo.state ?: "StevenMXZ/Adreno-Tools-Drivers"
+
+    private fun getRepoApi(): String = "https://api.github.com/repos/${getRepo()}/releases"
+
+    fun getRepoReleasesUrl(): String = "https://github.com/${getRepo()}/releases"
+
+    fun getRepoDownloadPrefix(): String = "https://github.com/${getRepo()}/releases/download/"
+
+    private val _driverChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val driverChanges: SharedFlow<Unit> = _driverChanges.asSharedFlow()
+
+    fun notifyDriverChanged() {
+        _driverChanges.tryEmit(Unit)
+    }
+
+    private fun parseVersion(tag: String): Int {
+        val digits = tag.removePrefix("V").takeWhile { it.isDigit() || it == '.' }
+            .split(".").firstOrNull()?.toIntOrNull() ?: 0
+        return digits
+    }
+
+    suspend fun fetchAllReleases(): List<TurnipRelease> {
+        val result = mutableListOf<TurnipRelease>()
+        var page = 1
+        var hasMore = true
+        val repoApi = getRepoApi()
+
+        while (hasMore) {
+            val url = "$repoApi?per_page=100&page=$page"
+            val request = Request.Builder().url(url).build()
+            val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
+            if (!response.isSuccessful) break
+
+            val body = response.body.string()
+            val releases = json.decodeFromString<List<GithubReleaseApi>>(body)
+
+            if (releases.isEmpty()) {
+                hasMore = false
+                break
+            }
+
+            releases.forEach { release ->
+                val zipAssets = release.assets.filter { it.name.endsWith(".zip", ignoreCase = true) }
+                if (zipAssets.isNotEmpty()) {
+                    result.add(TurnipRelease(release.tagName, zipAssets))
+                }
+            } // being more spesific isnt good -revon
+
+            page++
+        }
+
+        if (result.isEmpty()) throw Exception("No Turnip releases found (V23+)")
+        return result
+    }
+
+    fun downloadAsset(context: Context, asset: GithubReleaseApi.Asset) {
+        val task = Task.runTask(
+            id = "download_turnip_driver_${asset.name}",
+            task = { it ->
+                it.updateMessage(androidText(R.string.settings_renderer_turnip_downloading))
+                it.updateProgress(-1f)
+
+                val downloadFile = File(PathManager.DIR_CACHE, asset.name)
+                val downloadRequest = Request.Builder().url(asset.browserDownloadUrl).build()
+
+                withContext(Dispatchers.IO) {
+                    client.newCall(downloadRequest).execute().use { downloadResponse ->
+                        if (!downloadResponse.isSuccessful) throw Exception("Failed to download driver")
+                        val source = downloadResponse.body.source()
+                        val totalSize = downloadResponse.body.contentLength()
+                        downloadFile.sink().buffer().use { sink ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Long = 0
+                            var read: Int
+                            while (source.read(buffer).also { read = it } != -1) {
+                                sink.write(buffer, 0, read)
+                                bytesRead += read
+                                if (totalSize > 0) {
+                                    it.updateProgress(bytesRead.toFloat() / totalSize)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                it.updateMessage(androidText(R.string.settings_renderer_turnip_extracting))
+                it.updateProgress(-1f)
+
+                val extractDir = File(PathManager.DIR_DRIVERS, asset.name.removeSuffix(".zip"))
+                if (extractDir.exists()) {
+                    extractDir.deleteRecursively()
+                }
+                extractDir.mkdirs()
+
+                withContext(Dispatchers.IO) {
+                    ZipFile(downloadFile).use { zip ->
+                        zip.extractFromZip("", extractDir)
+                    }
+                }
+
+                downloadFile.delete()
+
+                withContext(Dispatchers.Main) {
+                    DriverPluginManager.scanExternalDrivers(context)
+                    notifyDriverChanged()
+                    Toast.makeText(context, R.string.settings_renderer_turnip_success, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onError = { th ->
+                Logger.error(TAG, "Failed to download Turnip driver", th)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed: ${th.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+        TaskSystem.submitTask(task)
+    }
+
+    fun downloadUrl(context: Context, downloadUrl: String) {
+        val zipName = downloadUrl.substringAfterLast("/").substringBefore("?")
+        val safeDirName = run {
+            val base = zipName.substringBeforeLast(".zip", zipName)
+            if (base.isEmpty() || base == "." || base == "..") {
+                val prefix = "unnamed-driver-"
+                val next = (PathManager.DIR_DRIVERS.listFiles()
+                    ?.map { it.name }
+                    ?.filter { it.startsWith(prefix) }
+                    ?.mapNotNull { it.removePrefix(prefix).toIntOrNull() }
+                    ?.maxOrNull() ?: 0) + 1
+                "$prefix$next"
+            } else {
+                base.replace(Regex("[/\\\\]+"), "_")
+            }
+        }
+
+        val task = Task.runTask(
+            id = "download_turnip_driver_$zipName",
+            task = { it ->
+                val extractDir = File(PathManager.DIR_DRIVERS, safeDirName)
+                if (extractDir.exists()) {
+                    extractDir.deleteRecursively()
+                }
+
+                it.updateMessage(androidText(R.string.settings_renderer_turnip_downloading))
+                it.updateProgress(-1f)
+
+                val downloadFile = File(PathManager.DIR_CACHE, zipName)
+                try {
+                    withContext(Dispatchers.IO) {
+                        val request = Request.Builder().url(downloadUrl).build()
+                        client.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) throw Exception("Failed to download driver")
+                            val source = response.body.source()
+                            val totalSize = response.body.contentLength()
+
+                            downloadFile.sink().buffer().use { sink ->
+                                val buffer = ByteArray(8192)
+                                var bytesRead = 0L
+                                var read: Int
+                                while (source.read(buffer).also { read = it } != -1) {
+                                    sink.write(buffer, 0, read)
+                                    bytesRead += read
+                                    if (totalSize > 0) {
+                                        it.updateProgress(bytesRead.toFloat() / totalSize)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    it.updateMessage(androidText(R.string.settings_renderer_turnip_extracting))
+                    it.updateProgress(-1f)
+
+                    extractDir.mkdirs()
+                    withContext(Dispatchers.IO) {
+                        ZipFile(downloadFile).use { zip ->
+                            zip.extractFromZip("", extractDir)
+                        }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        DriverPluginManager.scanExternalDrivers(context)
+                        notifyDriverChanged()
+                        Toast.makeText(context, R.string.settings_renderer_turnip_success, Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    downloadFile.delete()
+                }
+            },
+            onError = { th ->
+                Logger.error(TAG, "Failed to download Turnip driver from URL", th)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed: ${th.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+        TaskSystem.submitTask(task)
+    }
+
+    fun importDriverZip(context: Context, zipFile: File) {
+        val dirName = zipFile.name.removeSuffix(".zip").replace(Regex("[/\\\\]+"), "_")
+        val task = Task.runTask(
+            id = "import_turnip_driver_$dirName",
+            task = { it ->
+                it.updateMessage(androidText(R.string.settings_renderer_turnip_extracting))
+                it.updateProgress(-1f)
+
+                val extractDir = File(PathManager.DIR_DRIVERS, dirName)
+                if (extractDir.exists()) {
+                    extractDir.deleteRecursively()
+                }
+                extractDir.mkdirs()
+
+                withContext(Dispatchers.IO) {
+                    ZipFile(zipFile).use { zip ->
+                        zip.extractFromZip("", extractDir)
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    DriverPluginManager.scanExternalDrivers(context)
+                    notifyDriverChanged()
+                    Toast.makeText(context, R.string.settings_renderer_turnip_success, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onError = { th ->
+                Logger.error(TAG, "Failed to import Turnip driver zip", th)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed: ${th.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+        TaskSystem.submitTask(task)
+    }
+}

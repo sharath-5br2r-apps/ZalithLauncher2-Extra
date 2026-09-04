@@ -1,3 +1,7 @@
+<!--
+  Solid/filled variant of ic_folder_outlined.
+  Outer boundary path only — inner hollow subpath removed.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

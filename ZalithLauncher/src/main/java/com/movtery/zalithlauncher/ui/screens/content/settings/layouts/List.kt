@@ -181,6 +181,7 @@ fun <E> ListSettingsCard(
     getItemText: @Composable (E) -> String,
     getItemId: (E) -> String,
     getItemSummary: (@Composable (E) -> Unit)? = null,
+    getItemTrailing: (@Composable (E) -> Unit)? = null,
     trailingIcon: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     autoCollapse: Boolean = true,
@@ -212,6 +213,9 @@ fun <E> ListSettingsCard(
                 selected = getItemId(selectedItem) == getItemId(item),
                 itemName = getItemText(item),
                 summary = getItemSummary?.let {
+                    { it.invoke(item) }
+                },
+                trailing = getItemTrailing?.let {
                     { it.invoke(item) }
                 },
                 onClick = {
@@ -255,6 +259,7 @@ fun <E> ListSettingsCard(
     getItemText: @Composable (E) -> String,
     getItemId: (E) -> String,
     getItemSummary: (@Composable (E) -> Unit)? = null,
+    getItemTrailing: (@Composable (E) -> Unit)? = null,
     trailingIcon: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     autoCollapse: Boolean = true,
@@ -276,6 +281,7 @@ fun <E> ListSettingsCard(
         getItemText = getItemText,
         getItemId = getItemId,
         getItemSummary = getItemSummary,
+        getItemTrailing = getItemTrailing,
         trailingIcon = trailingIcon,
         enabled = enabled,
         autoCollapse = autoCollapse,

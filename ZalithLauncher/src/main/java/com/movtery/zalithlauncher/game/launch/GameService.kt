@@ -24,6 +24,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.Process
 import androidx.core.app.NotificationCompat
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.notification.NOTIFICATION_ID_GAME_SERVICE
@@ -53,5 +54,22 @@ class GameService : Service() {
         }
 
         return START_NOT_STICKY
+    }
+
+    /**
+     * 当用户从最近任务列表中彻底划掉启动器时调用。
+     * 之前这里没有任何处理，导致游戏进程（连带其原生渲染线程与音频）在
+     * 任务被移除后仍然继续在后台运行，即使应用已经从最近任务中消失。
+     * GameService 本身运行在 ":game" 进程（见 AndroidManifest.xml），
+     * 与 VMActivity 是同一个进程，所以这里的 killProcess 结束的正是
+     * 承载游戏画面与音频的那个进程，而不是主启动器进程。
+     * 与 MainActivity 正常退出、以及 ZLApplication 崩溃处理中使用的
+     * 强制终止方式保持一致。
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        Process.killProcess(Process.myPid())
     }
 }

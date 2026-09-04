@@ -40,12 +40,14 @@ import com.movtery.zalithlauncher.game.account.localLogin
 import com.movtery.zalithlauncher.game.account.microsoft.MINECRAFT_SERVICES_URL
 import com.movtery.zalithlauncher.game.account.microsoftLogin
 import com.movtery.zalithlauncher.game.account.refreshMicrosoft
+import com.movtery.zalithlauncher.game.account.wardrobe.AccountCapeCollection
 import com.movtery.zalithlauncher.game.account.wardrobe.EmptyCape
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
 import com.movtery.zalithlauncher.game.account.wardrobe.capeLocalRes
 import com.movtery.zalithlauncher.game.account.wardrobe.getLocalUUIDWithSkinModel
 import com.movtery.zalithlauncher.game.account.wardrobe.isSlimModel
 import com.movtery.zalithlauncher.game.account.wardrobe.validateSkinFile
+import com.movtery.zalithlauncher.game.account.wardrobe.validateCapeFile
 import com.movtery.zalithlauncher.game.account.yggdrasil.PlayerProfile
 import com.movtery.zalithlauncher.game.account.yggdrasil.cacheAllCapes
 import com.movtery.zalithlauncher.game.account.yggdrasil.changeCape
@@ -109,6 +111,7 @@ sealed interface AccountManageIntent {
     data class UpdatePendingCapeData(val capeState: ChangeCape) :
         AccountManageIntent
     data class OnSkinPicked(val uri: Uri) : AccountManageIntent
+    data class OnCapePicked(val account: Account, val uri: Uri) : AccountManageIntent
     data object ResetAccountSkinDialogState : AccountManageIntent
 
 
@@ -138,6 +141,16 @@ sealed interface AccountManageIntent {
     data class ApplyMicrosoftCape(
         val account: Account,
         val cape: PlayerProfile.Cape
+    ) : AccountManageIntent
+    /** Apply a custom cape file (local) */
+    data class ApplyCustomCape(
+        val account: Account,
+        val capeFile: File
+    ) : AccountManageIntent
+    /** Internal intent for uploading custom cape after user picks file */
+    data class UploadCustomCape(
+        val account: Account,
+        val capeFile: File
     ) : AccountManageIntent
 
     /** 创建新的离线账号 */
@@ -171,6 +184,12 @@ sealed interface AccountManageIntent {
 
     /** 将账号皮肤重置为默认状态 */
     data class ResetSkin(val account: Account) : AccountManageIntent
+
+    /** Reset the account cape */
+    data class ResetCape(val account: Account) : AccountManageIntent
+
+    /** Reorder account by dragging */
+    data class ReorderAccount(val fromIndex: Int, val toIndex: Int) : AccountManageIntent
 }
 
 /**
@@ -282,7 +301,8 @@ class AccountManageViewModel @AssistedInject constructor(
     data class AccountSkinDialogState(
         val pendingSkinData: ChangeSkin = ChangeSkin.None,
         val pendingCapeData: ChangeCape = ChangeCape.None,
-        val importingSkin: Boolean = false
+        val importingSkin: Boolean = false,
+        val importingCape: Boolean = false
     )
 
     /**
@@ -344,6 +364,7 @@ class AccountManageViewModel @AssistedInject constructor(
             }
 
             is AccountManageIntent.OnSkinPicked -> onSkinPicked(intent)
+            is AccountManageIntent.OnCapePicked -> onCapePicked(intent)
             is AccountManageIntent.ResetAccountSkinDialogState -> {
                 _accountSkinDialogState.update { AccountSkinDialogState() }
             }
@@ -355,6 +376,8 @@ class AccountManageViewModel @AssistedInject constructor(
             is AccountManageIntent.UploadMicrosoftSkin -> uploadMicrosoftSkin(intent)
             is AccountManageIntent.FetchMicrosoftCapes -> fetchMicrosoftCapes(intent.account)
             is AccountManageIntent.ApplyMicrosoftCape -> applyMicrosoftCape(intent)
+            is AccountManageIntent.ApplyCustomCape -> applyCustomCape(intent)
+            is AccountManageIntent.UploadCustomCape -> uploadCustomCape(intent)
             is AccountManageIntent.CreateLocalAccount -> createLocalAccount(
                 intent.userName,
                 intent.userUUID
@@ -367,6 +390,10 @@ class AccountManageViewModel @AssistedInject constructor(
             is AccountManageIntent.RefreshAccount -> refreshAccount(intent.account)
             is AccountManageIntent.ReloginOtherAccount -> reloginOtherAccount(intent)
             is AccountManageIntent.ResetSkin -> resetSkin(intent.account)
+            is AccountManageIntent.ResetCape -> resetCape(intent.account)
+            is AccountManageIntent.ReorderAccount -> {
+                AccountsManager.reorderAccount(intent.fromIndex, intent.toIndex)
+            }
         }
     }
 
@@ -418,6 +445,75 @@ class AccountManageViewModel @AssistedInject constructor(
 
             _accountSkinDialogState.update {
                 it.copy(importingSkin = false)
+            }
+        }
+    }
+
+    private fun onCapePicked(intent: AccountManageIntent.OnCapePicked) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _accountSkinDialogState.update {
+                it.copy(importingCape = true)
+            }
+
+            val cacheFile = File(
+                PathManager.DIR_IMAGE_CACHE,
+                "cape_pick_${UUID.randomUUID()}"
+            )
+
+            runCatching {
+                context.copyLocalFile(intent.uri, cacheFile)
+                validateCapeFile(cacheFile)
+            }.onSuccess { isValid ->
+                if (!isValid) {
+                    emitError(
+                        androidText(R.string.generic_warning),
+                        androidText(R.string.account_change_cape_invalid)
+                    )
+                    FileUtils.deleteQuietly(cacheFile)
+                    _accountSkinDialogState.update { it.copy(importingCape = false) }
+                    return@onSuccess
+                }
+                val account = intent.account
+                val uuid = account.uniqueUUID
+                val imageBytes = cacheFile.readBytes()
+                val detectedExt = when {
+                    imageBytes.size > 8 &&
+                        imageBytes[0] == 0x89.toByte() &&
+                        imageBytes[1] == 0x50.toByte() &&
+                        imageBytes[2] == 0x4E.toByte() &&
+                        imageBytes[3] == 0x47.toByte() -> "png"
+                    imageBytes.size > 2 &&
+                        imageBytes[0] == 0xFF.toByte() &&
+                        imageBytes[1] == 0xD8.toByte() -> "jpg"
+                    imageBytes.size > 12 &&
+                        imageBytes[0] == 0x52.toByte() &&
+                        imageBytes[1] == 0x49.toByte() &&
+                        imageBytes[2] == 0x46.toByte() &&
+                        imageBytes[3] == 0x46.toByte() &&
+                        imageBytes[8] == 0x57.toByte() &&
+                        imageBytes[9] == 0x45.toByte() &&
+                        imageBytes[10] == 0x42.toByte() &&
+                        imageBytes[11] == 0x50.toByte() -> "webp"
+                    else -> "png"
+                }
+                AccountCapeCollection.addCape(
+                    accountUUID = uuid,
+                    name = AccountCapeCollection.generateAutoName(uuid),
+                    source = context.getString(R.string.account_capes_source_imported),
+                    imageBytes = imageBytes,
+                    ext = detectedExt
+                )
+                FileUtils.deleteQuietly(cacheFile)
+                _accountSkinDialogState.update { it.copy(importingCape = false) }
+                emitToast(androidText(R.string.account_capes_saved_toast))
+            }.onFailure { th ->
+                _accountSkinDialogState.update {
+                    it.copy(importingCape = false)
+                }
+                emitError(
+                    androidText(R.string.generic_error),
+                    androidText(context.getString(R.string.account_change_cape_failed_to_import) + "\r\n" + th.getMessageOrToString())
+                )
             }
         }
     }
@@ -694,6 +790,41 @@ class AccountManageViewModel @AssistedInject constructor(
         )
     }
 
+    private fun applyCustomCape(intent: AccountManageIntent.ApplyCustomCape) {
+        val account = intent.account
+        val capeFile = intent.capeFile
+
+        TaskSystem.submitTask(
+            Task.runTask(dispatcher = Dispatchers.IO, task = {
+                val targetCape = account.getCapeFile()
+                if (validateCapeFile(capeFile)) {
+                    capeFile.copyTo(targetCape, overwrite = true)
+                    FileUtils.deleteQuietly(capeFile)
+                    AccountsManager.refreshWardrobe()
+                } else {
+                    FileUtils.deleteQuietly(capeFile)
+                    emitError(
+                        androidText(R.string.generic_warning),
+                        androidText(R.string.account_change_cape_invalid)
+                    )
+                }
+            }, onError = { th ->
+                FileUtils.deleteQuietly(capeFile)
+                emitError(
+                    androidText(R.string.generic_error),
+                    androidText(context.getString(R.string.account_change_cape_failed_to_import) + "\r\n" + th.getMessageOrToString())
+                )
+            })
+        )
+    }
+
+    /** 上传自定义披风（内部使用） */
+    private fun uploadCustomCape(intent: AccountManageIntent.UploadCustomCape) {
+        // Reuse the existing applyCustomCape logic since uploading a custom cape
+        // simply involves validating and copying the file locally.
+        applyCustomCape(AccountManageIntent.ApplyCustomCape(intent.account, intent.capeFile))
+    }
+
     /** 创建离线账号 */
     private fun createLocalAccount(userName: String, userUUID: String?) {
         localLogin(userName, userUUID)
@@ -824,6 +955,22 @@ class AccountManageViewModel @AssistedInject constructor(
                 FileUtils.deleteQuietly(getSkinFile())
                 skinModelType = SkinModelType.NONE
                 profileId = getLocalUUIDWithSkinModel(username, skinModelType)
+                AccountsManager.suspendSaveAccount(this)
+                AccountsManager.refreshWardrobe()
+            }
+        }))
+        onIntent(
+            AccountManageIntent.UpdateAccountSkinOp(
+                AccountSkinOperation.None
+            )
+        )
+    }
+
+    /** Reset cape data */
+    private fun resetCape(account: Account) {
+        TaskSystem.submitTask(Task.runTask(dispatcher = Dispatchers.IO, task = {
+            account.apply {
+                FileUtils.deleteQuietly(getCapeFile())
                 AccountsManager.suspendSaveAccount(this)
                 AccountsManager.refreshWardrobe()
             }

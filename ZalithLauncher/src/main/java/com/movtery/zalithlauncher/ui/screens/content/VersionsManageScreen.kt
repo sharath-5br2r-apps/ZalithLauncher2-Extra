@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.ui.screens.content
 
+import android.content.Context
 import android.os.Environment
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
@@ -80,6 +81,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionComparator
+import com.movtery.zalithlauncher.game.version.installed.VersionMover
 import com.movtery.zalithlauncher.game.version.installed.VersionType
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.cleanup.GameAssetCleaner
@@ -93,14 +95,18 @@ import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.content.elements.CleanupOperation
+import com.movtery.zalithlauncher.ui.screens.content.elements.GameFolderOperation
+import com.movtery.zalithlauncher.ui.screens.content.elements.GameFolderOperationDialog
 import com.movtery.zalithlauncher.ui.screens.content.elements.GamePathItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.elements.GamePathOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionCategory
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionCategoryItem
+import com.movtery.zalithlauncher.ui.screens.content.elements.VersionItemCallbacks
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionsOperation
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
+import com.movtery.zalithlauncher.utils.ShortcutUtils
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.canHandlePermission
 import com.movtery.zalithlauncher.utils.checkStoragePermissions
@@ -167,6 +173,52 @@ private class VersionsScreenViewModel : ViewModel() {
     /** 游戏无用资源清理者 */
     var cleaner by mutableStateOf<GameAssetCleaner?>(null)
 
+    /** 游戏文件夹操作（移动版本） */
+    var gameFolderOperation by mutableStateOf<GameFolderOperation>(GameFolderOperation.None)
+
+    /** 版本移动器 */
+    var mover by mutableStateOf<VersionMover?>(null)
+
+    fun startMoveVersions(
+        context: Context,
+        versions: List<Version>,
+        targetPath: String,
+        onStart: () -> Unit = {},
+        onStop: () -> Unit = {},
+        onComplete: ((List<String>, List<Pair<String, String>>) -> Unit)? = null
+    ) {
+        mover = VersionMover(
+            context = context,
+            scope = viewModelScope,
+            versions = versions,
+            sourceGameHome = GamePathManager.currentPath.value,
+            targetGamePath = targetPath,
+            changeState = { gameFolderOperation = it }
+        ).also {
+            gameFolderOperation = GameFolderOperation.MoveVersionsProgress(it)
+            it.start(
+                onEnd = { moved, failed ->
+                    mover = null
+                    gameFolderOperation = GameFolderOperation.MoveVersionsResult(moved, failed)
+                    onComplete?.invoke(moved, failed)
+                    onStop()
+                },
+                onThrowable = { th ->
+                    mover = null
+                    gameFolderOperation = GameFolderOperation.None
+                    onStop()
+                }
+            )
+        }
+        onStart()
+    }
+
+    fun cancelMove() {
+        mover?.cancel()
+        mover = null
+        gameFolderOperation = GameFolderOperation.None
+    }
+
     fun cleanUnusedFiles(
         onStart: () -> Unit = {},
         onStop: () -> Unit = {}
@@ -199,6 +251,7 @@ private class VersionsScreenViewModel : ViewModel() {
 
     override fun onCleared() {
         cancelCleaner()
+        cancelMove()
         currentJob?.cancel()
     }
 }
@@ -250,6 +303,7 @@ fun VersionsManageScreen(
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     val viewModel = rememberVersionViewModel()
+    val context = LocalContext.current
 
     val versions by rememberVersions(VersionsManager.versions, viewModel)
     val currentVersion by VersionsManager.currentVersion.collectAsStateWithLifecycle()
@@ -259,6 +313,21 @@ fun VersionsManageScreen(
         gamePathOperation = viewModel.gamePathOperation,
         changeState = { viewModel.gamePathOperation = it },
         submitError = submitError
+    )
+
+    GameFolderOperationDialog(
+        operation = viewModel.gameFolderOperation,
+        changeState = { viewModel.gameFolderOperation = it },
+        versions = versions,
+        onStartMove = { selectedVersions, targetPath ->
+            viewModel.startMoveVersions(
+                context = context,
+                versions = selectedVersions,
+                targetPath = targetPath,
+                onStart = { eventViewModel.sendKeepScreen(true) },
+                onStop = { eventViewModel.sendKeepScreen(false) }
+            )
+        }
     )
 
     BaseScreen(
@@ -282,6 +351,9 @@ fun VersionsManageScreen(
                     if (viewModel.cleanupOperation == CleanupOperation.None) {
                         viewModel.cleanupOperation = CleanupOperation.Tip
                     }
+                },
+                onMoveVersions = {
+                    viewModel.gameFolderOperation = GameFolderOperation.MoveVersionsSelect
                 },
                 changePathOperation = {
                     viewModel.gamePathOperation = it
@@ -348,6 +420,7 @@ private fun LeftMenu(
     isRefreshing: Boolean,
     swapToFileSelector: (path: String) -> Unit,
     onCleanupGameFiles: () -> Unit,
+    onMoveVersions: () -> Unit,
     changePathOperation: (GamePathOperation) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -433,6 +506,15 @@ private fun LeftMenu(
             modifier = Modifier
                 .padding(start = 12.dp, top = 8.dp, bottom = 12.dp)
                 .fillMaxWidth(),
+            onClick = onMoveVersions
+        ) {
+            MarqueeText(text = stringResource(R.string.versions_manage_move_versions))
+        }
+
+        ScalingActionButton(
+            modifier = Modifier
+                .padding(PaddingValues(horizontal = 12.dp, vertical = 8.dp))
+                .fillMaxWidth(),
             onClick = onCleanupGameFiles
         ) {
             MarqueeText(text = stringResource(R.string.versions_manage_cleanup))
@@ -460,6 +542,7 @@ private fun VersionsLayout(
     onVersionPinned: () -> Unit,
     onInstall: () -> Unit,
 ) {
+    val context = LocalContext.current
     val surfaceYOffset by swapAnimateDpAsState(
         targetValue = (-40).dp,
         swapIn = isVisible
@@ -534,28 +617,35 @@ private fun VersionsLayout(
                         state = listState,
                     ) {
                         items(versions, key = { it.toString() }) { version ->
+                            val callbacks = remember(version) {
+                                VersionItemCallbacks(
+                                    submitError = submitError,
+                                    onSelected = {
+                                        if (version == currentVersion) return@VersionItemCallbacks
+                                        if (!VersionsManager.saveVersion(version)) {
+                                            //不允许选择无效版本
+                                            versionsOperation = VersionsOperation.InvalidDelete(version)
+                                        }
+                                    },
+                                    onSettingsClick = { navigateToVersions(version) },
+                                    onRenameClick = { versionsOperation = VersionsOperation.Rename(version) },
+                                    onCopyClick = { versionsOperation = VersionsOperation.Copy(version) },
+                                    onExportClick = { navigateToExport(version) },
+                                    onDeleteClick = { versionsOperation = VersionsOperation.Delete(version) },
+                                    onPinned = onVersionPinned,
+                                    onAddShortcutClick = { ShortcutUtils.pinVersion(context, version) }
+                                )
+                            }
                             VersionItemLayout(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .animateItem(),
                                 version = version,
                                 selected = version == currentVersion,
-                                submitError = submitError,
-                                onSelected = {
-                                    if (version == currentVersion) return@VersionItemLayout
-                                    if (!VersionsManager.saveVersion(version)) {
-                                        //不允许选择无效版本
-                                        versionsOperation = VersionsOperation.InvalidDelete(version)
-                                    }
-                                },
-                                onSettingsClick = {
-                                    navigateToVersions(version)
-                                },
-                                onRenameClick = { versionsOperation = VersionsOperation.Rename(version) },
-                                onCopyClick = { versionsOperation = VersionsOperation.Copy(version) },
-                                onExportClick = { navigateToExport(version) },
-                                onDeleteClick = { versionsOperation = VersionsOperation.Delete(version) },
-                                onPinned = onVersionPinned
+                                callbacks = callbacks,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateItem()
                             )
                         }
                     }

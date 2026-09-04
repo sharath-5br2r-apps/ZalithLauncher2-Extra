@@ -41,7 +41,7 @@ enum class ModLoader(
     LEGACY_FABRIC(displayName = "Legacy Fabric"),
     LEGACY_FABRIC_API(displayName = "Legacy Fabric API", isLoader = false, isApiMod = true, autoDownloadable = false),
 
-    BABRIC(displayName = "Babric", autoDownloadable = false),
+    BABRIC(displayName = "Babric"),
     BABRIC_API(displayName = "Babric API", isLoader = false, isApiMod = true, autoDownloadable = false),
 
     QUILT(displayName = "Quilt"),

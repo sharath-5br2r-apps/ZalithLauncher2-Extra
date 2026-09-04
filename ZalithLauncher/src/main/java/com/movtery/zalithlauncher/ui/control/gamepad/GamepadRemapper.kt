@@ -232,6 +232,7 @@ data class GamepadRemapper(
                 (mappedSource == MotionEvent.AXIS_RTRIGGER || keyEvent.keyCode == KeyEvent.KEYCODE_BUTTON_R2)
         if (isDpad || isTrigger) return null
 
+        @Suppress("DEPRECATION")
         return when (keyEvent.action) {
             KeyEvent.ACTION_DOWN, KeyEvent.ACTION_MULTIPLE -> 1f
             else -> 0f

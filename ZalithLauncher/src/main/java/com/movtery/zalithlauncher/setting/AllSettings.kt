@@ -30,6 +30,7 @@ import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
+import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
@@ -57,6 +58,11 @@ object AllSettings : SettingsRegistry() {
     val vulkanDriver = stringSetting("vulkanDriver", "default turnip")
 
     /**
+     * Turnip 驱动下载源（GitHub owner/repo）
+     */
+    val turnipRepo = stringSetting("turnipRepo", "K11MCH1/AdrenoToolsDrivers")
+
+    /**
      * 图形 API（Minecraft 26.2+）
      */
     val graphicsApi = enumSetting("graphicsApi", GraphicsApi.DEFAULT_OPENGL)
@@ -64,7 +70,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 分辨率
      */
-    val resolutionRatio = intSetting("resolutionRatio", 100, 25..300)
+    val resolutionRatio = intSetting("resolutionRatio", 70, 25..300)
 
     /**
      * 游戏页面全屏化
@@ -75,6 +81,11 @@ object AllSettings : SettingsRegistry() {
      * 使用 SurfaceView 渲染
      */
     val useSurfaceView = boolSetting("useSurfaceView", false)
+
+    /**
+     * Kopper Zink uyarısını bir daha gösterme
+     */
+    val surfaceViewKopperWarningDontShow = boolSetting("surfaceViewKopperWarningDontShow", false)
 
     /**
      * 持续性能模式
@@ -92,7 +103,27 @@ object AllSettings : SettingsRegistry() {
     val vsyncInZink = boolSetting("vsyncInZink", false)
 
     /**
-     * 启用着色器日志输出
+     * Frame generation (swapchain frame doubling)
+     */
+    val frameGeneration = boolSetting("frameGeneration", false)
+
+    /**
+     * Enable FPS limit
+     */
+    val fpsLimitEnabled = boolSetting("fpsLimitEnabled", false)
+
+    /**
+     * FPS limit value
+     */
+    val fpsLimit = intSetting("fpsLimit", 60, 15..240)
+
+    /**
+     * Force running on performance (big) CPU cores
+     */
+    val bigCoreAffinity = boolSetting("bigCoreAffinity", false)
+
+    /**
+     * Enable shader dump logging
      */
     val dumpShaders = boolSetting("dumpShaders", false)
 
@@ -128,6 +159,11 @@ object AllSettings : SettingsRegistry() {
     val ramAllocation = intSetting("ramAllocation", null, min = 256)
 
     /**
+     * 自动内存分配
+     */
+    val autoRamAllocation = boolSetting("autoRamAllocation", false)
+
+    /**
      * 自定义Jvm启动参数
      */
     val jvmArgs = stringSetting("jvmArgs", "")
@@ -141,6 +177,16 @@ object AllSettings : SettingsRegistry() {
      * 启动游戏时自动展示日志，直到游戏开始渲染
      */
     val showLogAutomatic = boolSetting("showLogAutomatic", false)
+
+    /**
+     * 游戏加载时隐藏控制布局
+     */
+    val hideControlsDuringLoading = boolSetting("hideControlsDuringLoading", true)
+
+    /**
+     * 禁用加载弹出提示
+     */
+    val disableLoadingPopup = boolSetting("disableLoadingPopup", false)
 
     /**
      * 日志字体大小
@@ -392,7 +438,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器页面切换动画类型
      */
-    val launcherSwapAnimateType = enumSetting("launcherSwapAnimateType", TransitionAnimationType.JELLY_BOUNCE)
+    val launcherSwapAnimateType = enumSetting("launcherSwapAnimateType", TransitionAnimationType.SLICE_IN)
 
     /**
      * 启动器背景元素不透明度
@@ -443,6 +489,11 @@ object AllSettings : SettingsRegistry() {
      * 资源平台镜像源
      */
     val assetPlatformSource = enumSetting("assetPlatformSource", MirrorSourceType.AUTO)
+
+    /**
+     * 是否使用旧版版本选择器（仅正式版，无搜索框）
+     */
+    val classicVersionPicker = boolSetting("classicVersionPicker", true)
 
     //Control
     /**
@@ -567,9 +618,29 @@ object AllSettings : SettingsRegistry() {
     val lastUpgradeCheck = longSetting("lastUpgradeCheck", 0L)
 
     /**
+     * 是否已接受非官方声明
+     */
+    val disclaimerAccepted = boolSetting("disclaimerAccepted", false)
+
+    /**
      * 玩家结束运行游戏的次数
      */
     val finishedGame = intSetting("finishedGame", 0)
+
+    /**
+     * 玩家在模拟器中运行游戏的总时长（毫秒）
+     */
+    val playTime = longSetting("playTime", 0L)
+
+    /**
+     * 彩虹（Chroma）用户名特效模式
+     */
+    val chromaMode = enumSetting("chromaMode", ChromaMode.NONE)
+
+    /**
+     * 是否显示设置导出/导入提示
+     */
+    val showSettingsTip = boolSetting("showSettingsTip", true)
 
     /**
      * 是否在打开启动器时，根据特定的运行游戏次数，显示赞助支持弹窗
@@ -597,7 +668,38 @@ object AllSettings : SettingsRegistry() {
     val searchShadersPlatform = enumSetting("searchShadersPlatform", Platform.CURSEFORGE)
 
     /**
+     * 搜索模组时保存的过滤器状态（JSON）
+     */
+    val searchModFilter = stringSetting("searchModFilter", "")
+
+    /**
+     * 搜索整合包时保存的过滤器状态（JSON）
+     */
+    val searchModpackFilter = stringSetting("searchModpackFilter", "")
+
+    /**
+     * 搜索资源包时保存的过滤器状态（JSON）
+     */
+    val searchResourcePackFilter = stringSetting("searchResourcePackFilter", "")
+
+    /**
+     * 搜索光影时保存的过滤器状态（JSON）
+     */
+    val searchShadersFilter = stringSetting("searchShadersFilter", "")
+
+    /**
+     * 搜索存档时保存的过滤器状态（JSON）
+     */
+    val searchSavesFilter = stringSetting("searchSavesFilter", "")
+
+    /**
+     * 在下载页面显示快照版本（snapshot/old/aprilfools等）
+     */
+    val showSnapshotVersions = boolSetting("showSnapshotVersions", false)
+
+    /**
      * 启动 MC26.2+ 时，自动检查 Vulkan
      */
     val autoVulkanChecker = boolSetting("autoVulkanChecker", true)
+
 }

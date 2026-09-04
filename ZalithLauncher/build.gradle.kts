@@ -46,10 +46,10 @@ android {
 
     signingConfigs {
         create("releaseBuild") {
-            storeFile = file("zalith_launcher.jks")
-            storePassword = getKeyFromLocal("STORE_PASSWORD", ".store_password.txt")
-            keyAlias = "movtery_zalith"
-            keyPassword = getKeyFromLocal("KEY_PASSWORD", ".key_password.txt")
+            storeFile = file("zalith_launcher_debug.jks")
+            storePassword = defaultStorePassword
+            keyAlias = "movtery_zalith_debug"
+            keyPassword = defaultKeyPassword
         }
         create("debugBuild") {
             storeFile = file("zalith_launcher_debug.jks")
@@ -101,7 +101,7 @@ android {
         }
     }
 
-    ndkVersion = "25.2.9519653"
+    ndkVersion = "29.0.14206865"
 
     externalNativeBuild {
         ndkBuild {
@@ -229,6 +229,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
@@ -246,9 +247,7 @@ dependencies {
     implementation(libs.material.color.utilities)
     implementation(libs.materialKolor)
     implementation(libs.reorderable)
-    implementation(libs.richtext.commonmark)
-    implementation(libs.richtext.ui)
-    implementation(libs.richtext.ui.material3)
+    implementation(libs.compose.markdown)
     implementation(platform(libs.editor.bom))
     implementation(libs.editor)
     implementation(libs.editor.language.textmate)

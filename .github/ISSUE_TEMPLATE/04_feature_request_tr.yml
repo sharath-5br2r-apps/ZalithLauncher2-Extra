@@ -1,0 +1,35 @@
+name: Özellik Talebi (Türkçe)
+description: Proje için bir fikir öner
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Sorun
+      description: Özellik talebiniz bir sorunla mı ilgili? Açıklayın.
+      placeholder: Şu durumda hep hayal kırıklığına uğruyorum...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Önerilen Çözüm
+      description: İstediğiniz çözümü açıklayın.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Düşündüğünüz alternatifleri açıklayın.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Ek Bağlam
+      description: Ek bağlam veya ekran görüntüleri ekleyin.
+    validations:
+      required: false

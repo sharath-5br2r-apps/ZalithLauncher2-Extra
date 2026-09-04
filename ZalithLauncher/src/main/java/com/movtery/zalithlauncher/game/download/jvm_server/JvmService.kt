@@ -114,7 +114,6 @@ class JvmService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     private fun postNotification(

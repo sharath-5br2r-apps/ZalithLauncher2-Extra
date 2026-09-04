@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +33,9 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
+import com.movtery.zalithlauncher.game.download.assets.downloadDependenciesBatch
 import com.movtery.zalithlauncher.game.download.assets.downloadSingleForVersions
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
@@ -44,8 +48,10 @@ import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
+import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun DownloadModScreen(
@@ -64,6 +70,7 @@ fun DownloadModScreen(
     }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     //下载资源操作
     var operation by remember { mutableStateOf<DownloadSingleOperation>(DownloadSingleOperation.None) }
@@ -72,6 +79,7 @@ fun DownloadModScreen(
         changeOperation = { operation = it },
         doInstall = { classes, version, gameVersions ->
             downloadSingleForVersions(
+                context = context,
                 version = version,
                 versions = gameVersions,
                 folder = classes.versionFolder.folderName,
@@ -82,6 +90,73 @@ fun DownloadModScreen(
             backStack.navigateTo(
                 NormalNavKey.DownloadAssets(dep.platform, dep.projectId, classes)
             )
+        },
+        onDownloadAllDependencies = { deps, gameVersions, classes ->
+            scope.launch {
+                val failedDependencies = mutableListOf<String>()
+                downloadDependenciesBatch(
+                    context = context,
+                    deps = deps,
+                    gameVersions = gameVersions,
+                    folder = classes.versionFolder.folderName,
+                    submitError = submitError,
+                    onEachError = { name, error ->
+                        failedDependencies += "$name: $error"
+                    }
+                )
+                if (failedDependencies.isNotEmpty()) {
+                    submitError(
+                        ErrorViewModel.ThrowableMessage(
+                            title = androidText(R.string.download_assets_install_failed),
+                            message = androidText(failedDependencies.joinToString("\n"))
+                        )
+                    )
+                }
+            }
+        },
+        onInstallWithDependencies = { version, deps, gameVersions, classes ->
+            val failedDependencies = mutableListOf<String>()
+
+            val targetLoaders = gameVersions.mapNotNull { ver ->
+                ver.getVersionInfo()?.loaderInfo?.loader
+            }.distinct().mapNotNull { loader ->
+                when (loader) {
+                    ModLoader.FABRIC, ModLoader.LEGACY_FABRIC -> "fabric"
+                    ModLoader.NEOFORGE -> "neoforge"
+                    ModLoader.FORGE -> "forge"
+                    ModLoader.QUILT -> "quilt"
+                    else -> null
+                }
+            }.toSet()
+
+            downloadDependenciesBatch(
+                context = context,
+                deps = deps,
+                gameVersions = gameVersions,
+                folder = classes.versionFolder.folderName,
+                submitError = submitError,
+                targetLoaders = targetLoaders,
+                onEachError = { name, error ->
+                    failedDependencies += "$name: $error"
+                }
+            )
+
+            downloadSingleForVersions(
+                context = context,
+                version = version,
+                versions = gameVersions,
+                folder = classes.versionFolder.folderName,
+                submitError = submitError
+            )
+
+            if (failedDependencies.isNotEmpty()) {
+                submitError(
+                    ErrorViewModel.ThrowableMessage(
+                        title = androidText(R.string.download_assets_install_failed),
+                        message = androidText(failedDependencies.joinToString("\n"))
+                    )
+                )
+            }
         }
     )
 

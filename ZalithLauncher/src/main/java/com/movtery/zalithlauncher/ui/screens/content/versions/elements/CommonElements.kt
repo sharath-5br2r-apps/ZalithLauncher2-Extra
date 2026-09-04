@@ -18,9 +18,18 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.versions.elements
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -44,7 +55,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.text.MINECRAFT_COLOR_FORMAT
@@ -484,6 +497,48 @@ fun FileNameInputDialog(
             }
         }
     )
+}
+
+/**
+ * 通用的"已禁用"图标覆盖层
+ * 当 [isDisabled] 为 true 时：图标以灰度（去饱和）方式展示，并在中心叠加一个禁用图标
+ * @param content 实际图标内容，接收一个应传递给图标绘制的 [ColorFilter]（禁用时为灰度，启用时为正常颜色）
+ */
+@Composable
+fun DisabledStateIcon(
+    modifier: Modifier = Modifier,
+    isDisabled: Boolean,
+    disableContainerSize: Dp = 28.dp,
+    content: @Composable (colorFilter: ColorFilter) -> Unit
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        val colorMatrix = remember(isDisabled) { ColorMatrix() }
+        colorMatrix.setToSaturation(if (isDisabled) 0f else 1f)
+
+        content(ColorFilter.colorMatrix(colorMatrix))
+
+        AnimatedVisibility(
+            modifier = Modifier.align(Alignment.Center),
+            visible = isDisabled,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .padding(all = 4.dp)
+                    .size(disableContainerSize),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = CircleShape,
+                shadowElevation = 4.dp
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_block_outlined),
+                    contentDescription = null
+                )
+            }
+        }
+    }
 }
 
 @Composable

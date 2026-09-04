@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
-
+// 26.3 delay
 package com.movtery.zalithlauncher.path
 
 import android.content.Context
@@ -53,6 +53,7 @@ class PathManager {
         lateinit var DIR_CONTROL_LAYOUTS: File
         lateinit var DIR_TERRACOTTA: File
         lateinit var DIR_STYLES: File
+        lateinit var DIR_DRIVERS: File
 
         lateinit var FILE_CRASH_REPORT: File
         lateinit var FILE_SETTINGS: File
@@ -91,6 +92,7 @@ class PathManager {
             DIR_CONTROL_LAYOUTS = File(DIR_FILES_EXTERNAL, "control_layouts")
             DIR_TERRACOTTA = File(DIR_FILES_PRIVATE, "net.burningtnt.terracotta")
             DIR_STYLES = File(DIR_FILES_PRIVATE, "special_styles")
+            DIR_DRIVERS = File(DIR_GAME, "drivers")
 
             FILE_CRASH_REPORT = File(DIR_LAUNCHER_LOGS, "launcher_crash.log")
             FILE_SETTINGS = File(DIR_FILES_PRIVATE, "settings.json")
@@ -124,6 +126,7 @@ class PathManager {
             DIR_CONTROL_LAYOUTS.mkdirs()
             DIR_TERRACOTTA.mkdirs()
             DIR_STYLES.mkdirs()
+            DIR_DRIVERS.mkdirs()
         }
 
         /**

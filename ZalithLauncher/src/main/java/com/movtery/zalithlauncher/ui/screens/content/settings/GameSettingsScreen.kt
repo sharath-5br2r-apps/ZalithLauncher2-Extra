@@ -209,6 +209,16 @@ fun GameSettingsScreen(
                         )
                     }
 
+                    val autoRamEnabled = AllSettings.autoRamAllocation.state
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        unit = AllSettings.autoRamAllocation,
+                        title = stringResource(R.string.settings_game_auto_ram_allocation_title),
+                        summary = stringResource(R.string.settings_game_auto_ram_allocation_summary)
+                    )
+
                     IntSliderSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Middle,
@@ -218,6 +228,7 @@ fun GameSettingsScreen(
                         valueRange = AllSettings.ramAllocation.floatRange.start..getMaxMemoryForSettings(LocalContext.current).toFloat(),
                         suffix = "MB",
                         fineTuningControl = true,
+                        enabled = !autoRamEnabled,
                         previewContent = {
                             MemoryPreview(
                                 modifier = Modifier

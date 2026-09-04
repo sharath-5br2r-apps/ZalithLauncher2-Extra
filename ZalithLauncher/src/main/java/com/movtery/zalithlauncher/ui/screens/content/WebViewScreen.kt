@@ -21,6 +21,7 @@ package com.movtery.zalithlauncher.ui.screens.content
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.webkit.CookieManager
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -52,6 +53,7 @@ import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.navigateTo
+import com.movtery.zalithlauncher.utils.driver.TurnipDownloader
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
@@ -142,6 +144,17 @@ fun WebViewScreen(
                                     super.onPageStarted(view, url, favicon)
                                     webUrl = url ?: ""
                                     isWebLoading = true
+                                }
+
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val url = request?.url?.toString() ?: return false
+                                    if (url.startsWith(TurnipDownloader.getRepoDownloadPrefix()) &&
+                                        url.endsWith(".zip", ignoreCase = true)
+                                    ) {
+                                        TurnipDownloader.downloadUrl(context.applicationContext, url)
+                                        return true
+                                    }
+                                    return false
                                 }
                             }
 

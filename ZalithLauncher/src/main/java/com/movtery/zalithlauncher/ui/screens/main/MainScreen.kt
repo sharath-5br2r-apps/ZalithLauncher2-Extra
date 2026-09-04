@@ -58,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -77,23 +78,31 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
+import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.screens.BackStackNavKey
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.AccountManageScreen
+import com.movtery.zalithlauncher.ui.screens.content.BuiltInFileManagerScreen
 import com.movtery.zalithlauncher.ui.screens.content.DownloadScreen
+import com.movtery.zalithlauncher.ui.screens.content.FileEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileSelectorScreen
 import com.movtery.zalithlauncher.ui.screens.content.HomePageEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
 import com.movtery.zalithlauncher.ui.screens.content.LicenseScreen
+import com.movtery.zalithlauncher.ui.screens.content.GameStatsScreen
+import com.movtery.zalithlauncher.ui.screens.content.CapeGalleryScreen
+import com.movtery.zalithlauncher.ui.screens.content.PlayTimeStatsScreen
+import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
@@ -141,6 +150,24 @@ fun MainScreen(
     }
 
     val isTaskMenuExpanded = AllSettings.launcherTaskMenuExpanded.state
+    val showDisclaimer = AllSettings.disclaimerAccepted.state
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    if (!showDisclaimer) {
+        SimpleAlertDialog(
+            title = stringResource(R.string.disclaimer_title),
+            text = stringResource(R.string.disclaimer_content),
+            confirmText = stringResource(R.string.generic_got_it),
+            dismissText = stringResource(R.string.disclaimer_original_repo),
+            onConfirm = {
+                AllSettings.disclaimerAccepted.save(true)
+            },
+            onDismiss = {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(URL_ORIGINAL_PROJECT))
+                context.startActivity(intent)
+            }
+        )
+    }
 
     fun changeTasksExpandedState() {
         AllSettings.launcherTaskMenuExpanded.save(!isTaskMenuExpanded)
@@ -198,6 +225,12 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
+                toRecordingsScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.Recordings
+                    )
+                },
                 openFileManager = {
                     eventViewModel.sendEvent(
                         EventViewModel.Event.OpenFileManager(
@@ -253,12 +286,14 @@ private fun <E: TitledNavKey> TopBar(
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
+    toRecordingsScreen: () -> Unit,
     openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
 
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
+    val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
 
@@ -335,18 +370,29 @@ private fun <E: TitledNavKey> TopBar(
                 val maxLines = 1
 
                 if (parent == null) {
-                    if (festivals.isEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        if (festivals.isEmpty()) {
+                            Text(
+                                text = BuildKeys.LAUNCHER_IDENTIFIER,
+                                style = style,
+                                softWrap = softWarp,
+                                maxLines = maxLines
+                            )
+                        } else {
+                            FestivalTitleText(
+                                festivals = festivals,
+                                style = style,
+                                maxLines = maxLines
+                            )
+                        }
                         Text(
-                            text = BuildKeys.LAUNCHER_IDENTIFIER,
-                            style = style,
+                            modifier = Modifier.alpha(0.6f),
+                            text = stringResource(R.string.launcher_fork_subtitle),
+                            style = MaterialTheme.typography.labelSmall,
                             softWrap = softWarp,
-                            maxLines = maxLines
-                        )
-                    } else {
-                        FestivalTitleText(
-                            festivals = festivals,
-                            style = style,
-                            maxLines = maxLines
+                            maxLines = 1
                         )
                     }
                 } else {
@@ -410,6 +456,15 @@ private fun <E: TitledNavKey> TopBar(
                         contentDescription = null
                     )
                 }
+
+                TopBarRailItem(
+                    selected = inRecordingsScreen,
+                    painter = painterResource(R.drawable.ic_videocam_filled),
+                    text = stringResource(R.string.page_title_recordings),
+                    onClick = {
+                        if (!inRecordingsScreen) toRecordingsScreen()
+                    },
+                )
 
                 TopBarRailItem(
                     selected = inMultiplayerScreen,
@@ -495,30 +550,35 @@ private fun NavigationUI(
 
     if (backStack.isNotEmpty()) {
         /** 导航至版本详细信息屏幕 */
-        val navigateToVersions: (Version) -> Unit = { version ->
-            screenBackStackModel.mainScreen.navigateTo(
-                screenKey = NestedNavKey.VersionSettings(version),
-                useClassEquality = true
-            )
+        val navigateToVersions: (Version) -> Unit = remember(screenBackStackModel) {
+            { version ->
+                screenBackStackModel.mainScreen.navigateTo(
+                    screenKey = NestedNavKey.VersionSettings(version),
+                    useClassEquality = true
+                )
+            }
         }
         /** 导航至整合包导出屏幕 */
-        val navigateToExport: (Version) -> Unit = { version ->
-            screenBackStackModel.mainScreen.removeAndNavigateTo(
-                remove = NestedNavKey.VersionSettings::class,
-                screenKey = NestedNavKey.VersionExport(version),
-                useClassEquality = true
-            )
+        val navigateToExport: (Version) -> Unit = remember(screenBackStackModel) {
+            { version ->
+                screenBackStackModel.mainScreen.removeAndNavigateTo(
+                    remove = NestedNavKey.VersionSettings::class,
+                    screenKey = NestedNavKey.VersionExport(version),
+                    useClassEquality = true
+                )
+            }
         }
 
-        NavDisplay(
-            backStack = backStack,
-            modifier = modifier,
-            onBack = {
-                onBack(backStack)
-            },
-            transitionSpec = rememberTransitionSpec(),
-            popTransitionSpec = rememberTransitionSpec(),
-            entryProvider = entryProvider {
+        val provider = remember(
+            screenBackStackModel,
+            toMainScreen,
+            eventViewModel,
+            modpackImportViewModel,
+            submitError,
+            navigateToVersions,
+            navigateToExport
+        ) {
+            entryProvider {
                 entry<NormalNavKey.LauncherMain> {
                     LauncherScreen(
                         backStackViewModel = screenBackStackModel,
@@ -533,6 +593,15 @@ private fun NavigationUI(
                         },
                         onHomePageEvent = { event ->
                             eventViewModel.sendEvent(EventViewModel.Event.HomePage.Event(event))
+                        },
+                        onNavigateToStats = {
+                            backStack.navigateTo(NormalNavKey.GameStats)
+                        },
+                        onNavigateToPlayTimeStats = {
+                            backStack.navigateTo(NormalNavKey.PlayTimeStats)
+                        },
+                        onNavigateToLog = { logPath ->
+                            backStack.navigateTo(NormalNavKey.LogView(logPath))
                         }
                     )
                 }
@@ -633,6 +702,23 @@ private fun NavigationUI(
                         eventViewModel = eventViewModel
                     )
                 }
+                entry<NormalNavKey.BuiltInFileManager> { key ->
+                    BuiltInFileManagerScreen(
+                        key = key,
+                        backStackViewModel = screenBackStackModel,
+                        submitError = submitError,
+                        navigateToEditor = { path ->
+                            backStack.navigateTo(NormalNavKey.FileEditor(filePath = path))
+                        }
+                    )
+                }
+                entry<NormalNavKey.FileEditor> { key ->
+                    FileEditorScreen(
+                        key = key,
+                        backStackViewModel = screenBackStackModel,
+                        submitError = submitError
+                    )
+                }
                 entry<NormalNavKey.HomePageEditor> {
                     HomePageEditorScreen(
                         backStackViewModel = screenBackStackModel,
@@ -644,7 +730,40 @@ private fun NavigationUI(
                         backStackViewModel = screenBackStackModel,
                     )
                 }
+                entry<NormalNavKey.GameStats> {
+                    GameStatsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.PlayTimeStats> {
+                    PlayTimeStatsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.CapeGallery> { key ->
+                    CapeGalleryScreen(
+                        key = key,
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.Recordings> {
+                    RecordingsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+
             }
+        }
+
+        NavDisplay(
+            backStack = backStack,
+            modifier = modifier,
+            onBack = {
+                onBack(backStack)
+            },
+            transitionSpec = rememberTransitionSpec(),
+            popTransitionSpec = rememberTransitionSpec(),
+            entryProvider = provider
         )
     } else {
         Box(modifier)
@@ -719,7 +838,11 @@ private fun TaskMenu(
                         .weight(1f),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    items(tasks) { task ->
+                    items(
+                        items = tasks,
+                        key = { it.id },
+                        contentType = { "task" }
+                    ) { task ->
                         val taskProgress by task.progress.collectAsStateWithLifecycle()
                         val taskMessage by task.message.collectAsStateWithLifecycle()
                         val rateBytesPerSec by task.rateBytesPerSec.collectAsStateWithLifecycle()

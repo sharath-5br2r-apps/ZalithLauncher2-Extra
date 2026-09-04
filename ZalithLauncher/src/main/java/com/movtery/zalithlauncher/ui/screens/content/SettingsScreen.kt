@@ -49,7 +49,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.base.BaseScreen
+import com.movtery.zalithlauncher.ui.components.WarningCard
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
@@ -64,6 +66,7 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.GamepadSettingsScr
 import com.movtery.zalithlauncher.ui.screens.content.settings.JavaManageScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.LauncherSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.RendererSettingsScreen
+import com.movtery.zalithlauncher.ui.screens.content.settings.TurnipDriversScreen
 import com.movtery.zalithlauncher.ui.screens.navigateOnce
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
@@ -195,66 +198,82 @@ private fun NavigationUI(
     modifier: Modifier = Modifier
 ) {
     val backStack = key.backStack
-    val stackTopKey = backStack.lastOrNull()
-    LaunchedEffect(stackTopKey) {
-        onCurrentKeyChange(stackTopKey)
+    val currentKey = backStack.lastOrNull()
+    LaunchedEffect(currentKey) {
+        onCurrentKeyChange(currentKey)
     }
 
-    if (backStack.isNotEmpty()) {
-        NavDisplay(
-            backStack = backStack,
-            modifier = modifier,
-            onBack = {
-                onBack(backStack)
-            },
-            transitionSpec = rememberTransitionSpec(),
-            popTransitionSpec = rememberTransitionSpec(),
-            entryProvider = entryProvider {
-                entry<NormalNavKey.Settings.Renderer> {
-                    RendererSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
+    Column(modifier = modifier) {
+        if (AllSettings.showSettingsTip.state) {
+            WarningCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                title = stringResource(R.string.generic_info),
+                text = { Text(stringResource(R.string.settings_tip_import_export)) },
+                onDismiss = { AllSettings.showSettingsTip.save(false) }
+            )
+        }
+
+        if (backStack.isNotEmpty()) {
+            NavDisplay(
+                backStack = backStack,
+                modifier = Modifier.weight(1f),
+                onBack = {
+                    onBack(backStack)
+                },
+                transitionSpec = rememberTransitionSpec(),
+                popTransitionSpec = rememberTransitionSpec(),
+                entryProvider = entryProvider {
+                    entry<NormalNavKey.Settings.Renderer> {
+                        RendererSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
+                    }
+                    entry<NormalNavKey.Settings.TurnipDrivers> {
+                        TurnipDriversScreen(key, settingsScreenKey, mainScreenKey)
+                    }
+                    entry<NormalNavKey.Settings.Game> {
+                        GameSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
+                    }
+                    entry<NormalNavKey.Settings.Control> {
+                        ControlSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
+                    }
+                    entry<NormalNavKey.Settings.Gamepad> {
+                        GamepadSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
+                    }
+                    entry<NormalNavKey.Settings.Launcher> {
+                        LauncherSettingsScreen(
+                            key = key,
+                            settingsScreenKey = settingsScreenKey,
+                            mainScreenKey = mainScreenKey,
+                            eventViewModel = eventViewModel,
+                            toHomePageEditor = toHomePageEditor,
+                            submitError = submitError,
+                        )
+                    }
+                    entry<NormalNavKey.Settings.JavaManager> {
+                        JavaManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
+                    }
+                    entry<NormalNavKey.Settings.ControlManager> {
+                        ControlManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
+                    }
+                    entry<NormalNavKey.Settings.AboutInfo> {
+                        AboutInfoScreen(
+                            key = key,
+                            settingsScreenKey = settingsScreenKey,
+                            mainScreenKey = mainScreenKey,
+                            checkUpdate = {
+                                eventViewModel.sendEvent(EventViewModel.Event.CheckUpdate)
+                            },
+                            openLicense = openLicenseScreen,
+                            openLink = { url ->
+                                eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
+                            }
+                        )
+                    }
                 }
-                entry<NormalNavKey.Settings.Game> {
-                    GameSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
-                }
-                entry<NormalNavKey.Settings.Control> {
-                    ControlSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
-                }
-                entry<NormalNavKey.Settings.Gamepad> {
-                    GamepadSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
-                }
-                entry<NormalNavKey.Settings.Launcher> {
-                    LauncherSettingsScreen(
-                        key = key,
-                        settingsScreenKey = settingsScreenKey,
-                        mainScreenKey = mainScreenKey,
-                        eventViewModel = eventViewModel,
-                        toHomePageEditor = toHomePageEditor,
-                        submitError = submitError,
-                    )
-                }
-                entry<NormalNavKey.Settings.JavaManager> {
-                    JavaManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
-                }
-                entry<NormalNavKey.Settings.ControlManager> {
-                    ControlManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
-                }
-                entry<NormalNavKey.Settings.AboutInfo> {
-                    AboutInfoScreen(
-                        key = key,
-                        settingsScreenKey = settingsScreenKey,
-                        mainScreenKey = mainScreenKey,
-                        checkUpdate = {
-                            eventViewModel.sendEvent(EventViewModel.Event.CheckUpdate)
-                        },
-                        openLicense = openLicenseScreen,
-                        openLink = { url ->
-                            eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
-                        }
-                    )
-                }
-            }
-        )
-    } else {
-        Box(modifier)
+            )
+        } else {
+            Box(Modifier.weight(1f))
+        }
     }
 }

@@ -720,7 +720,11 @@ private fun ScreenshotGrid(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(items) { info ->
+                items(
+                    items = items,
+                    key = { it.file.absolutePath },
+                    contentType = { "screenshot" }
+                ) { info ->
                     ScreenshotItemLayout(
                         info = info,
                         selected = selected.contains(info),

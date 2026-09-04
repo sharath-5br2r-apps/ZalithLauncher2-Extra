@@ -119,7 +119,6 @@ JNIEXPORT jint JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_chdir(JNI
 	return retval;
 }
 
-
 JNIEnv* get_attached_env(JavaVM* jvm) {
     if (jvm == NULL) return NULL;
     JNIEnv *env = NULL;
@@ -155,3 +154,29 @@ jintArray convertIntArrayJVM(JNIEnv* srcEnv, JNIEnv* dstEnv, jintArray srcIntArr
 
 	return dstIntArray;
 }
+
+JNIEXPORT void JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_fsrInit(JNIEnv *env, jclass clazz, jint qualityPreset) {
+	void (*fsr_init_fn)(int) = dlsym(RTLD_DEFAULT, "fsr_init");
+	if (fsr_init_fn) {
+		fsr_init_fn((int)qualityPreset);
+	} else {
+		LOG_TO_E("FSR: fsr_init not found");
+	}
+}
+
+JNIEXPORT void JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_fsrSetQuality(JNIEnv *env, jclass clazz, jint qualityPreset) {
+	void (*fsr_set_quality_fn)(int) = dlsym(RTLD_DEFAULT, "fsr_set_quality");
+	if (fsr_set_quality_fn) {
+		fsr_set_quality_fn((int)qualityPreset);
+	}
+}
+
+JNIEXPORT void JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_fpsLimitSet(JNIEnv *env, jclass clazz, jint fps) {
+	void (*fpslimit_set_limit_fn)(int) = dlsym(RTLD_DEFAULT, "fpslimit_set_limit");
+	if (fpslimit_set_limit_fn) {
+		fpslimit_set_limit_fn((int)fps);
+	} else {
+		LOG_TO_E("FPSLimit: fpslimit_set_limit not found");
+	}
+}
+

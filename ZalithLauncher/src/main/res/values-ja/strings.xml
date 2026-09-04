@@ -6,6 +6,7 @@
     <string name="generic_back">戻る</string>
     <string name="generic_refresh">更新</string>
     <string name="generic_reset">リセット</string>
+    <string name="skin_reset">スキンをリセット</string>
     <string name="generic_delete">削除</string>
     <string name="generic_copy">コピー</string>
     <string name="generic_paste">ペースト</string>
@@ -671,7 +672,7 @@
     <string name="cape_name_cherry_blossom">Cherry Blossomマント</string>
     <string name="files_current_path">現在のパス: %s</string>
     <string name="files_no_selectable_content">選択可能なコンテンツがありません</string>
-    <string name="file_invalid_length">名前が長いです！ (現在: %d, 最長: %d)</string>
+    <string name="file_invalid_length" formatted="false">名前が長いです！ (現在: %d, 最長: %d)</string>
     <string name="multirt_runtime_delete_message">Javaランタイム %s を削除しますか？これは元に戻せません！</string>
     <string name="multirt_runtime_import_failed_file_name">無効なファイル名</string>
     <string name="multirt_runtime_import_failed_input_stream">ファイルの読み取りに失敗しました</string>
@@ -799,6 +800,7 @@
     <string name="shader_pack_manage_exists">この名前のシェーダーパックが既に存在します</string>
     <string name="shader_pack_manage_delete_warning">シェーダーパック%s を削除してよろしいですか？この操作は元に戻せません！</string>
     <string name="shader_pack_manage_no_packs">このバージョンにはシェーダーパックがありません</string>
+    <string name="shader_pack_manage_info">シェーダーパックの情報</string>
     <string name="minecraft_download_failed_notfound">一部の依存ファイルをダウンロードできませんでした。複数回試しても問題が解決しない場合は、ゲームに必要なライブラリファイルが不足してる可能性があります。ゲームを再インストールすることを勧めます。</string>
     <string name="settings_game_skip_game_integrity_check_summary">ゲームを起動する際、既存のゲームファイルが実際のファイルと一致しない場合でも再ダウンロードしません</string>
     <string name="settings_game_version_custom_info_summary">カスタム情報はゲームのメインメニューの左下とF3画面の右上に表示されます。特別なバージョンや外部アカウントでのログインしてる場合は表示されない可能性があります。[zl_version]タグで現在のバージョンの番号になります</string>
@@ -985,10 +987,25 @@
     <string name="control_editor_edit_text_size">テキストサイズ</string>
     <string name="control_editor_edit_text_size_custom">カスタムテキストサイズ</string>
     <string name="generic_saved">保存済み</string>
+    <string name="game_styles_joystick">ジョイスティックを管理</string>
+    <string name="game_styles_joystick_enable">ジョイスティックを有効化</string>
+    <string name="game_styles_joystick_x">ジョイスティックのX座標</string>
+    <string name="game_styles_joystick_y">ジョイスティックのY座標</string>
+    <string name="game_styles_joystick_size">ジョイスティックの大きさ</string>
+    <string name="game_styles_joystick_edit">ジョイスティックのスタイルを編集</string>
+    <string name="game_styles_joystick_can_lock">前方に固定</string>
+    <string name="game_styles_joystick_lock_sprint">ロック時にダッシュを強制</string>
+    <string name="game_styles_joystick_hide_when_mouse">物理マウス使用時に非表示</string>
+    <string name="game_styles_joystick_hide_when_gamepad">ゲームパッド使用時に非表示</string>
+    <string name="game_styles_save_failed">スタイルの保存に失敗しました</string>
     <string name="generic_saving">保存中…</string>
     <string name="account_change_cape_cache_all">すべてのマントをキャッシュ</string>
     <string name="cape_name_zombie_horse">Zombie Horseマント</string>
+    <string name="control_editor_special_joystick_style">ジョイスティックのスタイル</string>
+    <string name="control_editor_special_joystick_style_create_title">ジョイスティックのスタイルを作成</string>
+    <string name="control_editor_special_joystick_style_create_summary">コントロールレイアウトによって提供されるジョイスティックのスタイルを作成します。現在のコントロールがジョイスティックのスタイルを提供していない場合、ランチャーのジョイスティックのスタイルを使用します。</string>
     <string name="control_editor_special_joystick_style_delete_title">ジョイスティックのスタイルを削除</string>
+    <string name="control_editor_special_joystick_style_delete_summary">現在のコントロールレイアウトのジョイスティックのスタイルを削除してランチャーのジョイスティックのスタイルを使用します。</string>
     <string name="control_editor_special_joystick_style_joystick_color">ジョイスティックの色</string>
     <string name="control_editor_special_joystick_style_joystick_can_lock_color">ジョイスティックの色（ロック可能）</string>
     <string name="control_editor_special_joystick_style_joystick_locked_color">ジョイスティックの色（ロック済み）</string>
@@ -996,6 +1013,7 @@
     <string name="control_editor_special_joystick_style_background_rounded_corner">背景の角の半径</string>
     <string name="control_editor_special_joystick_style_joystick_rounded_corner">ジョイスティックの角の半径</string>
     <string name="control_editor_special_joystick_style_joystick_size">ジョイスティックの大きさ</string>
+    <string name="game_styles_joystick_edit_use_control_layout">コントロールレイアウトが提供するスタイルを使用する</string>
     <string name="upgrade_title">アップデートを確認</string>
     <string name="upgrade_new">新しいバージョンが見つかりました</string>
     <string name="upgrade_more">表示</string>
@@ -1007,6 +1025,11 @@
     <string name="upgrade_get_remote_failed">アップデートの確認に失敗しました。後ほどもう一度お試しください。</string>
     <string name="upgrade_is_latest">すでに最新バージョンです</string>
     <string name="upgrade_cloud_drive">クラウドドライブ</string>
+    <string name="game_styles_joystick_deadzone">ジョイスティックのデッドゾーン範囲</string>
+    <string name="control_editor_special_joystick_style_tip_title">ジョイスティックが作れませんか？</string>
+    <string name="control_editor_special_joystick_style_tip_summary">実装がとても複雑なため、コントロールレイアウトシステムはジョイスティックコンポーネントを直接統合できません。ジョイスティックコンポーネントを使用するには、ゲーム内メニューでジョイスティックコンポーネントを有効にすることしかできません。ただし、コントロールレイアウトを通してジョイスティックコンポーネントの見た目をカスタマイズし、一貫したスタイルにすることは可能です。</string>
+    <string name="settings_launcher_mirror_assets_search_title">アセットプラットフォームの検索ソース</string>
+    <string name="settings_launcher_mirror_assets_download_title">アセットプラットフォームのダウンロードソース</string>
     <string name="about_acknowledgements_mcim_text">%s はMCIMミラーソースを使っています</string>
     <string name="settings_launcher_language">言語</string>
     <string name="generic_copied">コピー済み</string>
@@ -1038,6 +1061,7 @@
     <string name="servers_list_edit_server">サーバーを編集</string>
     <string name="servers_list_copy_server_address">サーバーアドレスをコピー</string>
     <string name="download_install_warning_mobile_data">モバイルデータ通信を利用しています。ダウンロードを続行するとデータが消費されます。</string>
+    <string name="game_styles_joystick_lock_threshold">ジョイスティックの前進ロックのしきい値</string>
     <string name="game_saponsorship_finished_game">ランチャーはゲームを %s 回正常に実行しました！役に立ったと思ったら、開発者へのサポートをお願いします！ :)</string>
     <string name="mods_update_task_loading">モッドデータを同期中: %s</string>
     <string name="versions_export">モッドパックのエクスポート</string>
@@ -1141,6 +1165,7 @@
     <string name="control_editor_layers_delete">コントロールレイヤー %s を削除してもよろしいですか？</string>
     <string name="control_editor_layers_attribute_hide_when_mouse">物理マウス使用時は非表示にする</string>
     <string name="control_editor_layers_attribute_hide_when_gamepad">ゲームパッド使用時は非表示にする</string>
+    <string name="control_editor_layers_attribute_hide_when_joystick">ジョイスティック使用時は非表示にする</string>
     <string name="control_editor_edit_dialog_delete_widget">このコントロールを削除してもよろしいでしょうか？</string>
     <string name="control_editor_edit_style_config_common_style">ダークテーマを区別しない</string>
     <string name="control_editor_edit_style_config_delete">コントロールの外観 %s を削除してもよろしいですか？</string>

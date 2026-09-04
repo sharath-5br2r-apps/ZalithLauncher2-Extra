@@ -60,6 +60,7 @@ import com.movtery.zalithlauncher.utils.file.ensureDirectorySilently
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.string.isBiggerTo
 import com.movtery.zalithlauncher.utils.string.isEqualTo
+import com.movtery.zalithlauncher.utils.string.isLowerTo
 import kotlinx.parcelize.Parcelize
 import org.lwjgl.glfw.CallbackBridge
 import java.io.File
@@ -183,14 +184,34 @@ class GameLauncher(
             setRendererEnv(envMap)
         }
         envMap["ZALITH_VERSION_CODE"] = BuildConfig.VERSION_CODE.toString()
+        val mcVer = version.getVersionInfo()?.minecraftVersion
+        if (mcVer != null && isPre16Version(mcVer)) {
+            envMap["ALSOFT_LOGLEVEL"] = "3"
+        }
+
         return envMap
+    }
+
+    /**
+     * Minecraft < 1.6 uses LWJGL 2 (paulscode sound system).
+     * Returns true for versions like "b1.7.3", "1.5.2", "a1.2.6", "old_alpha".
+     */
+    private fun isPre16Version(mcVer: String): Boolean {
+        // Alpha (a1.x) and Beta (b1.x) versions are all pre-1.0 < 1.6
+        val first = mcVer.firstOrNull()
+        if (first == 'a' || first == 'b') return true
+        if (mcVer.startsWith("old_")) return true
+        return try {
+            mcVer.isLowerTo("1.6")
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun dlopenEngine() {
         super.dlopenEngine()
         appendTitle("DLOPEN Renderer")
 
-        //声音引擎加载后，dlopen渲染器的库
         RendererPluginManager.selectedRendererPlugin?.let { renderer ->
             val libs by renderer.getDlopenLibrary()
             libs.forEach { libPath ->
@@ -208,6 +229,17 @@ class GameLauncher(
         super.progressFinalUserArgs(args, version.getRamAllocation(activity))
         if (Renderers.isCurrentRendererValid()) {
             args.add("-Dorg.lwjgl.opengl.libname=${getRendererLibrary()}")
+        }
+
+        if (args.none { it.startsWith("-Djava.library.path=") }) {
+            args.add("-Djava.library.path=${PathManager.DIR_NATIVE_LIB}")
+        }
+
+        val mcVer = version.getVersionInfo()?.minecraftVersion
+        if (mcVer != null && isPre16Version(mcVer)) {
+            args.add("-Dorg.lwjgl.librarypath=${PathManager.DIR_NATIVE_LIB}")
+        } else {
+            args.add("-Dorg.lwjgl.openal.libname=${PathManager.DIR_NATIVE_LIB}/libopenal.so")
         }
     }
 
@@ -423,7 +455,7 @@ private fun setRendererEnv(envMap: MutableMap<String, String>) {
             //fallback to 2 since it's the minimum for the entire app
             "2"
         } else if (rendererId.startsWith("opengles")) {
-            rendererId.replace("opengles", "").replace("_5", "")
+            rendererId.removePrefix("opengles").substringBefore("_")
         } else {
             // TODO if can: other backends such as Vulkan.
             // Sure, they should provide GLES 3 support.

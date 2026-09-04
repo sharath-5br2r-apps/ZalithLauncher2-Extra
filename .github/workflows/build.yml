@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -59,16 +59,11 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
+          # archive:false tek dosya yükler ve zip yapmaz.
+          # Bu modda "name" parametresi dikkate alınmaz; artifact adı yüklenen dosyanın adı olur.
           name: release apk (${{ matrix.arch }})
           path: ZalithLauncher/build/outputs/apk/release/*.apk
-
-      - name: Upload Release Mapping for ${{ matrix.arch }}
-        if: inputs.variant == 'Release'
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: mapping (${{ matrix.arch }})
-          path: ZalithLauncher/build/outputs/mapping/release/mapping.txt
+          archive: false
 
       - name: Upload Debug APK for ${{ matrix.arch }}
         if: inputs.variant == 'Debug'
@@ -77,3 +72,4 @@ jobs:
         with:
           name: debug apk (${{ matrix.arch }})
           path: ZalithLauncher/build/outputs/apk/debug/*.apk
+          archive: false

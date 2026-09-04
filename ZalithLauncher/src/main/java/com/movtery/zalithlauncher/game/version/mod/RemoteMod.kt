@@ -43,6 +43,8 @@ import kotlinx.coroutines.withContext
 
 private const val TAG = "RemoteMod"
 
+private val sha1Cache = mutableMapOf<String, Pair<Long, String>>()
+
 class RemoteMod(
     val localMod: LocalMod
 ) {
@@ -104,7 +106,12 @@ class RemoteMod(
 
                 runCatching {
                     //获取文件 sha1，作为缓存的键
-                    val sha1 = calculateFileSha1(file)
+                    val cachedSha1 = sha1Cache[file.absolutePath]
+                    val sha1 = if (cachedSha1 != null && cachedSha1.first == file.lastModified()) {
+                        cachedSha1.second
+                    } else {
+                        calculateFileSha1(file).also { sha1Cache[file.absolutePath] = file.lastModified() to it }
+                    }
 
                     //从缓存加载项目信息
                     val cachedProject = if (loadFromCache) {

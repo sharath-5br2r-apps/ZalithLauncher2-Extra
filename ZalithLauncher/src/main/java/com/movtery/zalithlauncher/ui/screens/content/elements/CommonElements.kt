@@ -48,6 +48,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -344,7 +345,8 @@ fun <I, O> ImportFileButton(
 fun TitleTaskFlowDialog(
     title: String,
     tasks: List<TitledTask>,
-    onCancel: () -> Unit = {}
+    onCancel: () -> Unit = {},
+    onMinimize: (() -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = {},
@@ -397,11 +399,24 @@ fun TitleTaskFlowDialog(
                         }
                     }
 
-                    Button(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = onCancel
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MarqueeText(text = stringResource(R.string.generic_cancel))
+                        if (onMinimize != null) {
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = onMinimize
+                            ) {
+                                MarqueeText(text = stringResource(R.string.generic_minimize))
+                            }
+                        }
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = onCancel
+                        ) {
+                            MarqueeText(text = stringResource(R.string.generic_cancel))
+                        }
                     }
                 }
             }

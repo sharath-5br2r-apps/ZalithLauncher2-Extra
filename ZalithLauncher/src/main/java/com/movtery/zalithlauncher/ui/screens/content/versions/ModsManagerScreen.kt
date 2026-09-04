@@ -25,8 +25,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
@@ -54,7 +53,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,6 +72,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -85,10 +84,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shape
+
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -138,6 +137,7 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.SortByEnum
 import com.movtery.zalithlauncher.ui.screens.content.elements.rememberMultipleUriImportTaskBuilder
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ByteArrayIcon
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.DeleteAllOperation
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.DisabledStateIcon
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.LoadingState
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ModStateFilter
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ModsConfirmOperation
@@ -147,6 +147,7 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.elements.filterMod
 import com.movtery.zalithlauncher.ui.screens.content.versions.layouts.VersionChunkBackground
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
+
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.file.FolderFileCounter
@@ -213,6 +214,12 @@ private class ModsManageViewModel(
         private set
 
     /**
+     * 是否存在可检查远端的模组（用于更新全部按钮）
+     */
+    var canUpdateAll by mutableStateOf(false)
+        private set
+
+    /**
      * 删除所有已选择模组的操作流程
      */
     var deleteAllOperation by mutableStateOf<DeleteAllOperation>(DeleteAllOperation.None)
@@ -247,6 +254,7 @@ private class ModsManageViewModel(
             modsState = LoadingState.Loading
             selectedMods.clear() //清空所有已选择的模组
             canUpdate = false
+            canUpdateAll = false
 
             if (checkCount) modsCount.checkDir()
             try {
@@ -334,6 +342,7 @@ private class ModsManageViewModel(
                     -value
                 }
             }
+        checkCanUpdate()
     }
 
     fun selectAllMods() {
@@ -353,8 +362,38 @@ private class ModsManageViewModel(
     }
 
     fun checkCanUpdate() {
-        // 寻找列表中是否存在能够检查远端的模组
         canUpdate = selectedMods.any { it.localMod.checkRemote }
+        canUpdateAll = allMods.any { it.localMod.checkRemote }
+    }
+
+    fun enableSelectedMods() {
+        doInScope {
+            withContext(Dispatchers.IO) {
+                selectedMods.forEach { mod ->
+                    if (mod.localMod.file.isDisabled()) mod.localMod.enable()
+                }
+            }
+            withContext(Dispatchers.Main) {
+                refreshCounter()
+                selectedMods.clear()
+                canUpdate = false
+            }
+        }
+    }
+
+    fun disableSelectedMods() {
+        doInScope {
+            withContext(Dispatchers.IO) {
+                selectedMods.forEach { mod ->
+                    if (mod.localMod.file.isEnabled()) mod.localMod.disable()
+                }
+            }
+            withContext(Dispatchers.Main) {
+                refreshCounter()
+                selectedMods.clear()
+                canUpdate = false
+            }
+        }
     }
 
     /** 在ViewModel的生命周期协程内调用 */
@@ -714,11 +753,27 @@ fun ModsManagerScreen(
                             },
                             isModsSelected = viewModel.selectedMods.isNotEmpty(),
                             canUpdate = viewModel.canUpdate,
+                            canUpdateAll = viewModel.canUpdateAll,
                             onSelectAll = {
                                 viewModel.selectAllMods()
                             },
                             onClearModsSelected = {
                                 viewModel.clearSelected()
+                            },
+                            onEnableAll = {
+                                viewModel.enableSelectedMods()
+                            },
+                            onDisableAll = {
+                                viewModel.disableSelectedMods()
+                            },
+                            onUpdateAllMods = {
+                                if (
+                                    updaterViewModel.modsUpdateOperation == ModsUpdateOperation.None &&
+                                    viewModel.deleteAllOperation == DeleteAllOperation.None
+                                ) {
+                                    val allUpdatableMods = viewModel.allMods.filter { it.localMod.checkRemote }
+                                    updaterViewModel.modsUpdateOperation = ModsUpdateOperation.Warning(allUpdatableMods)
+                                }
                             },
                             swapToDownload = swapToDownload,
                             refresh = { viewModel.refresh(context) },
@@ -810,6 +865,10 @@ private fun ModsActionsHeader(
     canUpdate: Boolean,
     onSelectAll: () -> Unit,
     onClearModsSelected: () -> Unit,
+    onEnableAll: () -> Unit = {},
+    onDisableAll: () -> Unit = {},
+    onUpdateAllMods: () -> Unit = {},
+    canUpdateAll: Boolean = false,
     swapToDownload: () -> Unit,
     refresh: () -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit = {},
@@ -959,6 +1018,26 @@ private fun ModsActionsHeader(
                             )
                         }
 
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        IconButton(
+                            onClick = onEnableAll
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_outlined),
+                                contentDescription = null
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onDisableAll
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_off_outlined),
+                                contentDescription = null
+                            )
+                        }
+
                         Spacer(modifier = Modifier.width(6.dp))
 
                         VerticalDivider(
@@ -987,6 +1066,17 @@ private fun ModsActionsHeader(
                         .horizontalScroll(scrollState),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (canUpdateAll && hasModLoader) {
+                        IconButton(
+                            onClick = onUpdateAllMods
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_autorenew),
+                                contentDescription = stringResource(R.string.mods_update_all)
+                            )
+                        }
+                    }
+
                     val taskBuilder = rememberMultipleUriImportTaskBuilder(
                         id = "ContentManager.Mods.Import",
                         targetDir = modsDir,
@@ -1068,34 +1158,33 @@ private fun ModsList(
             }
 
             val list = modsList ?: emptyList()
-            items(list) { mod ->
+            items(
+                items = list,
+                key = { it.localMod.file.absolutePath },
+                contentType = { "mod" }
+            ) { mod ->
+                val callbacks = remember(mod) {
+                    ModItemCallbacks(
+                        onLoad = { onLoad(mod) },
+                        onForceRefresh = { onForceRefresh(mod) },
+                        onClick = {
+                            //仅加载了项目信息的模组允许被选择
+                            if (selectedMods.contains(mod)) {
+                                removeFromSelected(mod)
+                            } else {
+                                addToSelected(mod)
+                            }
+                        },
+                        onEnable = { onEnable(mod) },
+                        onDisable = { onDisable(mod) },
+                        onSwapMoreInfo = onSwapMoreInfo,
+                        onDelete = { onDelete(mod) }
+                    )
+                }
                 ModItemLayout(
                     modifier = Modifier.fillMaxWidth(),
                     mod = mod,
-                    onLoad = {
-                        onLoad(mod)
-                    },
-                    onForceRefresh = {
-                        onForceRefresh(mod)
-                    },
-                    onClick = {
-                        //仅加载了项目信息的模组允许被选择
-                        if (selectedMods.contains(mod)) {
-                            removeFromSelected(mod)
-                        } else {
-                            addToSelected(mod)
-                        }
-                    },
-                    onEnable = {
-                        onEnable(mod)
-                    },
-                    onDisable = {
-                        onDisable(mod)
-                    },
-                    onSwapMoreInfo = onSwapMoreInfo,
-                    onDelete = {
-                        onDelete(mod)
-                    },
+                    callbacks = callbacks,
                     selected = selectedMods.contains(mod)
                 )
             }
@@ -1117,18 +1206,23 @@ private fun ModsList(
     }
 }
 
+@Stable
+class ModItemCallbacks(
+    val onLoad: () -> Unit,
+    val onForceRefresh: () -> Unit,
+    val onClick: () -> Unit,
+    val onEnable: () -> Unit,
+    val onDisable: () -> Unit,
+    val onSwapMoreInfo: (id: String, Platform) -> Unit,
+    val onDelete: () -> Unit
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModItemLayout(
     modifier: Modifier = Modifier,
     mod: RemoteMod,
-    onLoad: () -> Unit = {},
-    onForceRefresh: () -> Unit = {},
-    onClick: () -> Unit = {},
-    onEnable: () -> Unit,
-    onDisable: () -> Unit,
-    onSwapMoreInfo: (id: String, Platform) -> Unit,
-    onDelete: () -> Unit,
+    callbacks: ModItemCallbacks,
     selected: Boolean,
     itemColor: Color = itemColor(),
     itemContentColor: Color = onItemColor(),
@@ -1150,7 +1244,7 @@ private fun ModItemLayout(
 
     LaunchedEffect(mod) {
         //尝试加载该模组文件在平台上所属的项目
-        onLoad()
+        callbacks.onLoad()
     }
 
     Surface(
@@ -1161,7 +1255,7 @@ private fun ModItemLayout(
                 color = borderColor,
                 shape = shape
             ),
-        onClick = onClick,
+        onClick = callbacks.onClick,
         shape = shape,
         color = itemColor,
         contentColor = itemContentColor,
@@ -1278,7 +1372,7 @@ private fun ModItemLayout(
                 } else if (mod.isLoaded) {
                     IconButton(
                         modifier = Modifier.size(38.dp),
-                        onClick = onForceRefresh
+                        onClick = callbacks.onForceRefresh
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_refresh),
@@ -1291,8 +1385,8 @@ private fun ModItemLayout(
                 Checkbox(
                     checked = mod.localMod.file.isEnabled(),
                     onCheckedChange = { checked ->
-                        if (checked) onEnable()
-                        else onDisable()
+                        if (checked) callbacks.onEnable()
+                        else callbacks.onDisable()
                     }
                 )
 
@@ -1305,7 +1399,7 @@ private fun ModItemLayout(
                     IconButton(
                         modifier = Modifier.size(38.dp),
                         onClick = {
-                            onSwapMoreInfo(projectInfo.id, projectInfo.platform)
+                            callbacks.onSwapMoreInfo(projectInfo.id, projectInfo.platform)
                         }
                     ) {
                         Icon(
@@ -1317,7 +1411,7 @@ private fun ModItemLayout(
 
                 IconButton(
                     modifier = Modifier.size(38.dp),
-                    onClick = onDelete
+                    onClick = callbacks.onDelete
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_delete_outlined),
@@ -1336,59 +1430,33 @@ private fun ModIcon(
     iconSize: Dp,
     disableContainerSize: Dp = 28.dp
 ) {
-    Box(modifier = modifier) {
-        val colorMatrix = remember(mod, mod.localMod.file) { ColorMatrix() }
-        colorMatrix.setToSaturation(
-            if (mod.localMod.file.isDisabled()) 0f
-            else 1f
-        )
-
+    DisabledStateIcon(
+        modifier = modifier,
+        isDisabled = mod.localMod.file.isDisabled(),
+        disableContainerSize = disableContainerSize
+    ) { colorFilter ->
         val projectInfo = mod.projectInfo
-        if (projectInfo == null) {
-            if (mod.localMod.icon == null) {
-                ModLoaderIcon(
-                    modifier = Modifier.size(iconSize),
-                    modloader = mod.localMod.loader,
-                    defaultIcon = R.drawable.ic_unknown_pack,
-                    colorFilter = ColorFilter.colorMatrix(colorMatrix),
-
-                )
-            } else {
-                ByteArrayIcon(
-                    modifier = Modifier.size(iconSize),
-                    triggerRefresh = mod,
-                    icon = mod.localMod.icon,
-                    colorFilter = ColorFilter.colorMatrix(colorMatrix),
-                )
-            }
-        } else {
+        val localIcon = mod.localMod.icon
+        if (localIcon != null) {
+            ByteArrayIcon(
+                modifier = Modifier.size(iconSize),
+                triggerRefresh = mod,
+                icon = localIcon,
+                colorFilter = colorFilter,
+            )
+        } else if (projectInfo != null) {
             AssetsIcon(
                 iconUrl = projectInfo.iconUrl,
                 size = iconSize,
-                colorFilter = ColorFilter.colorMatrix(colorMatrix)
+                colorFilter = colorFilter
             )
-        }
-
-        AnimatedVisibility(
-            modifier = Modifier.align(Alignment.Center),
-            visible = mod.localMod.file.isDisabled(),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Surface(
-                modifier = Modifier
-                    .padding(all = 4.dp)
-                    .size(disableContainerSize),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = CircleShape,
-                shadowElevation = 4.dp
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_block_outlined),
-                    contentDescription = null
-                )
-            }
+        } else {
+            ModLoaderIcon(
+                modifier = Modifier.size(iconSize),
+                modloader = mod.localMod.loader,
+                defaultIcon = R.drawable.ic_unknown_pack,
+                colorFilter = colorFilter,
+            )
         }
     }
 }

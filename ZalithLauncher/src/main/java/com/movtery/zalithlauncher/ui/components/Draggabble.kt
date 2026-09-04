@@ -114,7 +114,7 @@ fun FloatingBall(
                         val startPosition = down.position
                         var isDragging = false
 
-                        drag(down.id) { change ->
+                        val dragCompleted = drag(down.id) { change ->
                             val delta = change.positionChange()
                             val distanceFromStart = (change.position - startPosition).getDistance()
 
@@ -139,8 +139,7 @@ fun FloatingBall(
 
                         if (isDragging) {
                             currentOnSavePos()
-                        } else {
-                            //非拖动事件，判定为一次点击
+                        } else if (dragCompleted) {
                             currentOnClick()
                         }
                     }

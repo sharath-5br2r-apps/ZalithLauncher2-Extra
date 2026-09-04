@@ -19,8 +19,10 @@
 package com.movtery.zalithlauncher.ui.screens.content.download.assets.elements
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -28,6 +30,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
@@ -56,6 +59,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +70,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -73,6 +79,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.layer_controller.utils.animateShapeAsState
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
@@ -87,6 +94,10 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
+import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersion
+import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersions
+import com.movtery.zalithlauncher.game.versioninfo.popularVersions
+import com.movtery.zalithlauncher.utils.logging.Logger
 
 /**
  * 搜索资源过滤器UI
@@ -94,7 +105,7 @@ import com.movtery.zalithlauncher.utils.animation.getAnimateTween
  * @param searchPlatform 目标平台
  * @param searchName 搜索名称
  * @param searchedMcMods 搜索得到的 MCMOD 项目
- * @param searchedVersions 搜索得到的Minecraft版本号
+ * @param installedVersions 已安装的Minecraft版本（显示在列表顶部）
  * @param gameVersion 游戏版本
  * @param sortField 排序方式
  * @param allCategories 可用资源类别列表
@@ -117,9 +128,9 @@ fun SearchFilter(
     onSearchNameChange: (String) -> Unit = {},
     onSearch: () -> Unit,
     searchedMcMods: List<ModTranslations.McMod>,
-    searchedVersions: List<String>,
-    gameVersion: String,
-    onGameVersionChange: (String) -> Unit = {},
+    installedVersions: List<String> = emptyList(),
+    gameVersion: String?,
+    onGameVersionChange: (String?) -> Unit = {},
     sortField: PlatformSortField,
     onSortFieldChange: (PlatformSortField) -> Unit = {},
     allCategories: List<PlatformFilterCode>,
@@ -168,21 +179,22 @@ fun SearchFilter(
         }
 
         item {
-            SuggestionsText(
-                value = gameVersion,
-                onValueChange = onGameVersionChange,
-                label = stringResource(R.string.download_assets_filter_game_version),
-                onSearch = onSearch,
-                suggestions = searchedVersions,
-                suggestionLabel = { item ->
-                    Text(
-                        text = item,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                },
-                onSuggestionClick = { item ->
-                    onGameVersionChange(item)
-                    onSearch()
+            val allVersions by MinecraftVersions.allVersions.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) {
+                runCatching {
+                    MinecraftVersions.refreshVersions(force = false)
+                }.onFailure {
+                    Logger.warning("SearchFilter", "Failed to refresh Minecraft versions")
+                }
+            }
+            GameVersionFilterLayout(
+                modifier = Modifier.fillMaxWidth(),
+                searchPlatform = searchPlatform,
+                allVersions = allVersions,
+                installedVersions = installedVersions,
+                selectedVersion = gameVersion,
+                onVersionChange = { new ->
+                    if (new != gameVersion) onGameVersionChange(new)
                 }
             )
         }
@@ -497,6 +509,223 @@ fun <E> FilterListLayout(
     }
 }
 
+/**
+ * Specialized Game Version filter that splits versions into two tabs:
+ * - **Stable** (Release builds, shown by default)
+ * - **Snapshots** (everything else: snapshots, pre-releases, old betas/alphas, April Fools)
+ *
+ * Installed versions always appear at the top of the Stable tab so the user can
+ * quickly pin a filter to a version they already have.
+ *
+ * CurseForge's search API only accepts stable/release game versions, so the Snapshots
+ * tab is hidden entirely when [searchPlatform] is [Platform.CURSEFORGE] (matching the
+ * platform's existing release-only behavior); Modrinth exposes both tabs.
+ */
+@Composable
+private fun GameVersionFilterLayout(
+    modifier: Modifier = Modifier,
+    searchPlatform: Platform,
+    allVersions: List<MinecraftVersion>,
+    installedVersions: List<String>,
+    selectedVersion: String?,
+    onVersionChange: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val allowSnapshots = searchPlatform != Platform.CURSEFORGE
+
+    // Default to Stable; reset to Stable every time the section is collapsed
+    // or when the platform no longer supports the Snapshots tab.
+    var showSnapshots by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) { if (!expanded) showSnapshots = false }
+    LaunchedEffect(allowSnapshots) { if (!allowSnapshots) showSnapshots = false }
+
+    // De-duped lookup set reused for both pinning installed versions to the top of the
+    // Stable tab and for rendering the installed-star indicator on every version row —
+    // computed once per `installedVersions` change instead of per-row/per-recomposition.
+    val installedSet = remember(installedVersions) { installedVersions.toSet() }
+
+    // Stable = Release; installed versions pinned to the top (de-duped)
+    val stableVersions = remember(allVersions, installedVersions) {
+        val releases = allVersions
+            .filter { it.type == MinecraftVersion.Type.Release }
+            .map { it.version.id }
+        val base = if (releases.isEmpty()) popularVersions else releases
+        installedVersions + base.filter { it !in installedSet }
+    }
+
+    // Snapshots = everything that is not a Release (only offered when the platform supports it)
+    val snapshotVersions = remember(allVersions, allowSnapshots) {
+        if (!allowSnapshots) {
+            emptyList()
+        } else {
+            allVersions
+                .filter { it.type != MinecraftVersion.Type.Release }
+                .map { it.version.id }
+        }
+    }
+
+    val displayVersions = if (showSnapshots) snapshotVersions else stableVersions
+
+    BaseFilterLayout(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            FilterHeader(
+                title = stringResource(R.string.download_assets_filter_game_version),
+                expanded = expanded,
+                selected = selectedVersion != null,
+                selectedLabels = {
+                    if (selectedVersion == null) {
+                        LittleTextLabel(
+                            text = stringResource(R.string.download_assets_filter_none),
+                            shape = MaterialTheme.shapes.small
+                        )
+                    } else {
+                        LittleTextLabel(
+                            text = selectedVersion,
+                            shape = MaterialTheme.shapes.small
+                        )
+                    }
+                },
+                cancelable = true,
+                onExpandToggle = { expanded = !expanded },
+                onClear = { onVersionChange(null) }
+            )
+
+            // Version list + tab row together inside the same AnimatedVisibility → LazyColumn.
+            // The tab tiles are placed as the first item inside the inner LazyColumn — the
+            // same rendering context already used for the version rows below it.
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(animationSpec = getAnimateTween()),
+                exit = shrinkVertically(animationSpec = getAnimateTween()) + fadeOut()
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = if (allowSnapshots) 248.dp else 200.dp)
+                        .padding(vertical = 4.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    // ── Tab row (Stable / Snapshots) ──────────────────────────
+                    // A single rounded "track" pill hosting two sliding segments, in the
+                    // style of a Material segmented button rather than two plain boxes.
+                    if (allowSnapshots) {
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 10.dp),
+                                shape = RoundedCornerShape(percent = 50),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(all = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    GameVersionTab(
+                                        modifier = Modifier.weight(1f),
+                                        text = stringResource(R.string.download_assets_filter_game_version_stable),
+                                        selected = !showSnapshots,
+                                        onClick = { showSnapshots = false }
+                                    )
+                                    GameVersionTab(
+                                        modifier = Modifier.weight(1f),
+                                        text = stringResource(R.string.download_assets_filter_game_version_snapshots),
+                                        selected = showSnapshots,
+                                        onClick = { showSnapshots = true }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Version list ──────────────────────────────────────────
+                    items(displayVersions) { version ->
+                        val isSelected = selectedVersion == version
+                        val isInstalled = version in installedSet
+                        FilterListItem(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(all = 4.dp),
+                            selected = isSelected,
+                            selectionMode = FilterSelectionMode.Single,
+                            onCheckedChange = { checked ->
+                                onVersionChange(if (checked) version else null)
+                            },
+                            itemLayout = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = version,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                    if (isInstalled) {
+                                        Icon(
+                                            modifier = Modifier
+                                                .padding(end = 8.dp)
+                                                .size(14.dp),
+                                            painter = painterResource(R.drawable.ic_star_filled),
+                                            contentDescription = stringResource(R.string.download_assets_filter_game_version_installed)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A single pill-shaped segment inside [GameVersionFilterLayout]'s Stable/Snapshots track.
+ * Colors and elevation animate on selection change instead of snapping, and the selected
+ * segment gets a subtle raised surface + tonal color instead of a flat block fill.
+ */
+@Composable
+private fun GameVersionTab(
+    modifier: Modifier = Modifier,
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "GameVersionTabContainer"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.onPrimary
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 200),
+        label = "GameVersionTabContent"
+    )
+
+    Surface(
+        modifier = modifier,
+        onClick = onClick,
+        shape = RoundedCornerShape(percent = 50),
+        color = containerColor,
+        shadowElevation = if (selected) 2.dp else 0.dp
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = contentColor
+        )
+    }
+}
+
 @Composable
 fun PlatformListLayout(
     searchPlatform: Platform,
@@ -631,6 +860,8 @@ private fun FilterListItem(
             FilterSelectionMode.Single -> RadioButton(selected = selected, onClick = onClick)
             FilterSelectionMode.Multiple -> Checkbox(checked = selected, onCheckedChange = onCheckedChange)
         }
-        itemLayout()
+        Box(modifier = Modifier.weight(1f)) {
+            itemLayout()
+        }
     }
 }

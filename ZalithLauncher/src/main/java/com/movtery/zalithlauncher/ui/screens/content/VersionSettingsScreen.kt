@@ -404,6 +404,11 @@ private fun NavigationUI(
                         versionsScreenKey = versionsScreenKey,
                         backToMainScreen = backToMainScreen,
                         onExport = onExport,
+                        onOpenFolder = { folderPath ->
+                            backScreenViewModel.mainScreen.navigateTo(
+                                NormalNavKey.BuiltInFileManager(startPath = folderPath)
+                            )
+                        },
                         version = version,
                         eventViewModel = eventViewModel,
                         submitError = submitError
@@ -499,6 +504,12 @@ private fun NavigationUI(
                                 targetScreen = backScreenViewModel.downloadResourcePackScreen
                             )
                         },
+                        onSwapMoreInfo = { projectId, platform ->
+                            backScreenViewModel.mainScreen.removeAndNavigateTo(
+                                NestedNavKey.AssetInfo::class,
+                                NestedNavKey.AssetInfo(platform, projectId, PlatformClasses.RESOURCE_PACK)
+                            )
+                        },
                         submitError = submitError
                     )
                 }
@@ -511,6 +522,12 @@ private fun NavigationUI(
                         swapToDownload = {
                             backScreenViewModel.navigateToDownload(
                                 targetScreen = backScreenViewModel.downloadShadersScreen
+                            )
+                        },
+                        onSwapMoreInfo = { projectId, platform ->
+                            backScreenViewModel.mainScreen.removeAndNavigateTo(
+                                NestedNavKey.AssetInfo::class,
+                                NestedNavKey.AssetInfo(platform, projectId, PlatformClasses.SHADERS)
                             )
                         },
                         submitError = submitError

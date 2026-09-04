@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.bridge.LogMultiplexer
 import com.movtery.zalithlauncher.bridge.LoggerBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.game.elements.log_parser.LogHighlighter
@@ -91,16 +92,24 @@ fun LogBox(
         }
     }
 
+    val logListener = remember {
+        mutableStateOf<LoggerBridge.EventLogListener?>(null)
+    }
+
     LaunchedEffect(enableLog) {
         if (enableLog) {
             scrollChannel.value = Channel(capacity = 100)
 
-            LoggerBridge.setListener { log ->
-                synchronized(buffer) {
-                    val string = logHighlighter.highlight(log)
-                    buffer.add(string)
+            val listener = object : LoggerBridge.EventLogListener {
+                override fun onEventLogged(log: String) {
+                    synchronized(buffer) {
+                        val string = logHighlighter.highlight(log)
+                        buffer.add(string)
+                    }
                 }
             }
+            logListener.value = listener
+            LogMultiplexer.addListener(listener)
 
             launch(Dispatchers.Default) {
                 val mutex = Mutex()
@@ -145,8 +154,9 @@ fun LogBox(
                 }
             }
         } else {
+            logListener.value?.let { LogMultiplexer.removeListener(it) }
+            logListener.value = null
             scrollChannel.value = null
-            LoggerBridge.setListener(null)
             logList.clear()
             buffer.clear()
         }

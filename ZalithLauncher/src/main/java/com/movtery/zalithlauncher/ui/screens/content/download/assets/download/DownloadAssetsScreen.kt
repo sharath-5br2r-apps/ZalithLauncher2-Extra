@@ -19,11 +19,13 @@
 package com.movtery.zalithlauncher.ui.screens.content.download.assets.download
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -73,14 +74,15 @@ import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
 import com.movtery.zalithlauncher.game.versioninfo.filterRelease
+import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
+import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CheckChip
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.ShimmerBox
-import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -119,15 +121,10 @@ private class DownloadScreenViewModel(
     /** 当前正在加载的依赖项目 */
     val loadingProjects = mutableStateListOf<String>()
 
-    var showOnlyMCRelease by mutableStateOf(true)
-    var searchMCVersion by mutableStateOf("")
+    var selectedGameVersion by mutableStateOf<String?>(null)
 
-    fun filterWith(
-        showOnlyMCRelease: Boolean = this.showOnlyMCRelease,
-        searchMCVersion: String = this.searchMCVersion
-    ) {
-        this.showOnlyMCRelease = showOnlyMCRelease
-        this.searchMCVersion = searchMCVersion
+    fun filterWith(selectedGameVersion: String? = this.selectedGameVersion) {
+        this.selectedGameVersion = selectedGameVersion
         viewModelScope.launch {
             versionsLoading = DownloadAssetsVersionLoading.None
             val infos = _versionsList.filterInfos()
@@ -137,8 +134,7 @@ private class DownloadScreenViewModel(
 
     private fun List<VersionInfoMap>.filterInfos(): List<VersionInfoMap> {
         return filter { info ->
-            (!showOnlyMCRelease || filterRelease(info.gameVersion)) &&
-                    (searchMCVersion.isEmpty() || info.gameVersion.contains(searchMCVersion, true))
+            selectedGameVersion == null || info.gameVersion == selectedGameVersion
         }
     }
 
@@ -413,37 +409,45 @@ private fun Versions(
         }
         is DownloadAssetsState.Success -> {
             Column(modifier = modifier) {
-                //简单过滤条件
+                //简单过滤条件：选择游戏版本
+                val installedVersions = remember {
+                    VersionsManager.versions.value.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct().sorted()
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CheckChip(
-                        selected = viewModel.showOnlyMCRelease,
+                        selected = viewModel.selectedGameVersion == null,
                         onClick = {
-                            viewModel.filterWith(showOnlyMCRelease = viewModel.showOnlyMCRelease.not())
+                            viewModel.filterWith(null)
                         },
                         label = {
-                            Text(text = stringResource(R.string.download_assets_show_only_mc_release))
-                        },
-                    )
-
-                    SimpleTextInputField(
-                        modifier = Modifier.weight(1f),
-                        value = viewModel.searchMCVersion,
-                        onValueChange = { viewModel.filterWith(searchMCVersion = it) },
-                        singleLine = true,
-                        textStyle = TextStyle(color = onCardColor()).copy(fontSize = 12.sp),
-                        hint = {
-                            Text(
-                                text = stringResource(R.string.download_assets_search_mc_versions),
-                                style = TextStyle(color = onCardColor()).copy(fontSize = 12.sp)
-                            )
+                            Text(text = stringResource(R.string.generic_all))
                         }
                     )
+                    val scrollState = rememberScrollState()
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(scrollState),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        installedVersions.forEach { version ->
+                            CheckChip(
+                                selected = viewModel.selectedGameVersion == version,
+                                onClick = {
+                                    viewModel.filterWith(version)
+                                },
+                                label = {
+                                    Text(text = version)
+                                }
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider(

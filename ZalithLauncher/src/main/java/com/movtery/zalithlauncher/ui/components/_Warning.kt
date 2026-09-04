@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
@@ -56,6 +58,7 @@ fun WarningCard(
     title: String,
     text: @Composable ColumnScope.() -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
     icon: (@Composable (innerModifier: Modifier) -> Unit) = @Composable { innerModifier ->
         Icon(
             modifier = innerModifier,
@@ -110,9 +113,23 @@ fun WarningCard(
                         .padding(vertical = 2.dp)
                 )
                 Text(
+                    modifier = Modifier.weight(1f),
                     text = title,
                     style = MaterialTheme.typography.titleMedium
                 )
+
+                if (onDismiss != null) {
+                    androidx.compose.material3.IconButton(
+                        modifier = Modifier.size(24.dp),
+                        onClick = onDismiss
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_close),
+                            contentDescription = stringResource(R.string.generic_close),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             //实际自定义的警告内容部分

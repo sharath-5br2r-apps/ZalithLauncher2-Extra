@@ -77,6 +77,7 @@ fun SearchModScreen(
                 }
             }
         },
+        filterPersistenceKey = AllSettings.searchModFilter.key,
         swapToDownload = swapToDownload
     )
 }

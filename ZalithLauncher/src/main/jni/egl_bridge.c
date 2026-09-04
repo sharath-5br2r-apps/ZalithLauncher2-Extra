@@ -115,7 +115,7 @@ void load_vulkan() {
     }
 
     printf("OSMDroid: Loading Vulkan regularly...\n");
-    void* vulkanPtr = dlopen("libvulkan.so", RTLD_LAZY | RTLD_LOCAL);
+    void* vulkanPtr = dlopen("libvulkan.so", RTLD_LAZY | RTLD_GLOBAL);
     printf("OSMDroid: Loaded Vulkan, ptr=%p\n", vulkanPtr);
     set_vulkan_ptr(vulkanPtr);
 }
@@ -123,7 +123,7 @@ void load_vulkan() {
 int pojavInitOpenGL() {
     const char *renderer = getenv("POJAV_RENDERER");
 
-    if (!strncmp("opengles", renderer, 8))
+    if (!strncmp("opengles", renderer, 8) || !strcmp(renderer, "mobileglues"))
     {
         pojav_environ->config_renderer = RENDERER_GL4ES;
         if (!strcmp(renderer, "opengles3_desktopgl_zink_kopper")) {
@@ -224,7 +224,7 @@ EXTERNAL_API void pojavSetWindowHint(int hint, int value) {
             break;
         case GLFW_OPENGL_API: {
             const char *renderer = getenv("POJAV_RENDERER");
-            if (!strncmp("opengles", renderer, 8)) {
+            if (!strncmp("opengles", renderer, 8) || !strcmp(renderer, "mobileglues")) {
                 pojav_environ->config_renderer = RENDERER_GL4ES;
             } else if (!strcmp(renderer, "vulkan_zink")) {
                 pojav_environ->config_renderer = RENDERER_VK_ZINK;

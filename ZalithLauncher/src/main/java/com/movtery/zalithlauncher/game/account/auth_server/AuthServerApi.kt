@@ -51,6 +51,12 @@ import java.util.Objects
 
 private const val TAG = "AuthServerApi"
 
+/**
+ * Ely.by 的 authlib-injector 元数据地址，可用于快速添加 Ely.by 作为验证服务器
+ * https://docs.ely.by/en/authlib-injector.html
+ */
+const val ELY_BY_AUTH_SERVER_URL = "https://authserver.ely.by/api/authlib-injector"
+
 class AuthServerApi(private var baseUrl: String) {
     fun formatUrl(baseUrl: String): String {
         var url = baseUrl

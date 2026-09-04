@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.CurseForgeSavesCategory
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 
@@ -46,6 +47,7 @@ fun SearchSavesScreen(
         mapCategories = { platform, string ->
             CurseForgeSavesCategory.entries.find { it.describe() == string }
         },
+        filterPersistenceKey = AllSettings.searchSavesFilter.key,
         swapToDownload = swapToDownload
     )
 }

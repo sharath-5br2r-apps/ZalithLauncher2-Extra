@@ -537,7 +537,11 @@ private fun SavesList(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 state = scrollState,
             ) {
-                items(list) { saveData ->
+                items(
+                    items = list,
+                    key = { it.saveFile.absolutePath },
+                    contentType = { "save" }
+                ) { saveData ->
                     SaveItemLayout(
                         modifier = Modifier.fillMaxWidth(),
                         saveData = saveData,

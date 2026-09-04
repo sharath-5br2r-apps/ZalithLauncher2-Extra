@@ -9,6 +9,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+CLAUDE.md
+AGENTS.md
+.claudeignore
+.local/
 .oauth_client_id.txt
 .store_password.txt
 .key_password.txt

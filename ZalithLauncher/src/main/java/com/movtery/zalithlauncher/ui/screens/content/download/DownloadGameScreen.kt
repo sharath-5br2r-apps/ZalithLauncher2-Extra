@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -47,6 +48,8 @@ import androidx.navigation3.ui.NavDisplay
 import com.google.gson.JsonSyntaxException
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
+import com.movtery.zalithlauncher.coroutine.InstallerRestoreRegistry
+import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.download.game.GameInstaller
 import com.movtery.zalithlauncher.game.download.game.optifine.CantFetchingOptiFineUrlException
 import com.movtery.zalithlauncher.game.download.jvm_server.JvmCrashException
@@ -232,11 +235,12 @@ fun DownloadGameScreen(
                         downloadScreenKey = downloadScreenKey,
                         downloadGameScreenKey = downloadGameScreenKey,
                         eventViewModel = eventViewModel,
-                    ) { versionString ->
-                        backStack.navigateTo(
-                            NormalNavKey.DownloadGame.Addons(versionString)
-                        )
-                    }
+                        onVersionSelect = { versionString ->
+                            backStack.navigateTo(
+                                NormalNavKey.DownloadGame.Addons(versionString)
+                            )
+                        }
+                    )
                 }
                 entry<NormalNavKey.DownloadGame.Addons> { key ->
                     val context = LocalContext.current
@@ -325,11 +329,33 @@ private fun GameInstallOperation(
                 val installGame = installer.tasksFlow.collectAsStateWithLifecycle()
                 if (installGame.value.isNotEmpty()) {
                     //安装游戏流程对话框
+                    val dialogTitle = stringResource(R.string.download_game_install_title)
                     TitleTaskFlowDialog(
-                        title = stringResource(R.string.download_game_install_title),
+                        title = dialogTitle,
                         tasks = installGame.value,
                         onCancel = {
                             onCancel()
+                            updateOperation(GameInstallOperation.None)
+                        },
+                        onMinimize = {
+                            InstallerRestoreRegistry.collapseTaskMenu()
+                            val bgTask = installer.createBackgroundTask(
+                                onCancelRequest = { onCancel() }
+                            )
+                            InstallerRestoreRegistry.register(
+                                bgTask.id,
+                                InstallerRestoreRegistry.RestorableInstaller(
+                                    title = dialogTitle,
+                                    tasksFlow = installer.tasksFlow,
+                                    onCancel = {
+                                        onCancel()
+                                        updateOperation(GameInstallOperation.None)
+                                    }
+                                )
+                            )
+                            TaskSystem.submitTask(bgTask, onEnded = {
+                                InstallerRestoreRegistry.unregister(bgTask.id)
+                            })
                             updateOperation(GameInstallOperation.None)
                         }
                     )

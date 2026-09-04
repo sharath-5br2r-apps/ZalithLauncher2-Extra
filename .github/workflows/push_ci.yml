@@ -4,13 +4,19 @@ on:
   push:
     branches:
       - '**'
+    paths-ignore:
+      - '.gitignore'
+      - '**/README.md'
+      - '**/README_*.md'
+      - '**/CHANGELOG.md'
+      - '**/CHANGELOG_*.md'
   workflow_dispatch:
 
 jobs:
   Build:
     uses: ./.github/workflows/build.yml
     with:
-      variant: Debug
+      variant: Release
     secrets:
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}

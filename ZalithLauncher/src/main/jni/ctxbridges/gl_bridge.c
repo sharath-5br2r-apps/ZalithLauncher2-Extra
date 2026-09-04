@@ -9,8 +9,24 @@
 #include <stdbool.h>
 #include <environ/environ.h>
 #include <unistd.h>
+#include <framegen/fps_limit.h>
 #include "gl_bridge.h"
 #include "egl_loader.h"
+
+typedef int32_t (*ANativeWindow_getTransformHint_t)(ANativeWindow* window);
+static ANativeWindow_getTransformHint_t ANativeWindow_getTransformHint_fn = NULL;
+
+static void load_transform_hint() {
+    if (ANativeWindow_getTransformHint_fn == NULL) {
+        ANativeWindow_getTransformHint_fn = (ANativeWindow_getTransformHint_t)
+            dlsym(RTLD_DEFAULT, "ANativeWindow_getTransformHint");
+    }
+}
+
+static int32_t safe_get_transform_hint(ANativeWindow* w) {
+    if (ANativeWindow_getTransformHint_fn) return ANativeWindow_getTransformHint_fn(w);
+    return -1;
+}
 
 //
 // Created by maks on 17.09.2022.
@@ -121,6 +137,7 @@ gl_render_window_t* gl_init_context(gl_render_window_t *share) {
 }
 
 void gl_swap_surface(gl_render_window_t* bundle) {
+    load_transform_hint();
     // 有新 Surface 待切换，这里直接切换
     if (bundle->newNativeSurface != NULL)
     {
@@ -217,6 +234,7 @@ void gl_swap_buffers() {
     }
 
     if (currentBundle->surface != NULL)
+    {
         if (!eglSwapBuffers_p(g_EglDisplay, currentBundle->surface) && eglGetError_p() == EGL_BAD_SURFACE)
         {
             eglMakeCurrent_p(g_EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -229,6 +247,9 @@ void gl_swap_buffers() {
             }
             __android_log_print(ANDROID_LOG_INFO, g_LogTag, "The window has died, awaiting window change");
         }
+
+        fpslimit_throttle();
+    }
 
 }
 

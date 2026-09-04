@@ -31,6 +31,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -86,8 +92,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Transparent
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -119,13 +128,17 @@ import com.movtery.zalithlauncher.game.account.AccountType
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.account.accountErrorText
 import com.movtery.zalithlauncher.game.account.accountUUID
+import com.movtery.zalithlauncher.game.account.auth_server.ELY_BY_AUTH_SERVER_URL
 import com.movtery.zalithlauncher.game.account.auth_server.data.AuthServer
 import com.movtery.zalithlauncher.game.account.auth_server.models.AuthResult
 import com.movtery.zalithlauncher.game.account.getAccountTypeName
 import com.movtery.zalithlauncher.game.account.getUUIDFromUserName
+import com.movtery.zalithlauncher.game.account.isAuthServerAccount
+import com.movtery.zalithlauncher.game.account.isElyByAccount
 import com.movtery.zalithlauncher.game.account.isLocalAccount
 import com.movtery.zalithlauncher.game.account.isMicrosoftAccount
 import com.movtery.zalithlauncher.game.account.isSkinChangeAllowed
+import com.movtery.zalithlauncher.game.account.wardrobe.AccountCapeCollection
 import com.movtery.zalithlauncher.game.account.wardrobe.EmptyCape
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
 import com.movtery.zalithlauncher.game.account.wardrobe.capeLocalRes
@@ -134,6 +147,8 @@ import com.movtery.zalithlauncher.game.account.yggdrasil.findUsing
 import com.movtery.zalithlauncher.game.account.yggdrasil.getFile
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_MINECRAFT_PURCHASE
+import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BaseIconTextButton
@@ -155,6 +170,7 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
+import com.movtery.zalithlauncher.utils.PlayTimeUtils
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.logging.Logger
 import java.io.File
@@ -257,6 +273,54 @@ sealed interface OtherLoginOperation {
 }
 
 @Composable
+fun rememberChromaBrush(): Brush {
+    val mode = AllSettings.chromaMode.state
+    val infiniteTransition = rememberInfiniteTransition(label = "Chroma")
+    val offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2000f, // Larger target for smoother wrapping with repeating
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ChromaOffset"
+    )
+
+    val chromaColors = remember(mode) {
+        when (mode) {
+            ChromaMode.RGB -> listOf(
+                Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red
+            )
+            ChromaMode.RED_BLUE -> listOf(
+                Color.Red, Color.Blue, Color.Red
+            )
+            ChromaMode.SUNSET -> listOf(
+                Color(0xFFFF4E50), Color(0xFFF9D423), Color(0xFFFF4E50)
+            )
+            ChromaMode.OCEAN -> listOf(
+                Color(0xFF2193B0), Color(0xFF6DD5ED), Color(0xFF2193B0)
+            )
+            ChromaMode.FOREST -> listOf(
+                Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFF11998E)
+            )
+            ChromaMode.NEON -> listOf(
+                Color(0xFF8E2DE2), Color(0xFF4A00E0), Color(0xFF8E2DE2)
+            )
+            else -> listOf(Color.White, Color.White)
+        }
+    }
+
+    return remember(offset, chromaColors) {
+        Brush.linearGradient(
+            colors = chromaColors,
+            start = Offset(offset, 0f),
+            end = Offset(offset + 600f, 0f),
+            tileMode = TileMode.Repeated
+        )
+    }
+}
+
+@Composable
 fun AccountAvatar(
     modifier: Modifier = Modifier,
     account: Account?,
@@ -264,6 +328,9 @@ fun AccountAvatar(
     refreshKey: Any? = null,
     onClick: () -> Unit = {}
 ) {
+    val chromaBrush = rememberChromaBrush()
+    val useChroma = AllSettings.chromaMode.state != ChromaMode.NONE && account != null
+
     Box(
         modifier = modifier
             .clip(shape = MaterialTheme.shapes.extraLarge)
@@ -294,12 +361,29 @@ fun AccountAvatar(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 text = account?.username ?: stringResource(R.string.account_add_new_account),
                 maxLines = 1,
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall.copy(
+                    brush = if (useChroma) chromaBrush else null
+                )
             )
             if (account != null) {
+                val context = LocalContext.current
+                val playTimeMs = AllSettings.playTime.state
+                
                 Text(
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                     text = getAccountTypeName(account),
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Text(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    text = PlayTimeUtils.getRankName(context, playTimeMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    text = PlayTimeUtils.formatPlayTime(context, playTimeMs),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -349,6 +433,9 @@ fun AccountItem(
     LaunchedEffect(Unit) {
         scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
     }
+    val chromaBrush = rememberChromaBrush()
+    val useChroma = AllSettings.chromaMode.state != ChromaMode.NONE
+
     Surface(
         modifier = modifier.graphicsLayer(scaleY = scale.value, scaleX = scale.value),
         color = color,
@@ -386,7 +473,12 @@ fun AccountItem(
                     .align(Alignment.CenterVertically)
                     .weight(1f)
             ) {
-                Text(text = account.username)
+                Text(
+                    text = account.username,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        brush = if (useChroma) chromaBrush else null
+                    )
+                )
                 Text(
                     text = getAccountTypeName(account),
                     style = MaterialTheme.typography.labelMedium
@@ -511,6 +603,7 @@ fun LoginMenuDialog(
                                     onDismissRequest()
                                 }
                             )
+                            // NOT: Ely.by buradan kesildi!
                         }
 
                         LazyColumn(
@@ -531,6 +624,24 @@ fun LoginMenuDialog(
                                     showArrow = true,
                                     onClick = {
                                         onAddAuthServer()
+                                        onDismissRequest()
+                                    }
+                                )
+                            }
+
+                            // Ely.by BURAYA EKLENDİ! (Kimlik ekle butonunun tam altına geliyor)
+                            item {
+                                LoginItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    title = stringResource(R.string.account_type_ely_by),
+                                    onClick = {
+                                        onAuthServerLogin(
+                                            AuthServer(
+                                                baseUrl = ELY_BY_AUTH_SERVER_URL,
+                                                serverName = "Ely.by",
+                                                register = "https://account.ely.by/register"
+                                            )
+                                        )
                                         onDismissRequest()
                                     }
                                 )
@@ -575,6 +686,7 @@ fun LoginMenuDialog(
         }
     }
 }
+
 
 @Preview(showBackground = true, widthDp = 800, heightDp = 480)
 @Composable
@@ -1319,9 +1431,9 @@ sealed interface ChangeSkin {
  */
 sealed interface ChangeCape {
     data object None : ChangeCape
-    data class ChangeCapeData(
-        val cape: PlayerProfile.Cape
-    ) : ChangeCape
+    data class SelectedCape(val cape: PlayerProfile.Cape) : ChangeCape
+    data class SelectedCustomCape(val capeFile: File) : ChangeCape
+    data object ResetCape : ChangeCape
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -1336,11 +1448,16 @@ fun ChangeSkinDialog(
     onCapeStateChange: (ChangeCape) -> Unit,
     isImportingSkin: Boolean,
     onSkinPicked: (Uri) -> Unit,
+    isImportingCape: Boolean = false,
+    onCapePicked: (Account, Uri) -> Unit = { _, _ -> },
     onDismissRequest: () -> Unit,
     onResetSkin: () -> Unit,
+    onResetCape: () -> Unit = {},
     onApplySkin: (File, SkinModelType) -> Unit,
     onApplyCape: (PlayerProfile.Cape) -> Unit,
-    onFetchCapes: () -> Unit
+    onApplyCustomCape: (File) -> Unit = {},
+    onFetchCapes: () -> Unit,
+    onInstallCapes: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val playerSkin = remember { PlayerSkin(context) }
@@ -1352,11 +1469,16 @@ fun ChangeSkinDialog(
     }
 
     var showCapeSelector by remember { mutableStateOf(false) }
+    var showCapeCollectionSelector by remember { mutableStateOf(false) }
+    var capeRefreshKey by remember { mutableStateOf(0) }
+    var capeCollectionChanged by remember { mutableStateOf(false) }
 
     var isFetchingCapes by remember { mutableStateOf(false) }
 
     var currentCapeToLoad by remember { mutableStateOf(EmptyCape) }
     var currentUsingCape by remember { mutableStateOf(EmptyCape) }
+
+    var pageFinished by remember { mutableStateOf(false) }
 
     LaunchedEffect(availableCapes) {
         if (account.isMicrosoftAccount()) {
@@ -1377,14 +1499,37 @@ fun ChangeSkinDialog(
             uri?.let(onSkinPicked)
         }
 
+    val capePicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let { onCapePicked(account, it) }
+        }
+
     /**
      * 初始化账号设置的皮肤
      */
     fun loadSkin() {
-        playerSkin.loadSkin(
-            skinId = account.uniqueUUID.takeIf { account.hasSkinFile },
-            model = account.skinModelType
-        )
+        val capeFile = account.getCapeFile()
+        val skinFile = account.getSkinFile()
+        
+        if (skinFile.exists() && capeFile.exists()) {
+            runCatching {
+                skinFile.inputStream().use { skinStream ->
+                    capeFile.inputStream().use { capeStream ->
+                        playerSkin.loadSkinAndCape(skinStream, account.skinModelType, capeStream)
+                    }
+                }
+            }.onFailure {
+                playerSkin.loadSkin(
+                    skinId = account.uniqueUUID.takeIf { account.hasSkinFile },
+                    model = account.skinModelType
+                )
+            }
+        } else {
+            playerSkin.loadSkin(
+                skinId = account.uniqueUUID.takeIf { account.hasSkinFile },
+                model = account.skinModelType
+            )
+        }
     }
 
     /**
@@ -1392,6 +1537,93 @@ fun ChangeSkinDialog(
      */
     fun resetSkin() {
         playerSkin.resetSkin()
+    }
+
+    LaunchedEffect(pageFinished, skinState, capeState, currentCapeToLoad, capeRefreshKey) {
+        if (!pageFinished) return@LaunchedEffect
+
+        // Determine skin stream and model
+        var skinStream: java.io.InputStream? = null
+        var skinModel: SkinModelType = account.skinModelType
+        var skinId: String? = null
+        var isReset = false
+
+        when (skinState) {
+            ChangeSkin.None -> {
+                skinId = account.uniqueUUID.takeIf { account.hasSkinFile }
+                if (skinId == null) skinStream = null // Steve
+                else {
+                    val file = account.getSkinFile()
+                    if (file.exists()) skinStream = file.inputStream()
+                }
+            }
+            is ChangeSkin.ChangeSkinData -> {
+                skinStream = skinState.cacheFile.inputStream()
+                skinModel = skinState.skinModel
+            }
+            ChangeSkin.ResetSkin -> {
+                isReset = true
+            }
+        }
+
+        // Determine cape stream or ID
+        var capeStream: java.io.InputStream? = null
+        var capeObj: PlayerProfile.Cape? = null
+
+        when (capeState) {
+            is ChangeCape.SelectedCape -> {
+                if (account.isMicrosoftAccount()) {
+                    capeObj = capeState.cape
+                }
+            }
+            is ChangeCape.SelectedCustomCape -> {
+                capeStream = capeState.capeFile.inputStream()
+            }
+            ChangeCape.ResetCape -> {
+                capeStream = null
+                capeObj = null
+            }
+            ChangeCape.None -> {
+                if (account.isMicrosoftAccount()) {
+                    capeObj = currentCapeToLoad
+                } else {
+                    val file = account.getCapeFile()
+                    if (file.exists()) capeStream = file.inputStream()
+                }
+            }
+        }
+
+        if (isReset) {
+            playerSkin.resetSkin()
+        } else if (skinStream != null && (capeStream != null || capeState == ChangeCape.ResetCape)) {
+            skinStream.use { ss ->
+                if (capeStream != null) {
+                    capeStream.use { cs ->
+                        playerSkin.loadSkinAndCape(ss, skinModel, cs)
+                    }
+                } else {
+                    playerSkin.loadSkin(ss, skinModel)
+                    playerSkin.loadCape(cape = null)
+                }
+            }
+        } else if (skinStream != null) {
+            skinStream.use { ss ->
+                playerSkin.loadSkin(ss, skinModel)
+            }
+            if (capeObj != null) playerSkin.loadCape(capeObj)
+            else if (capeStream == null && (capeState == ChangeCape.None || capeState == ChangeCape.ResetCape) && !account.isMicrosoftAccount()) {
+                // Already handled above if file exists, if not we might want to clear it if it was there
+                playerSkin.loadCape(cape = null)
+            }
+        } else {
+            playerSkin.loadSkin(skinId, skinModel)
+            if (capeObj != null) playerSkin.loadCape(capeObj)
+            else if (capeStream != null) {
+                capeStream.use { cs -> playerSkin.loadCape(cs) }
+            } else if (capeState == ChangeCape.ResetCape) {
+                playerSkin.loadCape(cape = null)
+            }
+        }
     }
 
     Dialog(
@@ -1436,8 +1668,6 @@ fun ChangeSkinDialog(
                                 .background(itemColor(false)),
                             contentAlignment = Alignment.Center
                         ) {
-                            var pageFinished by remember { mutableStateOf(false) }
-
                             if (!pageFinished) {
                                 //加载皮肤预览中
                                 LoadingIndicator()
@@ -1454,30 +1684,7 @@ fun ChangeSkinDialog(
                                         }
                                     )
                                 },
-                                update = {
-                                    if (pageFinished) {
-                                        when (skinState) {
-                                            ChangeSkin.None -> loadSkin()
-                                            is ChangeSkin.ChangeSkinData -> {
-                                                runCatching {
-                                                    skinState.cacheFile.inputStream().use { stream ->
-                                                        playerSkin.loadSkin(stream, skinState.skinModel)
-                                                    }
-                                                }.onFailure {
-                                                    playerSkin.loadSkin(
-                                                        skinId = null,
-                                                        skinState.skinModel
-                                                    )
-                                                }
-                                            }
-
-                                            is ChangeSkin.ResetSkin -> resetSkin()
-                                        }
-                                        if (account.isMicrosoftAccount()) {
-                                            playerSkin.loadCape(currentCapeToLoad)
-                                        }
-                                    }
-                                },
+                                update = {},
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -1589,11 +1796,42 @@ fun ChangeSkinDialog(
                                 )
                             }
 
+                            //披风选择与安装（仅非验证服务器账号）
+                            if (!account.isAuthServerAccount() || account.isElyByAccount()) {
+                                InfoLayoutTextItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    title = stringResource(R.string.account_capes_select),
+                                    icon = {
+                                        Icon(
+                                            modifier = Modifier.size(22.dp),
+                                            painter = painterResource(R.drawable.ic_styler),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        AccountCapeCollection.migrateLegacy(account.uniqueUUID)
+                                        showCapeCollectionSelector = true
+                                    }
+                                )
+                                InfoLayoutTextItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    title = stringResource(R.string.account_capes_install),
+                                    icon = {
+                                        Icon(
+                                            modifier = Modifier.size(22.dp),
+                                            painter = painterResource(R.drawable.ic_download),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = onInstallCapes
+                                )
+                            }
+
                             //离线账号重置皮肤
                             if (account.isLocalAccount() && account.hasSkinFile && skinState != ChangeSkin.ResetSkin) {
                                 InfoLayoutTextItem(
                                     modifier = Modifier.fillMaxWidth(),
-                                    title = stringResource(R.string.generic_reset),
+                                    title = stringResource(R.string.skin_reset),
                                     icon = {
                                         Icon(
                                             modifier = Modifier.size(22.dp),
@@ -1622,8 +1860,9 @@ fun ChangeSkinDialog(
 
                         Button(
                             modifier = Modifier.weight(1f),
-                            enabled = skinState != ChangeSkin.None || capeState != ChangeCape.None,
+                            enabled = skinState != ChangeSkin.None || capeState != ChangeCape.None || capeCollectionChanged,
                             onClick = {
+                                capeCollectionChanged = false
                                 when (skinState) {
                                     is ChangeSkin.ChangeSkinData -> {
                                         onApplySkin(skinState.cacheFile, skinState.skinModel)
@@ -1636,8 +1875,17 @@ fun ChangeSkinDialog(
                                     ChangeSkin.None -> {}
                                 }
 
-                                if (capeState is ChangeCape.ChangeCapeData) {
-                                    onApplyCape(capeState.cape)
+                                when (val state = capeState) {
+                                    is ChangeCape.SelectedCape -> {
+                                        onApplyCape(state.cape)
+                                    }
+                                    is ChangeCape.SelectedCustomCape -> {
+                                        onApplyCustomCape(state.capeFile)
+                                    }
+                                    ChangeCape.ResetCape -> {
+                                        onResetCape()
+                                    }
+                                    ChangeCape.None -> {}
                                 }
 
                                 onDismissRequest()
@@ -1653,7 +1901,7 @@ fun ChangeSkinDialog(
 
     if (showCapeSelector) {
         //若当前未更改披风，则使用使用中的披风
-        val cape = if (capeState is ChangeCape.ChangeCapeData) {
+        val cape = if (capeState is ChangeCape.SelectedCape) {
             capeState.cape
         } else {
             currentUsingCape
@@ -1668,7 +1916,7 @@ fun ChangeSkinDialog(
             onSelected = { cape ->
                 //检查是否已经为正在使用的披风
                 val state = if (cape != currentUsingCape) {
-                    ChangeCape.ChangeCapeData(cape)
+                    ChangeCape.SelectedCape(cape)
                 } else {
                     ChangeCape.None
                 }
@@ -1678,6 +1926,39 @@ fun ChangeSkinDialog(
             },
             onDismiss = {
                 showCapeSelector = false
+            }
+        )
+    }
+
+    if (showCapeCollectionSelector) {
+        CapeSelectorDialog(
+            accountUUID = account.uniqueUUID,
+            onDismiss = {
+                showCapeCollectionSelector = false
+                capeRefreshKey++
+                AccountsManager.refreshWardrobe()
+            },
+            onCapeActivated = {
+                capeCollectionChanged = true
+                capeRefreshKey++
+                AccountsManager.refreshWardrobe()
+                val f = account.getCapeFile()
+                if (f.exists()) {
+                    f.inputStream().use { playerSkin.loadCape(it) }
+                } else {
+                    playerSkin.loadCape(cape = null)
+                }
+            },
+            onCapeDeleted = {
+                capeCollectionChanged = true
+                capeRefreshKey++
+                AccountsManager.refreshWardrobe()
+                val f = account.getCapeFile()
+                if (f.exists()) {
+                    f.inputStream().use { playerSkin.loadCape(it) }
+                } else {
+                    playerSkin.loadCape(cape = null)
+                }
             }
         )
     }

@@ -1139,17 +1139,23 @@ public class GLFW
         // Default on 3.3 because mod compat
         int glMajor = 3;
         int glMinor = 3;
-        // Custom defaults for specific renderers
-        String glDriver = System.getenv("POJAV_RENDERER");
-        if (glDriver.equals("vulkan_zink")) {
-            glMajor = 4;
-            glMinor = 6;
-        } else if (glDriver.equals("gallium_virgl")) {
-            glMajor = 4;
-            glMinor = 3;
-        } else if (glDriver.equals("opengles3")) {
-            glMajor = 4;
-            glMinor = 0;
+        String pojavRenderer = System.getenv("POJAV_RENDERER");
+        if (pojavRenderer != null) {
+            switch (pojavRenderer) {
+                case "vulkan_zink":
+                case "opengles3_desktopgl_zink_kopper":
+                    glMajor = 4;
+                    glMinor = 6;
+                    break;
+                case "gallium_virgl":
+                    glMajor = 4;
+                    glMinor = 3;
+                    break;
+                case "opengles3":
+                    glMajor = 4;
+                    glMinor = 0;
+                    break;
+            }
         }
         // Get the real values properly, but only if they're higher
 //        FunctionProvider functionProvider = org.lwjgl.opengl.GL.getFunctionProvider();

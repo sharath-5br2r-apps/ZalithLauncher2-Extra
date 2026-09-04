@@ -42,15 +42,18 @@ import com.movtery.zalithlauncher.game.download.assets.platform.PlatformDisplayL
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformFilterCode
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchFilter
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchResult
+import com.movtery.zalithlauncher.game.download.assets.platform.loadRawPersistedData
+import com.movtery.zalithlauncher.game.download.assets.platform.loadSearchFilter
+import com.movtery.zalithlauncher.game.download.assets.platform.resolvePersistedCategories
+import com.movtery.zalithlauncher.game.download.assets.platform.resolvePersistedModloader
+import com.movtery.zalithlauncher.game.download.assets.platform.saveSearchFilter
 import com.movtery.zalithlauncher.game.download.assets.platform.navigatePage
 import com.movtery.zalithlauncher.game.download.assets.platform.nextPage
 import com.movtery.zalithlauncher.game.download.assets.platform.previousPage
 import com.movtery.zalithlauncher.game.download.assets.platform.searchAssets
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.searchMcMods
-import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersion
-import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersions
-import com.movtery.zalithlauncher.game.versioninfo.popularVersions
+import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -75,10 +78,16 @@ private const val TAG = "SearchAssetsScreen"
  * 资源搜索屏幕的 view model
  * @param initialPlatform 初始设定的平台
  * @param platformClasses 资源搜索的类型
+ * @param filterPersistenceKey MMKV中保存过滤器状态的键，为空则不持久化
+ * @param getCategories 根据平台获取可用的资源类别过滤器（用于恢复持久化的类别选择）
+ * @param getModloaders 根据平台获取可用的模组加载器过滤器（用于恢复持久化的模组加载器）
  */
 private class SearchScreenViewModel(
     initialPlatform: Platform,
-    private val platformClasses: PlatformClasses
+    private val platformClasses: PlatformClasses,
+    private val filterPersistenceKey: String? = null,
+    private val getCategories: ((Platform) -> List<PlatformFilterCode>)? = null,
+    private val getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null
 ): ViewModel() {
     var searchResult by mutableStateOf<SearchAssetsState>(SearchAssetsState.Searching)
     val pages = mutableStateListOf<AssetsPage?>()
@@ -86,21 +95,30 @@ private class SearchScreenViewModel(
     var searchPlatform by mutableStateOf(initialPlatform)
     var searchFilter by mutableStateOf(PlatformSearchFilter())
 
+    /** 过滤器变更时的回调，由外部设置以持久化保存过滤器 */
+    var onFilterChange: (PlatformSearchFilter) -> Unit = {}
+
     private val _searchedMcMods = MutableStateFlow<List<ModTranslations.McMod>>(emptyList())
     /** 搜索得到的所有 MCMOD 项目 */
     val searchedMcMods = _searchedMcMods.asStateFlow()
-    private val _searchedVersions = MutableStateFlow<List<String>>(emptyList())
-    /** 搜索得到的所有Minecraft版本 */
-    val searchedVersions = _searchedVersions.asStateFlow()
-
     var currentSearchJob: Job? = null
     var currentSearchMCMODSJob: Job? = null
-    var currentSearchVersionJob: Job? = null
+
+    /**
+     * Issue #9: 已安装的Minecraft版本号（用于在版本列表顶部显示，并渲染已安装星标）。
+     * 持续订阅 [VersionsManager.versions]，因此安装/删除版本、导入/移除实例后会自动刷新，
+     * 无需重启启动器；缓存为一个已 distinct 的 List，滚动时不会重复触发文件系统扫描——
+     * 真正的扫描仍然只发生在 VersionsManager.refresh() 内部（由安装/删除/导入等操作触发）。
+     */
+    var installedVersionIds: List<String> by mutableStateOf(
+        VersionsManager.versions.value.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct()
+    )
+        private set
 
     /**
      * 仅更新搜索名称
      */
-    fun updateNameFilter(searchName: String) {
+    fun updateFilter(searchName: String) {
         searchFilter = searchFilter.copy(searchName = searchName)
         currentSearchMCMODSJob?.cancel()
         currentSearchMCMODSJob = viewModelScope.launch {
@@ -116,37 +134,6 @@ private class SearchScreenViewModel(
         }
     }
 
-    /**
-     * 仅更新版本名称
-     */
-    fun updateVersionFilter(version: String) {
-        searchFilter = searchFilter.copy(gameVersion = version)
-        refreshVerSuggestions(version)
-    }
-
-    private fun refreshVerSuggestions(
-        version: String
-    ) {
-        currentSearchVersionJob?.cancel()
-        currentSearchVersionJob = viewModelScope.launch {
-            val allVersions = MinecraftVersions.allVersions.value
-            val result: List<String> = when {
-                version.isEmpty() -> popularVersions
-                allVersions.isEmpty() -> popularVersions.filter { ver ->
-                    ver.contains(version)
-                }.take(20) //仅展示20个搜索结果
-                else -> allVersions.filter {
-                    it.version.id.contains(version) &&
-                            //CurseForge只能使用正式版进行过滤
-                            (searchPlatform != Platform.CURSEFORGE || it.type == MinecraftVersion.Type.Release)
-                }.map { it.version.id }.take(20) //仅展示20个搜索结果
-            }
-            withContext(Dispatchers.Main) {
-                _searchedVersions.update { result }
-            }
-            currentSearchVersionJob = null
-        }
-    }
 
     /**
      * 重置并重新搜索
@@ -163,7 +150,17 @@ private class SearchScreenViewModel(
     fun researchWithFilter(filter: PlatformSearchFilter) {
         pages.clear()
         searchFilter = filter.copy(index = 0) //重置索引到起始处
+        persistFilter()
         search()
+    }
+
+    /**
+     * 将当前过滤器状态持久化到 MMKV
+     */
+    private fun persistFilter() {
+        if (filterPersistenceKey != null) {
+            saveSearchFilter(filterPersistenceKey, searchFilter)
+        }
     }
 
     private fun putResult(result: PlatformSearchResult) {
@@ -205,16 +202,51 @@ private class SearchScreenViewModel(
     }
 
     init {
-        //初始化后，执行一次搜索
-        search()
-        refreshVerSuggestions("")
         viewModelScope.launch {
-            runCatching {
-                MinecraftVersions.refreshVersions(force = false)
-            }.onFailure {
-                Logger.warning(TAG, "Failed to refresh Minecraft versions")
+            VersionsManager.versions.collect { versions ->
+                installedVersionIds = versions.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct()
             }
         }
+
+        //从 MMKV 恢复持久化的过滤器状态
+        if (filterPersistenceKey != null) {
+            val filter = loadSearchFilter(filterPersistenceKey)
+            if (filter != null) {
+                searchFilter = searchFilter.copy(
+                    gameVersion = filter.gameVersion,
+                    sortField = filter.sortField
+                )
+            }
+
+            //恢复类别和模组加载器
+            val raw = loadRawPersistedData(filterPersistenceKey)
+            if (raw != null) {
+                if (getCategories != null) {
+                    val resolvedCategories = resolvePersistedCategories(
+                        names = raw.categories,
+                        getCategories = getCategories,
+                        platform = searchPlatform
+                    )
+                    searchFilter = searchFilter.copy(categories = resolvedCategories)
+                }
+                if (getModloaders != null) {
+                    val resolvedModloader = resolvePersistedModloader(
+                        name = raw.modloader,
+                        getModloaders = getModloaders,
+                        platform = searchPlatform
+                    )
+                    searchFilter = searchFilter.copy(modloader = resolvedModloader)
+                }
+            }
+        }
+
+        // Issue #9: 如果只有一个已安装版本，且用户未保存过版本偏好，则自动预选该版本
+        if (searchFilter.gameVersion == null && installedVersionIds.size == 1) {
+            searchFilter = searchFilter.copy(gameVersion = installedVersionIds.first())
+        }
+
+        //初始化后，执行一次搜索
+        search()
     }
 
     override fun onCleared() {
@@ -227,13 +259,16 @@ private class SearchScreenViewModel(
 private fun rememberSearchAssetsViewModel(
     navKey: TitledNavKey,
     initialPlatform: Platform,
-    platformClasses: PlatformClasses
+    platformClasses: PlatformClasses,
+    filterPersistenceKey: String? = null,
+    getCategories: ((Platform) -> List<PlatformFilterCode>)? = null,
+    getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null
 ): SearchScreenViewModel {
     val screenKey = navKey.toString()
     return viewModel(
         key = "${screenKey}_search"
     ) {
-        SearchScreenViewModel(initialPlatform, platformClasses)
+        SearchScreenViewModel(initialPlatform, platformClasses, filterPersistenceKey, getCategories, getModloaders)
     }
 }
 
@@ -246,10 +281,13 @@ private fun rememberSearchAssetsViewModel(
  * @param initialPlatform 初始搜索平台
  * @param onPlatformChange 搜索平台变更
  * @param enablePlatform 是否允许更改平台
+ * @param initialFilter 初始过滤器，从持久化存储中恢复（不含搜索文本和分页参数）
+ * @param onFilterChange 过滤器（排序/版本/分类/加载器）变更时的回调，用于持久化保存
  * @param getCategories 根据平台获取可用的资源类别过滤器
  * @param enableModLoader 是否允许更改模组加载器
  * @param getModloaders 根据平台获取可用的模组加载器过滤器
  * @param mapCategories 通过平台获取类别本地化信息
+ * @param filterPersistenceKey 持久化过滤器状态的 MMKV 键，为空则不保存
  * @param swapToDownload 跳转到下载详情页
  * @param extraFilter 额外的过滤器UI
  */
@@ -264,18 +302,31 @@ fun SearchAssetsScreen(
     initialPlatform: Platform,
     onPlatformChange: (Platform) -> Unit = {},
     enablePlatform: Boolean = true,
+    initialFilter: PlatformSearchFilter = PlatformSearchFilter(),
+    onFilterChange: ((Platform, PlatformSearchFilter) -> Unit)? = null,
     getCategories: (Platform) -> List<PlatformFilterCode>,
     enableModLoader: Boolean = false,
     getModloaders: (Platform) -> List<PlatformDisplayLabel> = { emptyList() },
     mapCategories: (Platform, String) -> PlatformFilterCode?,
+    filterPersistenceKey: String? = null,
     swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> },
     extraFilter: (LazyListScope.() -> Unit)? = null
 ) {
     val viewModel: SearchScreenViewModel = rememberSearchAssetsViewModel(
         navKey = screenKey,
         initialPlatform = initialPlatform,
-        platformClasses = platformClasses
+        platformClasses = platformClasses,
+        filterPersistenceKey = filterPersistenceKey,
+        getCategories = getCategories,
+        getModloaders = getModloaders
     )
+
+    // 每次重组时更新 ViewModel 的过滤器变更回调
+    viewModel.onFilterChange = if (onFilterChange != null) {
+        { filter -> onFilterChange(viewModel.searchPlatform, filter) }
+    } else {
+        {}
+    }
 
     //跟随平台自动变更的内容
     val categories = remember(viewModel.searchPlatform) {
@@ -358,7 +409,6 @@ fun SearchAssetsScreen(
                 isHorizontal = true
             )
             val searchedMcMods by viewModel.searchedMcMods.collectAsStateWithLifecycle()
-            val searchedVersions by viewModel.searchedVersions.collectAsStateWithLifecycle()
             SearchFilter(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -376,16 +426,18 @@ fun SearchAssetsScreen(
                 },
                 searchName = viewModel.searchFilter.searchName,
                 onSearchNameChange = {
-                    viewModel.updateNameFilter(it)
+                    viewModel.updateFilter(it)
                 },
                 onSearch = {
                     viewModel.resetSearch()
                 },
                 searchedMcMods = searchedMcMods,
-                searchedVersions = searchedVersions,
+                installedVersions = viewModel.installedVersionIds,
                 gameVersion = viewModel.searchFilter.gameVersion,
                 onGameVersionChange = {
-                    viewModel.updateVersionFilter(it)
+                    viewModel.researchWithFilter(
+                        viewModel.searchFilter.copy(gameVersion = it)
+                    )
                 },
                 sortField = viewModel.searchFilter.sortField,
                 onSortFieldChange = {

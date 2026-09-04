@@ -19,6 +19,7 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -59,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,8 +122,10 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.TransitionAnimationType
 import com.movtery.zalithlauncher.utils.file.shareFile
+import com.movtery.zalithlauncher.utils.checkStoragePermissions
 import com.movtery.zalithlauncher.utils.isChinaMainland
 import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.settings.SettingsTransferUtils
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
@@ -129,6 +133,8 @@ import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalHomePageViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private const val TAG = "LauncherSettingsScreen"
@@ -150,6 +156,7 @@ fun LauncherSettingsScreen(
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     BaseScreen(
         Triple(key, mainScreenKey, false),
@@ -163,9 +170,67 @@ fun LauncherSettingsScreen(
             isVisible = isVisible
         ) { scope ->
             AnimatedItem(scope) { yOffset ->
+                val importLauncher = rememberLauncherForActivityResult(
+                    contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                ) { uri ->
+                    uri?.let {
+                        coroutineScope.launch {
+                            val success = SettingsTransferUtils.importData(context, it)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    if (success) R.string.settings_import_success else R.string.settings_import_failed,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+
                 SettingsCardColumn(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    SettingsCard(
+                        position = CardPosition.Top,
+                        title = stringResource(R.string.settings_export),
+                        onClick = {
+                            val activity = context as? android.app.Activity ?: return@SettingsCard
+                            checkStoragePermissions(
+                                activity = activity,
+                                title = R.string.storage_permission_request_title,
+                                message = context.getString(R.string.storage_permission_request_message),
+                                hasPermission = {
+                                    coroutineScope.launch {
+                                        val file = SettingsTransferUtils.exportSettings(context)
+                                        withContext(Dispatchers.Main) {
+                                            if (file != null) {
+                                                Toast.makeText(context, context.getString(R.string.settings_export_success, file.absolutePath), Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, R.string.settings_export_failed, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    )
+                    SettingsCard(
+                        position = CardPosition.Bottom,
+                        title = stringResource(R.string.settings_import),
+                        onClick = {
+                            importLauncher.launch("application/json")
+                        }
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
                     var customColorOperation by remember { mutableStateOf<CustomColorOperation>(CustomColorOperation.None) }
@@ -621,6 +686,22 @@ fun LauncherSettingsScreen(
                                 )
                             )
                         }
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Top,
+                        unit = AllSettings.showSnapshotVersions,
+                        title = stringResource(R.string.settings_launcher_show_snapshot_versions_title),
+                        summary = stringResource(R.string.settings_launcher_show_snapshot_versions_summary)
                     )
                 }
             }

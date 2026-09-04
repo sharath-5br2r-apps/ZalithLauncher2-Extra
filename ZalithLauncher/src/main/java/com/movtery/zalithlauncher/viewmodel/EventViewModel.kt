@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class EventViewModel : ViewModel() {
-    private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<Event>(replay = 1, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
     /**
@@ -87,6 +87,8 @@ class EventViewModel : ViewModel() {
         data object CheckUpdate : Event
         /** 在浏览器访问链接 */
         data class OpenLink(val url: String) : Event
+        /** 在应用内 WebView 访问链接 */
+        data class OpenWeb(val url: String) : Event
         /** 让 MainActivity 防止熄屏 */
         data class KeepScreen(val on: Boolean) : Event
         /** 导入控制布局 */
@@ -122,6 +124,8 @@ class EventViewModel : ViewModel() {
         }
         /** 设备 Vulkan 检查 */
         data object VulkanCheck: Event
+        /** 在应用内打开日志文件 */
+        data class OpenLog(val path: String) : Event
 
         /** 在 MainActivity 中显示 Toast */
         data class ShowToast(

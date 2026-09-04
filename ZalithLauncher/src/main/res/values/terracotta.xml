@@ -26,7 +26,7 @@
     <string name="terracotta_custom_note_list_hint">Leave empty to use default nodes</string>
     <string name="terracotta_menu">Multiplayer Menu</string>
     <string name="terracotta_notification_title">Terracotta | Multiplayer Running</string>
-    <string name="terracotta_notification_desc">Identity: %s, State: %s</string>
+    <string name="terracotta_notification_desc" formatted="false">Identity: %s, State: %s</string>
     <string name="terracotta_status_waiting_host_title">I want to host a session</string>
     <string name="terracotta_status_waiting_host_desc">Create a room and generate an invite code to play with friends</string>
     <string name="terracotta_status_waiting_guest_title">I want to join a session</string>

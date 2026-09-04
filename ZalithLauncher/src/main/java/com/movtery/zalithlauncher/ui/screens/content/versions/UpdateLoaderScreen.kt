@@ -44,11 +44,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.addons.modloader.cleanroom.CleanroomVersions
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricAPIVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.legacyfabric.LegacyFabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersions
 import com.movtery.zalithlauncher.game.addons.modloader.forgelike.forge.ForgeVersions
 import com.movtery.zalithlauncher.game.addons.modloader.forgelike.neoforge.NeoForgeVersions
+import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersions
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionInfo
@@ -61,11 +63,13 @@ import com.movtery.zalithlauncher.ui.screens.content.download.game.AddonList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.AddonState
 import com.movtery.zalithlauncher.ui.screens.content.download.game.CleanroomList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.CurrentAddon
+import com.movtery.zalithlauncher.ui.screens.content.download.game.FabricAPIList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.FabricList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.ForgeList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.LegacyFabricList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.LoaderVerSupports
 import com.movtery.zalithlauncher.ui.screens.content.download.game.NeoForgeList
+import com.movtery.zalithlauncher.ui.screens.content.download.game.OptiFineList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.QuiltList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.rememberLoaderVerSupports
 import com.movtery.zalithlauncher.ui.screens.content.download.game.runWithState
@@ -129,6 +133,7 @@ private fun CurrentAddon.generateDiff(
     val diffs = mutableListOf<AddonDiffs.Diff>()
 
     val loaderVersions = mapOf(
+        ModLoader.OPTIFINE to optifineVersion.value,
         ModLoader.FORGE to forgeVersion.value,
         ModLoader.NEOFORGE to neoforgeVersion.value,
         ModLoader.FABRIC to fabricVersion.value,
@@ -212,12 +217,14 @@ private class AddonsViewModel(
             if (isLoaded) return@withLock
             //已经找到游戏使用的模组加载器，或者所有的模组加载器列表都加载完成
             val isLoaded0 = isLoaderVersionFound || buildList {
+                add(currentAddon.optifineState)
                 add(currentAddon.forgeState)
                 if (loaderSupports.isNeoForgeSupports) {
                     add(currentAddon.neoforgeState)
                 }
                 if (loaderSupports.isFabricSupports) {
                     add(currentAddon.fabricState)
+                    add(currentAddon.fabricAPIState)
                 }
                 if (loaderSupports.isLegacyFabricSupports) {
                     add(currentAddon.legacyFabricState)
@@ -229,7 +236,7 @@ private class AddonsViewModel(
                     add(currentAddon.cleanroomState)
                 }
             }.all { it == AddonState.None }
-            if (isLoaded0) Logger.info(TAG, "Game’s mod loader found, or all mod loaders loaded.")
+            if (isLoaded0) Logger.info(TAG, "Game's mod loader found, or all mod loaders loaded.")
             isLoaded = isLoaded0
         }
     }
@@ -242,6 +249,7 @@ private class AddonsViewModel(
         }
 
         val unselectedLoader = buildList {
+            add(currentAddon.optifineVersion)
             add(currentAddon.forgeVersion)
             if (loaderSupports.isNeoForgeSupports) {
                 add(addonList.neoforgeList)
@@ -273,6 +281,7 @@ private class AddonsViewModel(
         }
 
         val version = when (loaderInfo.loader) {
+            ModLoader.OPTIFINE -> currentAddon.optifineVersion.value
             ModLoader.FORGE -> currentAddon.forgeVersion.value
             ModLoader.NEOFORGE -> currentAddon.neoforgeVersion.value
             ModLoader.FABRIC -> currentAddon.fabricVersion.value
@@ -408,6 +417,36 @@ private class AddonsViewModel(
         }
     }
 
+    fun reloadOptifine() {
+        reloadSingleAndCheck {
+            reloadOptifineAsync()
+        }
+    }
+
+    private suspend fun reloadOptifineAsync() = runWithState(
+        { currentAddon.optifineState = it },
+        { OptiFineVersions.fetchOptiFineList(gameVersion = gameVersion) }
+    ).also { versions ->
+        addonList.optifineList = versions
+    }
+
+    fun reloadFabricAPI() {
+        reloadSingleAndCheck {
+            reloadFabricAPIAsync()
+        }
+    }
+
+    private suspend fun reloadFabricAPIAsync() = runWithState(
+        { currentAddon.fabricAPIState = it },
+        { FabricAPIVersions.fetchVersionList(gameVersion) }
+    ).also { versions ->
+        addonList.fabricAPIList = versions
+        if (loaderInfo == null) return@also
+        if (loaderInfo.loader == ModLoader.FABRIC && currentAddon.fabricVersion.value != null) {
+            currentAddon.fabricAPIVersion.value = versions?.firstOrNull()
+        }
+    }
+
     /**
      * 后续如果有加载失败希望重载的列表时，使用这个函数进行单独重载。
      * 重新检查并应用加载成功的状态
@@ -428,6 +467,10 @@ private class AddonsViewModel(
         viewModelScope.launch {
             buildList {
                 add(async {
+                    reloadOptifineAsync()
+                    updateLoadedState()
+                })
+                add(async {
                     reloadForgeAsync()
                     updateLoadedState()
                 })
@@ -440,6 +483,10 @@ private class AddonsViewModel(
                 if (loaderSupports.isFabricSupports) {
                     add(async {
                         reloadFabricAsync()
+                        updateLoadedState()
+                    })
+                    add(async {
+                        reloadFabricAPIAsync()
                         updateLoadedState()
                     })
                 }
@@ -528,6 +575,17 @@ fun UpdateLoaderScreen(
             state = scrollState,
         ) { scope ->
             animatedItem(scope) { yOffset ->
+                OptiFineList(
+                    modifier = Modifier.offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
+                    currentAddon = viewModel.currentAddon,
+                    addonList = viewModel.addonList,
+                    error = unLoaded,
+                    onValueChanged = { viewModel.checkCanUpdate() },
+                    onReload = { viewModel.reloadOptifine() }
+                )
+            }
+
+            animatedItem(scope) { yOffset ->
                 ForgeList(
                     modifier = Modifier.offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
                     currentAddon = viewModel.currentAddon,
@@ -571,8 +629,24 @@ fun UpdateLoaderScreen(
                         currentAddon = viewModel.currentAddon,
                         addonList = viewModel.addonList,
                         error = unLoaded,
-                        onValueChanged = { viewModel.checkCanUpdate() },
+                        onValueChanged = { version ->
+                            viewModel.checkCanUpdate()
+                            if (version != null) {
+                                val api = viewModel.addonList.fabricAPIList?.firstOrNull()
+                                viewModel.currentAddon.fabricAPIVersion.value = api
+                            }
+                        },
                         onReload = { viewModel.reloadFabric() }
+                    )
+                }
+                animatedItem(scope) { yOffset ->
+                    FabricAPIList(
+                        modifier = Modifier.offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
+                        currentAddon = viewModel.currentAddon,
+                        addonList = viewModel.addonList,
+                        error = unLoaded,
+                        onValueChanged = { viewModel.checkCanUpdate() },
+                        onReload = { viewModel.reloadFabricAPI() }
                     )
                 }
             }
@@ -618,10 +692,13 @@ fun UpdateLoaderScreen(
                                 GameDownloadInfo(
                                     gameVersion = versionInfo.minecraftVersion,
                                     customVersionName = version.getVersionName(),
+                                    optifine = viewModel.currentAddon.optifineVersion.value,
                                     forge = viewModel.currentAddon.forgeVersion.value,
                                     neoforge = viewModel.currentAddon.neoforgeVersion.value
                                         .takeIf { loaderSupports.isNeoForgeSupports },
                                     fabric = viewModel.currentAddon.fabricVersion.value
+                                        .takeIf { loaderSupports.isFabricSupports },
+                                    fabricAPI = viewModel.currentAddon.fabricAPIVersion.value
                                         .takeIf { loaderSupports.isFabricSupports },
                                     legacyFabric = viewModel.currentAddon.legacyFabricVersion.value
                                         .takeIf { loaderSupports.isLegacyFabricSupports },

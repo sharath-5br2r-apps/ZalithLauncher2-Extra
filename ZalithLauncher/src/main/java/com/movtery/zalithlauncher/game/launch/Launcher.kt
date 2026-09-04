@@ -38,6 +38,7 @@ import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.path.LibPath
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.findBestRAMAllocation
 import com.movtery.zalithlauncher.setting.unit.getOrMin
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.device.Architecture.ARCH_X86
@@ -130,7 +131,12 @@ abstract class Launcher(
             screenSize = screenSize,
             useLocalLanguage = useLocalLanguage
         ).toMutableList()
-        progressFinalUserArgs(args)
+        val effectiveRamAllocation = if (AllSettings.autoRamAllocation.getValue()) {
+            findBestRAMAllocation(context)
+        } else {
+            AllSettings.ramAllocation.getOrMin()
+        }
+        progressFinalUserArgs(args, effectiveRamAllocation)
 
         args.addAll(jvmArgs)
         args.add(0, "$runtimeHome/bin/java")
@@ -454,6 +460,9 @@ abstract class Launcher(
             if (AllSettings.vsyncInZink.getValue()) map["POJAV_VSYNC_IN_ZINK"] = "1"
 
             if (FFmpegPluginManager.isAvailable) map["POJAV_FFMPEG_PATH"] = FFmpegPluginManager.executablePath!!
+
+            map["ALSOFT_DRIVERS"] = "opensl,aaudio"
+            map["ALSOFT_DISABLE_EVENTS"] = "1"
         }
     }
 
@@ -483,6 +492,23 @@ abstract class Launcher(
     @CallSuper
     protected open fun dlopenEngine() {
         ZLBridge.dlopen("${PathManager.DIR_NATIVE_LIB}/libopenal.so")
+        dlopenFFmpegLibs()
+    }
+
+    private fun dlopenFFmpegLibs() {
+        if (!FFmpegPluginManager.isAvailable) return
+        val nativeDir = PathManager.DIR_NATIVE_LIB
+        val ffmpegLibs = listOf(
+            "libavutil.so", "libavcodec.so", "libavformat.so",
+            "libavfilter.so", "libswscale.so", "libswresample.so",
+            "libavdevice.so", "libffmpeg.so"
+        )
+        ffmpegLibs.forEach { libName ->
+            val libPath = "$nativeDir/$libName"
+            if (File(libPath).exists()) {
+                ZLBridge.dlopen(libPath)
+            }
+        }
     }
 }
 

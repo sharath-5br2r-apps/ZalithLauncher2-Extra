@@ -95,7 +95,8 @@ val modrinthModLoaderFilters: List<ModrinthModLoaderCategory> = listOf(
     ModrinthModLoaderCategory.FABRIC,
     ModrinthModLoaderCategory.FORGE,
     ModrinthModLoaderCategory.NEOFORGE,
-    ModrinthModLoaderCategory.QUILT
+    ModrinthModLoaderCategory.QUILT,
+    ModrinthModLoaderCategory.BABRIC
 )
 
 /**
