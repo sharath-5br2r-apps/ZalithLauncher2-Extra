@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
 import com.movtery.zalithlauncher.ui.components.FocusableBox
+import com.movtery.zalithlauncher.ui.control.input.TouchCharInput
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -354,7 +355,7 @@ fun TouchpadLayout(
                 )
             ),
         requestKey = requestFocusKey to composeFocusCount,
-        canRequestFocus = { !SDLActivity.isUsingSDLTextEdit() }
+        canRequestFocus = { !SDLActivity.isUsingSDLTextEdit() && !TouchCharInput.isActive() }
     )
 
     SimpleMouseCapture(

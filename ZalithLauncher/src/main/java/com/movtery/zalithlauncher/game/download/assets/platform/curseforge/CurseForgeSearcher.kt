@@ -33,10 +33,12 @@ import com.movtery.zalithlauncher.utils.network.httpGetJson
 import com.movtery.zalithlauncher.utils.network.httpPostJson
 import io.ktor.http.Parameters
 import io.ktor.server.plugins.NotFoundException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class CurseForgeSearcher(
@@ -156,60 +158,62 @@ private suspend fun <E, T> getAllVersions(
     checkNotEmpty: (E) -> Boolean,
     asyncVersions: suspend (index: Int, pageSize: Int) -> E,
     processVersions: suspend (E?) -> Pair<List<T>, Int>
-): List<T> = coroutineScope {
-    val allVersions = mutableListOf<T>()
-    /** 当前区间编号 */
-    var currentChunk = 1
-    /** 起始页码 */
-    var startPage = 0
-    /** 是否已经到达过最后一页，控制是否进入下一区间 */
-    var reachedEnd = false
+): List<T> = withContext(Dispatchers.IO) {
+    coroutineScope {
+        val allVersions = mutableListOf<T>()
+        /** 当前区间编号 */
+        var currentChunk = 1
+        /** 起始页码 */
+        var startPage = 0
+        /** 是否已经到达过最后一页，控制是否进入下一区间 */
+        var reachedEnd = false
 
-    val semaphore = Semaphore(maxConcurrent)
+        val semaphore = Semaphore(maxConcurrent)
 
-    while (!reachedEnd) {
-        //创建当前区间的任务列表
-        val jobs = (0 until chunkSize).map { offset ->
-            val pageIndex = startPage + offset
-            val index = pageIndex * pageSize
+        while (!reachedEnd) {
+            //创建当前区间的任务列表
+            val jobs = (0 until chunkSize).map { offset ->
+                val pageIndex = startPage + offset
+                val index = pageIndex * pageSize
 
-            async {
-                semaphore.withPermit {
-                    val response = asyncVersions(index, pageSize)
-                    //检查当前页返回的结果是否正常
-                    //如果是最后一页之后的内容，则这里的列表是空的
-                    if (checkNotEmpty(response)) {
-                        //有东西，回调即可
-                        pageCallback(currentChunk, pageIndex + 1)
-                        response
-                    } else null
+                async {
+                    semaphore.withPermit {
+                        val response = asyncVersions(index, pageSize)
+                        //检查当前页返回的结果是否正常
+                        //如果是最后一页之后的内容，则这里的列表是空的
+                        if (checkNotEmpty(response)) {
+                            //有东西，回调即可
+                            pageCallback(currentChunk, pageIndex + 1)
+                            response
+                        } else null
+                    }
                 }
             }
-        }
 
-        for ((i, job) in jobs.withIndex()) {
-            val (files, realSize) = processVersions(job.await())
-            files.takeIf { it.isNotEmpty() }?.let { list ->
-                allVersions.addAll(list)
-            }
-
-            //少于pageSize，已经是最后一页
-            if (realSize < pageSize) {
-                reachedEnd = true
-                //取消后续页
-                for (j in (i + 1) until jobs.size) {
-                    jobs[j].cancel()
+            for ((i, job) in jobs.withIndex()) {
+                val (files, realSize) = processVersions(job.await())
+                files.takeIf { it.isNotEmpty() }?.let { list ->
+                    allVersions.addAll(list)
                 }
-                break
+
+                //少于pageSize，已经是最后一页
+                if (realSize < pageSize) {
+                    reachedEnd = true
+                    //取消后续页
+                    for (j in (i + 1) until jobs.size) {
+                        jobs[j].cancel()
+                    }
+                    break
+                }
+            }
+
+            //如果没发现最后一页，则进入下一区间
+            if (!reachedEnd) {
+                startPage += chunkSize
+                currentChunk++
             }
         }
 
-        //如果没发现最后一页，则进入下一区间
-        if (!reachedEnd) {
-            startPage += chunkSize
-            currentChunk++
-        }
+        return@coroutineScope allVersions
     }
-
-    return@coroutineScope allVersions
 }

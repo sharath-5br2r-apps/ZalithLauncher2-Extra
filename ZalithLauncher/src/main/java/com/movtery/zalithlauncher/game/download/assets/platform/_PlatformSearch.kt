@@ -302,51 +302,53 @@ suspend fun getProjectByVersion(
     }
 }
 
-suspend fun getVersionByLocalFile(file: File, sha1: String): PlatformVersion? = coroutineScope {
-    val modrinthDeferred = async(Dispatchers.IO) {
-        runCatching {
-            mirroredPlatformSearcher(
-                searchers = mirroredModrinthSource(),
-                printLog = false
-            ) { searcher ->
-                searcher.getVersionByLocalFile(file, sha1)
-            }
-        }.getOrNull()
-    }
+suspend fun getVersionByLocalFile(file: File, sha1: String): PlatformVersion? = withContext(Dispatchers.IO) {
+    coroutineScope {
+        val modrinthDeferred = async(Dispatchers.IO) {
+            runCatching {
+                mirroredPlatformSearcher(
+                    searchers = mirroredModrinthSource(),
+                    printLog = false
+                ) { searcher ->
+                    searcher.getVersionByLocalFile(file, sha1)
+                }
+            }.getOrNull()
+        }
 
-    val curseForgeDeferred = async(Dispatchers.IO) {
-        runCatching {
-            mirroredPlatformSearcher(
-                searchers = mirroredCurseForgeSource(),
-                printLog = false
-            ) { searcher ->
-                searcher.getVersionByLocalFile(file, sha1)
-            }
-        }.getOrNull()
-    }
+        val curseForgeDeferred = async(Dispatchers.IO) {
+            runCatching {
+                mirroredPlatformSearcher(
+                    searchers = mirroredCurseForgeSource(),
+                    printLog = false
+                ) { searcher ->
+                    searcher.getVersionByLocalFile(file, sha1)
+                }
+            }.getOrNull()
+        }
 
-    val result = select {
-        modrinthDeferred.onAwait { result ->
-            if (result != null) {
-                curseForgeDeferred.cancel()
-                result
-            } else {
-                null
+        val result = select {
+            modrinthDeferred.onAwait { result ->
+                if (result != null) {
+                    curseForgeDeferred.cancel()
+                    result
+                } else {
+                    null
+                }
+            }
+            curseForgeDeferred.onAwait { result ->
+                if (result != null) {
+                    modrinthDeferred.cancel()
+                    result
+                } else {
+                    null
+                }
             }
         }
-        curseForgeDeferred.onAwait { result ->
-            if (result != null) {
-                modrinthDeferred.cancel()
-                result
-            } else {
-                null
-            }
-        }
-    }
 
-    result ?: run {
-        if (!modrinthDeferred.isCompleted) modrinthDeferred.await()
-        else if (!curseForgeDeferred.isCompleted) curseForgeDeferred.await()
-        else null
+        result ?: run {
+            if (!modrinthDeferred.isCompleted) modrinthDeferred.await()
+            else if (!curseForgeDeferred.isCompleted) curseForgeDeferred.await()
+            else null
+        }
     }
 }
