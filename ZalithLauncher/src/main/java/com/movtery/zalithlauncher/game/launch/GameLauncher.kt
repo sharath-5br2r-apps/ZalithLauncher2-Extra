@@ -103,7 +103,7 @@ class GameLauncher(
 
     override suspend fun launch(screenSize: IntSize): Int {
         if (!Renderers.isCurrentRendererValid()) {
-            Renderers.setCurrentRenderer(version.getRenderer())
+            Renderers.setCurrentRenderer(activity, version.getRenderer())
         }
 
         val manifest = GSON.fromJson(File(version.getVersionPath(), "${version.getVersionName()}.json").readText(), GameManifest::class.java)
@@ -226,7 +226,14 @@ class GameLauncher(
     }
 
     override fun progressFinalUserArgs(args: MutableList<String>, ramAllocation: Int) {
-        super.progressFinalUserArgs(args, version.getRamAllocation(activity))
+        // Prefer a per-version RAM override when it is explicitly set (>= 256 MB);
+        // otherwise honour the value computed by the caller (dynamic or manual global).
+        val effectiveRam = if (version.getVersionConfig().ramAllocation >= 256) {
+            version.getRamAllocation(activity) // applies getMaxMemoryForSettings cap
+        } else {
+            ramAllocation
+        }
+        super.progressFinalUserArgs(args, effectiveRam)
         if (Renderers.isCurrentRendererValid()) {
             args.add("-Dorg.lwjgl.opengl.libname=${getRendererLibrary()}")
         }

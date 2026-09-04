@@ -86,6 +86,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// ────────────────────────────────────────────────────── Data model ──────────
+
 data class RecordingEntry(
     val uri: Uri,
     val id: Long,
@@ -96,6 +98,8 @@ data class RecordingEntry(
     val width: Int,
     val height: Int
 )
+
+// ────────────────────────────────────────────────────── Screen ─────────────
 
 @Composable
 fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
@@ -108,9 +112,13 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
 
         var recordings by remember { mutableStateOf<List<RecordingEntry>>(emptyList()) }
         var loading by remember { mutableStateOf(true) }
+
+        // Thumbnail cache — mutableStateMapOf triggers recomposition on new entries
         val thumbnails = remember { mutableStateMapOf<Long, Bitmap>() }
+
         var renameTarget  by remember { mutableStateOf<RecordingEntry?>(null) }
         var deleteTarget  by remember { mutableStateOf<RecordingEntry?>(null) }
+        // Built-in overlay player — null means no video is currently playing
         var playingEntry  by remember { mutableStateOf<RecordingEntry?>(null) }
 
         fun reload() {
@@ -156,6 +164,7 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(recordings, key = { it.id }) { entry ->
+                        // Load thumbnail asynchronously on first appearance
                         LaunchedEffect(entry.id) {
                             if (!thumbnails.containsKey(entry.id)) {
                                 val bmp = withContext(Dispatchers.IO) {
@@ -167,6 +176,7 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
                         RecordingCard(
                             entry = entry,
                             thumbnail = thumbnails[entry.id],
+                            // Launch the built-in overlay player instead of an external intent
                             onPlay = { playingEntry = entry },
                             onShare = { shareRecording(context, entry.uri) },
                             onRename = { renameTarget = entry },
@@ -189,6 +199,7 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
             }
         }
 
+        // ── Rename dialog ─────────────────────────────────────────────────────
         renameTarget?.let { entry ->
             var name by remember(entry.id) {
                 mutableStateOf(entry.displayName.removeSuffix(".mp4"))
@@ -224,6 +235,7 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
             )
         }
 
+        // ── Delete dialog ─────────────────────────────────────────────────────
         deleteTarget?.let { entry ->
             AlertDialog(
                 onDismissRequest = { deleteTarget = null },
@@ -252,15 +264,26 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
             )
         }
 
+        // ── Built-in overlay video player ─────────────────────────────────────
+        // Shown when the user taps a recording card.  The overlay is a Dialog so
+        // it renders above the page title bar and the entire launcher UI, which
+        // means the Dialog-based implementation avoids any layout-hierarchy clip.
+        // key(entry.uri) forces a fresh composition (and a fresh ExoPlayer instance)
+        // whenever the selected recording changes, preventing stale state from a
+        // previous playback session from leaking into the new one.
         playingEntry?.let { entry ->
-            RecordingPlayerOverlay(
-                uri   = entry.uri,
-                title = entry.displayName.removeSuffix(".mp4"),
-                onDismiss = { playingEntry = null }
-            )
+            androidx.compose.runtime.key(entry.uri) {
+                RecordingPlayerOverlay(
+                    uri   = entry.uri,
+                    title = entry.displayName.removeSuffix(".mp4"),
+                    onDismiss = { playingEntry = null }
+                )
+            }
         }
     }
 }
+
+// ────────────────────────────────────────────────────── Card ────────────────
 
 @Composable
 private fun RecordingCard(
@@ -286,6 +309,7 @@ private fun RecordingCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Thumbnail
             Box(
                 modifier = Modifier
                     .width(120.dp)
@@ -313,6 +337,7 @@ private fun RecordingCard(
 
             Spacer(Modifier.width(12.dp))
 
+            // Metadata
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = entry.displayName.removeSuffix(".mp4"),
@@ -327,17 +352,18 @@ private fun RecordingCard(
                     if (entry.sizeBytes > 0)
                         add(Formatter.formatShortFileSize(context, entry.sizeBytes))
                     if (entry.width > 0 && entry.height > 0)
-                        add("${entry.width}\u00d7${entry.height}")
+                        add("${entry.width}×${entry.height}")
                     add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                         .format(Date(entry.dateAddedSec * 1000L)))
                 }
                 Text(
-                    text = parts.joinToString(" \u00b7 "),
+                    text = parts.joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
+            // Overflow menu anchor
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
@@ -387,6 +413,8 @@ private fun RecordingCard(
         }
     }
 }
+
+// ────────────────────────────────────────────────────── Helpers ─────────────
 
 private fun queryRecordings(context: Context): List<RecordingEntry> {
     val projection = arrayOf(

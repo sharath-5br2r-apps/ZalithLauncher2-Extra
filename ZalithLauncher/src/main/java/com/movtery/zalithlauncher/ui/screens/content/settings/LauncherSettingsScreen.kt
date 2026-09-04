@@ -46,6 +46,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -83,10 +84,12 @@ import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.enums.AccountTypeDisplayMode
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.HomePageType
+import com.movtery.zalithlauncher.setting.enums.MainScreenMode
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.applyLanguage
 import com.movtery.zalithlauncher.setting.unit.floatRange
@@ -109,6 +112,7 @@ import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
+import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.content.elements.DisabledAlpha
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPosition
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.EnumSettingsCard
@@ -280,6 +284,16 @@ fun LauncherSettingsScreen(
                     ListSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Middle,
+                        unit = AllSettings.mainScreenMode,
+                        items = MainScreenMode.entries,
+                        title = stringResource(R.string.settings_launcher_main_screen_mode_title),
+                        summary = stringResource(R.string.settings_launcher_main_screen_mode_summary),
+                        getItemText = { stringResource(it.textRes) }
+                    )
+
+                    ListSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
                         unit = AllSettings.launcherLanguage,
                         items = AppLanguage.entries,
                         title = stringResource(R.string.settings_launcher_language),
@@ -299,10 +313,51 @@ fun LauncherSettingsScreen(
 
                     SwitchSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        unit = AllSettings.showVersionProfileIndicator,
+                        title = stringResource(R.string.settings_launcher_version_profile_indicator_title),
+                        summary = stringResource(R.string.settings_launcher_version_profile_indicator_summary)
+                    )
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Bottom,
                         unit = AllSettings.launcherFullScreen,
                         title = stringResource(R.string.settings_launcher_full_screen_title),
                         summary = stringResource(R.string.settings_launcher_full_screen_summary)
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                val isAdvancedMode = AllSettings.mainScreenMode.state == MainScreenMode.Advanced
+                var showAdvancedModeRequiredDialog by remember { mutableStateOf(false) }
+
+                if (showAdvancedModeRequiredDialog) {
+                    SimpleAlertDialog(
+                        title = stringResource(R.string.settings_launcher_quick_access_advanced_only_title),
+                        text = stringResource(R.string.settings_launcher_quick_access_advanced_only_message),
+                        onDismiss = { showAdvancedModeRequiredDialog = false }
+                    )
+                }
+
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    SettingsCard(
+                        position = CardPosition.Single,
+                        title = stringResource(R.string.settings_launcher_quick_access_title),
+                        summary = stringResource(R.string.settings_launcher_quick_access_summary),
+                        enabled = isAdvancedMode,
+                        onClick = {
+                            if (isAdvancedMode) {
+                                key.backStack.navigateTo(NormalNavKey.Settings.QuickAccessCustomization)
+                            } else {
+                                showAdvancedModeRequiredDialog = true
+                            }
+                        }
                     )
                 }
             }
@@ -696,12 +751,83 @@ fun LauncherSettingsScreen(
                         .fillMaxWidth()
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
+                    val showAccountType = AllSettings.showAccountType.state
                     SwitchSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
-                        position = CardPosition.Top,
-                        unit = AllSettings.showSnapshotVersions,
-                        title = stringResource(R.string.settings_launcher_show_snapshot_versions_title),
-                        summary = stringResource(R.string.settings_launcher_show_snapshot_versions_summary)
+                        position = CardPosition.Single,
+                        unit = AllSettings.showAccountType,
+                        title = stringResource(R.string.settings_launcher_show_account_type_title),
+                        summary = stringResource(R.string.settings_launcher_show_account_type_summary),
+                        columnLayout = {
+                            AnimatedVisibility(visible = showAccountType) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val displayModeUnit = AllSettings.accountTypeDisplayMode
+                                        AccountTypeDisplayMode.entries.forEach { mode ->
+                                            FilterChip(
+                                                selected = displayModeUnit.state == mode,
+                                                onClick = { displayModeUnit.save(mode) },
+                                                label = { Text(text = stringResource(mode.textRes)) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    val masterAutoSelect = AllSettings.autoSelectDownloadContent.state
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Single,
+                        unit = AllSettings.autoSelectDownloadContent,
+                        title = stringResource(R.string.settings_launcher_auto_select_title),
+                        summary = stringResource(R.string.settings_launcher_auto_select_summary),
+                        columnLayout = {
+                            AnimatedVisibility(visible = masterAutoSelect) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf(
+                                            Pair(AllSettings.autoSelectModpacks, R.string.settings_launcher_auto_select_modpacks),
+                                            Pair(AllSettings.autoSelectMods, R.string.settings_launcher_auto_select_mods),
+                                            Pair(AllSettings.autoSelectResourcePacks, R.string.settings_launcher_auto_select_resource_packs),
+                                            Pair(AllSettings.autoSelectShaderPacks, R.string.settings_launcher_auto_select_shader_packs),
+                                            Pair(AllSettings.autoSelectSaves, R.string.settings_launcher_auto_select_saves)
+                                        ).forEach { (unit, labelRes) ->
+                                            FilterChip(
+                                                selected = unit.state,
+                                                onClick = { unit.save(!unit.state) },
+                                                label = { Text(text = stringResource(labelRes)) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
             }

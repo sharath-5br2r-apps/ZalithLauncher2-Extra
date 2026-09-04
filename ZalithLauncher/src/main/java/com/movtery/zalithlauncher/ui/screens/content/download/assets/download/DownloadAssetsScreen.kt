@@ -73,8 +73,8 @@ import com.movtery.zalithlauncher.game.download.assets.platform.isAllNull
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
-import com.movtery.zalithlauncher.game.versioninfo.filterRelease
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.game.versioninfo.filterRelease
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
@@ -92,6 +92,8 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Do
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsVersionLoading
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ProjectUrlsContent
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ScreenshotItemLayout
+import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ShowScreenshotsButton
+import com.movtery.zalithlauncher.utils.network.isUsingMobileData
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.VersionInfoMap
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.initAll
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.mapWithVersions
@@ -296,6 +298,7 @@ fun DownloadAssetsScreen(
     nestedNavKeyClass: Class<out TitledNavKey>? = null,
     versionsUIWeight: Float = 6.5f,
     projectUIWeight: Float = 3.5f,
+    autoSelect: Boolean = true,
 ) {
     val viewModel: DownloadScreenViewModel = rememberDownloadAssetsViewModel(key)
 
@@ -316,6 +319,7 @@ fun DownloadAssetsScreen(
                     .fillMaxHeight()
                     .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
                 viewModel = viewModel,
+                autoSelect = autoSelect,
                 onReload = { viewModel.getVersions() },
                 onItemClicked = { version ->
                     val deps = version.platformDependencies().mapNotNull { dep ->
@@ -355,6 +359,7 @@ fun DownloadAssetsScreen(
 private fun Versions(
     modifier: Modifier = Modifier,
     viewModel: DownloadScreenViewModel,
+    autoSelect: Boolean = true,
     onReload: () -> Unit = {},
     onItemClicked: (PlatformVersion) -> Unit = {}
 ) {
@@ -429,6 +434,7 @@ private fun Versions(
                             Text(text = stringResource(R.string.generic_all))
                         }
                     )
+
                     val scrollState = rememberScrollState()
                     Row(
                         modifier = Modifier
@@ -459,6 +465,19 @@ private fun Versions(
 
                 val scrollState = rememberLazyListState()
 
+                // Auto-select the current game version in the filter chips when entering the screen.
+                // Controlled by the "Auto Select Download Content" setting.
+                LaunchedEffect(Unit) {
+                    if (!autoSelect) return@LaunchedEffect
+                    val currentMcVersion = VersionsManager.currentVersion.value
+                        ?.getVersionInfo()?.minecraftVersion ?: return@LaunchedEffect
+                    if (currentMcVersion in installedVersions && viewModel.selectedGameVersion == null) {
+                        viewModel.filterWith(currentMcVersion)
+                    }
+                }
+
+                // Auto-scroll to the first adapted content version — always enabled regardless
+                // of the Auto Select setting (restored to unconditional default behavior).
                 LaunchedEffect(Unit) {
                     delay(100L.milliseconds)
                     runCatching {
@@ -578,6 +597,8 @@ private fun ProjectInfo(
                 val summary = remember { project.platformSummary() }
                 val urls = remember { project.platformUrls(defaultClasses) }
                 val screenshots = remember { project.platformScreenshots() }
+                //Wi-Fi下自动加载截图；移动数据下默认不自动加载，需要用户手动点击按钮才开始加载，避免消耗不必要的移动流量
+                var showScreenshots by remember { mutableStateOf(!isUsingMobileData(context)) }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -642,12 +663,23 @@ private fun ProjectInfo(
                         }
                     }
 
-                    //屏幕截图
-                    items(screenshots) { screenshot ->
-                        ScreenshotItemLayout(
-                            modifier = Modifier.fillMaxWidth(),
-                            screenshot = screenshot
-                        )
+                    //屏幕截图：默认不自动加载，点击按钮后才开始加载
+                    if (screenshots.isNotEmpty()) {
+                        if (!showScreenshots) {
+                            item {
+                                ShowScreenshotsButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = { showScreenshots = true }
+                                )
+                            }
+                        } else {
+                            items(screenshots) { screenshot ->
+                                ScreenshotItemLayout(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    screenshot = screenshot
+                                )
+                            }
+                        }
                     }
                 }
             }

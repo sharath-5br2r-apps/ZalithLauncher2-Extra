@@ -75,6 +75,7 @@ private fun <E> BaseListSettingsCard(
     innerShape: Dp = 4.dp,
     summary: String? = null,
     middleLayout: (@Composable ColumnScope.() -> Unit)? = null,
+    topContent: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     itemListPadding: PaddingValues = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp),
@@ -156,6 +157,7 @@ private fun <E> BaseListSettingsCard(
                                 .fillMaxWidth()
                                 .padding(itemListPadding)
                         ) {
+                            topContent?.invoke()
                             items.forEach { item ->
                                 itemLayout(item)
                             }
@@ -182,6 +184,7 @@ fun <E> ListSettingsCard(
     getItemId: (E) -> String,
     getItemSummary: (@Composable (E) -> Unit)? = null,
     getItemTrailing: (@Composable (E) -> Unit)? = null,
+    topContent: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     autoCollapse: Boolean = true,
@@ -238,6 +241,7 @@ fun <E> ListSettingsCard(
                 style = MaterialTheme.typography.labelSmall
             )
         },
+        topContent = topContent,
         trailingIcon = trailingIcon,
         enabled = enabled,
         itemListPadding = itemListPadding,
@@ -260,6 +264,7 @@ fun <E> ListSettingsCard(
     getItemId: (E) -> String,
     getItemSummary: (@Composable (E) -> Unit)? = null,
     getItemTrailing: (@Composable (E) -> Unit)? = null,
+    topContent: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     autoCollapse: Boolean = true,
@@ -282,6 +287,7 @@ fun <E> ListSettingsCard(
         getItemId = getItemId,
         getItemSummary = getItemSummary,
         getItemTrailing = getItemTrailing,
+        topContent = topContent,
         trailingIcon = trailingIcon,
         enabled = enabled,
         autoCollapse = autoCollapse,

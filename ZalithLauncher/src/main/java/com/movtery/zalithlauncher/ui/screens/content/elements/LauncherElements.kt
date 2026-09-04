@@ -344,9 +344,19 @@ fun LaunchGameOperation(
                     return@LaunchedEffect
                 }
 
-                val currentRenderer = version.getRenderer()
-                val isRendererAvailable = Renderers.isRendererAvailable(currentRenderer)
-                if (!isRendererAvailable) {
+                //开始检查渲染器的版本支持情况
+                Renderers.setCurrentRenderer(activity, version.getRenderer())
+                val currentRenderer = Renderers.getCurrentRenderer()
+                val rendererMinVer = currentRenderer.getMinMCVersion()
+                val rendererMaxVer = currentRenderer.getMaxMCVersion()
+
+                val mcVer = version.getVersionInfo()!!.minecraftVersion
+
+                val isRendererUnsupported =
+                    (rendererMinVer?.let { mcVer.isLowerTo(it) } ?: false) ||
+                            (rendererMaxVer?.let { mcVer.isBiggerTo(it) } ?: false)
+
+                if (isRendererUnsupported) {
                     launchGameViewModel.updateOperation(LaunchGameOperation.UnsupportedRenderer(currentRenderer, version, quickPlay))
                     return@LaunchedEffect
                 }

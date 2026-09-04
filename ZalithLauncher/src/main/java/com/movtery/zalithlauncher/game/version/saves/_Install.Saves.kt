@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.game.version.saves
 
+import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.utils.file.CompressZipEntryAdapter
 import com.movtery.zalithlauncher.utils.file.JavaZipEntryAdapter
 import com.movtery.zalithlauncher.utils.file.UnpackZipException
@@ -33,11 +34,31 @@ import java.io.IOException
 import java.util.zip.ZipFile as JDKZipFile
 
 private const val TAG = "InstallSaves"
+private const val DOWNLOAD_SOURCE_FILE = ".zl_save_source"
 
 /**
- * 解压存档压缩包
+ * 将下载来源信息写入存档文件夹，以便后续在 Saves 页面中识别已下载的存档。
+ * 格式：第一行为平台名称（enum name），第二行为项目 ID。
  */
-suspend fun unpackSaveZip(zipFile: File, targetPath: File) = withContext(Dispatchers.IO) {
+fun writeSaveDownloadSource(worldFolder: File, platform: Platform, projectId: String) {
+    runCatching {
+        File(worldFolder, DOWNLOAD_SOURCE_FILE).writeText("${platform.name}\n$projectId")
+    }.onFailure {
+        Logger.warning(TAG, "Failed to write download source for world ${worldFolder.name}", it)
+    }
+}
+
+/**
+ * 解压存档压缩包。
+ * @param platform 可选：该存档从哪个平台下载
+ * @param projectId 可选：该存档在平台上的项目 ID
+ */
+suspend fun unpackSaveZip(
+    zipFile: File,
+    targetPath: File,
+    platform: Platform? = null,
+    projectId: String? = null
+) = withContext(Dispatchers.IO) {
     val path = extractLevelPath(zipFile) ?: throw IOException("Unable to locate the level where the level.dat file is stored.")
     Logger.info(TAG, "Found the level of the level.data file: $path")
     val target = File(targetPath, zipFile.nameWithoutExtension)
@@ -54,6 +75,10 @@ suspend fun unpackSaveZip(zipFile: File, targetPath: File) = withContext(Dispatc
         }
     }
     FileUtils.deleteQuietly(zipFile)
+    // 写入下载来源信息（如果有）
+    if (platform != null && projectId != null) {
+        writeSaveDownloadSource(target, platform, projectId)
+    }
 }
 
 private suspend fun tryApacheZip(zipFile: File, path: String, target: File) {

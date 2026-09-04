@@ -81,13 +81,15 @@ private const val TAG = "SearchAssetsScreen"
  * @param filterPersistenceKey MMKV中保存过滤器状态的键，为空则不持久化
  * @param getCategories 根据平台获取可用的资源类别过滤器（用于恢复持久化的类别选择）
  * @param getModloaders 根据平台获取可用的模组加载器过滤器（用于恢复持久化的模组加载器）
+ * @param autoSelectEnabled 是否允许在进入屏幕时自动预选游戏版本（由"自动选择下载内容"设置控制）
  */
 private class SearchScreenViewModel(
     initialPlatform: Platform,
     private val platformClasses: PlatformClasses,
     private val filterPersistenceKey: String? = null,
     private val getCategories: ((Platform) -> List<PlatformFilterCode>)? = null,
-    private val getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null
+    private val getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null,
+    private val autoSelectEnabled: Boolean = true
 ): ViewModel() {
     var searchResult by mutableStateOf<SearchAssetsState>(SearchAssetsState.Searching)
     val pages = mutableStateListOf<AssetsPage?>()
@@ -114,6 +116,14 @@ private class SearchScreenViewModel(
         VersionsManager.versions.value.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct()
     )
         private set
+
+    init {
+        viewModelScope.launch {
+            VersionsManager.versions.collect { versions ->
+                installedVersionIds = versions.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct()
+            }
+        }
+    }
 
     /**
      * 仅更新搜索名称
@@ -202,18 +212,12 @@ private class SearchScreenViewModel(
     }
 
     init {
-        viewModelScope.launch {
-            VersionsManager.versions.collect { versions ->
-                installedVersionIds = versions.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct()
-            }
-        }
-
-        //从 MMKV 恢复持久化的过滤器状态
+        //从 MMKV 恢复持久化的过滤器状态（游戏版本为会话状态，不从持久化恢复）
         if (filterPersistenceKey != null) {
             val filter = loadSearchFilter(filterPersistenceKey)
             if (filter != null) {
                 searchFilter = searchFilter.copy(
-                    gameVersion = filter.gameVersion,
+                    // gameVersion is session-only — intentionally not restored from persistence
                     sortField = filter.sortField
                 )
             }
@@ -240,8 +244,9 @@ private class SearchScreenViewModel(
             }
         }
 
-        // Issue #9: 如果只有一个已安装版本，且用户未保存过版本偏好，则自动预选该版本
-        if (searchFilter.gameVersion == null && installedVersionIds.size == 1) {
+        // Issue #9: 如果"自动选择下载内容"已启用，且只有一个已安装版本，则自动预选该版本
+        // Game Version auto-selection is controlled solely by the autoSelectEnabled setting.
+        if (autoSelectEnabled && searchFilter.gameVersion == null && installedVersionIds.size == 1) {
             searchFilter = searchFilter.copy(gameVersion = installedVersionIds.first())
         }
 
@@ -262,13 +267,14 @@ private fun rememberSearchAssetsViewModel(
     platformClasses: PlatformClasses,
     filterPersistenceKey: String? = null,
     getCategories: ((Platform) -> List<PlatformFilterCode>)? = null,
-    getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null
+    getModloaders: ((Platform) -> List<PlatformDisplayLabel>)? = null,
+    autoSelectEnabled: Boolean = true
 ): SearchScreenViewModel {
     val screenKey = navKey.toString()
     return viewModel(
         key = "${screenKey}_search"
     ) {
-        SearchScreenViewModel(initialPlatform, platformClasses, filterPersistenceKey, getCategories, getModloaders)
+        SearchScreenViewModel(initialPlatform, platformClasses, filterPersistenceKey, getCategories, getModloaders, autoSelectEnabled)
     }
 }
 
@@ -309,6 +315,8 @@ fun SearchAssetsScreen(
     getModloaders: (Platform) -> List<PlatformDisplayLabel> = { emptyList() },
     mapCategories: (Platform, String) -> PlatformFilterCode?,
     filterPersistenceKey: String? = null,
+    /** 是否允许"自动选择下载内容"功能在进入屏幕时预选游戏版本（由各内容类型的设置开关控制） */
+    autoSelectEnabled: Boolean = true,
     swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> },
     extraFilter: (LazyListScope.() -> Unit)? = null
 ) {
@@ -318,7 +326,8 @@ fun SearchAssetsScreen(
         platformClasses = platformClasses,
         filterPersistenceKey = filterPersistenceKey,
         getCategories = getCategories,
-        getModloaders = getModloaders
+        getModloaders = getModloaders,
+        autoSelectEnabled = autoSelectEnabled
     )
 
     // 每次重组时更新 ViewModel 的过滤器变更回调

@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.coroutine
 
+import androidx.annotation.DrawableRes
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,10 @@ import java.util.UUID
 
 class Task private constructor(
     val id: String,
+    /** Human-readable label shown in the Task Menu. Null means no title row is displayed. */
+    val title: String? = null,
+    /** Icon shown while the task is in [TaskStage.RUNNING]. Defaults to a generic download icon. */
+    @DrawableRes val runningIcon: Int? = null,
     val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     val task: suspend CoroutineScope.(Task) -> Unit,
     val onError: suspend (Throwable) -> Unit = {},
@@ -99,6 +104,8 @@ class Task private constructor(
     companion object {
         fun runTask(
             id: String? = null,
+            title: String? = null,
+            @DrawableRes runningIcon: Int? = null,
             dispatcher: CoroutineDispatcher = Dispatchers.Default,
             task: suspend CoroutineScope.(Task) -> Unit,
             onError: suspend (Throwable) -> Unit = {},
@@ -107,6 +114,8 @@ class Task private constructor(
         ): Task =
             Task(
                 id = id ?: getRandomID(),
+                title = title,
+                runningIcon = runningIcon,
                 dispatcher = dispatcher,
                 task = task,
                 onError = onError,

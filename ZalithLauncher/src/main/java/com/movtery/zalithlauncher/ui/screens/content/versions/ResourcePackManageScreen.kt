@@ -85,10 +85,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
+import com.movtery.zalithlauncher.game.version.profile.VersionProfileManager
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.version.resource_pack.RemoteResourcePack
 import com.movtery.zalithlauncher.game.version.resource_pack.ResourcePackInfo
@@ -144,6 +146,7 @@ import java.util.LinkedList
 import kotlin.time.Duration.Companion.milliseconds
 
 private class ResourcePackManageViewModel(
+    private val version: Version,
     val resourcePackDir: File
 ) : ViewModel() {
     var packFilter by mutableStateOf(ResourcePackFilter())
@@ -161,6 +164,7 @@ private class ResourcePackManageViewModel(
     var packState by mutableStateOf<LoadingState>(LoadingState.None)
         private set
 
+    // Block 1: merged — HEAD adds enabledCount/disabledCount, pr65 changes selectedPacks type to RemoteResourcePack
     var enabledCount by mutableStateOf(-1)
         private set
     var disabledCount by mutableStateOf(-1)
@@ -184,6 +188,7 @@ private class ResourcePackManageViewModel(
         }
     }
 
+    // Block 2: merged — HEAD adds enable/disable/toggle methods; pr65 refactors to use pack.info; adopt pr65's info indirection
     fun refreshCounter() {
         allPacks.also { list ->
             val counts = list.fold(Pair(0, 0)) { (enabled, disabled), pack ->
@@ -197,13 +202,11 @@ private class ResourcePackManageViewModel(
     fun enableSelectedPacks() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                selectedPacks.forEach { pack ->
-                    val info = pack.info
-                    if (!info.isEnabled) {
-                        val newName = info.file.name.dropLast(9)
-                        info.file.renameTo(File(resourcePackDir, newName))
-                    }
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedPacks.map { it.info.file },
+                    enabled = true
+                )
             }
             withContext(Dispatchers.Main) { selectedPacks.clear() }
             refresh(checkCount = false)
@@ -213,12 +216,11 @@ private class ResourcePackManageViewModel(
     fun disableSelectedPacks() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                selectedPacks.forEach { pack ->
-                    val info = pack.info
-                    if (info.isEnabled) {
-                        info.file.renameTo(File(resourcePackDir, "${info.file.name}.disabled"))
-                    }
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedPacks.map { it.info.file },
+                    enabled = false
+                )
             }
             withContext(Dispatchers.Main) { selectedPacks.clear() }
             refresh(checkCount = false)
@@ -229,12 +231,11 @@ private class ResourcePackManageViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val info = pack.info
-                if (info.isEnabled) {
-                    info.file.renameTo(File(resourcePackDir, "${info.file.name}.disabled"))
-                } else {
-                    val newName = info.file.name.dropLast(9)
-                    info.file.renameTo(File(resourcePackDir, newName))
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = listOf(info.file),
+                    enabled = !info.isEnabled
+                )
             }
             refresh(checkCount = false)
         }
@@ -262,6 +263,7 @@ private class ResourcePackManageViewModel(
                 } catch (_: CancellationException) {
                     return@withContext
                 }
+                // Block 3: merged — HEAD keeps refreshCounter(), pr65 uses info.rawName; keep both
                 allPacks = tempList.sortedBy { it.info.rawName }
                 refreshCounter()
                 filterPacks()
@@ -320,7 +322,12 @@ private class ResourcePackManageViewModel(
                     SortByEnum.FileModifiedTime -> info2.file.lastModified().compareTo(info1.file.lastModified())
                     else -> error("This sorting method is not supported: $sortByEnum")
                 }
+                // Block 4: merged — HEAD uses compact form; pr65 also uses compact form + adds startQueueProcessor body; keep pr65 arch
                 if (isAscending) value else -value
+            }
+            ?.let { sorted ->
+                val (enabled, disabled) = sorted.partition { it.info.isEnabled }
+                enabled + disabled
             }
     }
 
@@ -380,7 +387,7 @@ private fun rememberResourcePackManageViewModel(
 ) = viewModel(
     key = version.toString() + "_" + VersionFolders.RESOURCE_PACK.folderName
 ) {
-    ResourcePackManageViewModel(resourcePackDir)
+    ResourcePackManageViewModel(version, resourcePackDir)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -410,9 +417,15 @@ fun ResourcePackManageScreen(
         Triple(NormalNavKey.Versions.ResourcePackManager, versionsScreenKey, false)
     ) { isVisible ->
         val viewModel = rememberResourcePackManageViewModel(resourcePackDir, version)
+        val profileChange by VersionProfileManager.profileChanges.collectAsStateWithLifecycle()
 
         LaunchedEffect(Unit) {
             viewModel.checkCountAndRefresh()
+        }
+        LaunchedEffect(profileChange, version) {
+            if (profileChange?.versionPath == version.getVersionPath().absolutePath) {
+                viewModel.refresh(checkCount = false)
+            }
         }
 
         DeleteAllOperation(
@@ -478,6 +491,7 @@ fun ResourcePackManageScreen(
                                     selected.isNotEmpty()
                                 ) {
                                     viewModel.deleteAllOperation = DeleteAllOperation.Warning(
+                                        // Block 5: merged — HEAD uses pack.file; pr65 uses pack.info.file; adopt pr65 (RemoteResourcePack)
                                         files = selected.map { pack -> pack.info.file }
                                     )
                                 }
@@ -500,6 +514,7 @@ fun ResourcePackManageScreen(
                             selectedPacks = viewModel.selectedPacks,
                             removeFromSelected = { viewModel.selectedPacks.remove(it) },
                             addToSelected = { viewModel.selectedPacks.add(it) },
+                            // Block 6: merged — HEAD adds onToggleEnabled; pr65 adds onSwapMoreInfo + onLoad; keep all
                             onToggleEnabled = { viewModel.togglePackEnabled(it) },
                             updateOperation = { resourcePackOperation = it },
                             onSwapMoreInfo = onSwapMoreInfo,
@@ -740,6 +755,7 @@ private fun ResourcePackHeader(
 @Composable
 private fun ResourcePackList(
     modifier: Modifier = Modifier,
+    // Block 7: merged — pr65 changes all types to RemoteResourcePack and adds onSwapMoreInfo/onLoad params
     packList: List<RemoteResourcePack>?,
     selectedPacks: List<RemoteResourcePack>,
     removeFromSelected: (RemoteResourcePack) -> Unit,
@@ -775,6 +791,7 @@ private fun ResourcePackList(
                             if (selectedPacks.contains(pack)) removeFromSelected(pack)
                             else addToSelected(pack)
                         },
+                        // Block 8: merged — HEAD adds onToggleEnabled/onDelete; pr65 adds onSwapMoreInfo/onLoad; keep all
                         onToggleEnabled = { onToggleEnabled(pack) },
                         onDelete = { updateOperation(ResourcePackOperation.DeletePack(pack.info)) },
                         onSwapMoreInfo = onSwapMoreInfo,
@@ -807,6 +824,7 @@ private fun ResourcePackItemLayout(
     resourcePack: RemoteResourcePack,
     selected: Boolean,
     onClick: () -> Unit = {},
+    // Block 9: merged — HEAD adds onToggleEnabled/onDelete; pr65 adds onSwapMoreInfo/onLoad; keep all
     onToggleEnabled: () -> Unit = {},
     onDelete: () -> Unit = {},
     onSwapMoreInfo: (id: String, Platform) -> Unit = { _, _ -> },
@@ -883,6 +901,8 @@ private fun ResourcePackItemLayout(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (resourcePackInfo.isValid) {
+                    // Block 10: merged — HEAD shows tooltip info button; pr65 shows clickable info button when projectInfo exists
+                    // Keep both: if projectInfo available use clickable (pr65), otherwise tooltip (HEAD)
                     val projectInfo = resourcePack.projectInfo
                     if (projectInfo != null) {
                         IconButton(
@@ -923,11 +943,15 @@ private fun ResourcePackItemLayout(
                     )
                 }
 
+                // Block 11: merged — HEAD uses Checkbox for enable/disable; pr65 also uses Checkbox; keep (both same)
+                // 启用/禁用
                 Checkbox(
                     checked = resourcePackInfo.isEnabled,
                     onCheckedChange = { onToggleEnabled() }
                 )
 
+                // Block 12: merged — HEAD adds delete IconButton; pr65 also adds delete IconButton; keep (both same)
+                // 删除
                 IconButton(
                     modifier = Modifier.size(38.dp),
                     onClick = onDelete

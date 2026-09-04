@@ -1,0 +1,237 @@
+package com.movtery.zalithlauncher.game.control.legacy
+// Legacy control manager — provides built-in layout seeding and selectControl() activation.
+
+import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.context.GlobalContext
+import com.movtery.zalithlauncher.context.readRawContent
+import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.utils.logging.Logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.apache.commons.io.FileUtils
+import java.io.File
+import java.io.InputStream
+
+private const val TAG = "LegacyControlManager"
+
+/** Reserved filename for the launcher's bundled default legacy layout. */
+const val BUILTIN_LEGACY_FILENAME = "zeryth_builtin_default.json"
+
+object LegacyControlManager {
+    private val scope = CoroutineScope(Dispatchers.IO)
+
+    private val _dataList = MutableStateFlow<List<LegacyControlData>>(emptyList())
+    val dataList = _dataList.asStateFlow()
+
+    private var currentJob: Job? = null
+
+    private val _selectedLayout = MutableStateFlow<LegacyControlData?>(null)
+    val selectedLayout = _selectedLayout.asStateFlow()
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
+    private fun newFile(): File {
+        val ts = System.currentTimeMillis()
+        val rnd = (1000..9999).random()
+        return File(PathManager.DIR_LEGACY_CONTROL_LAYOUTS, "${ts}_${rnd}.json")
+    }
+
+    /**
+     * Ensures the bundled default layout exists in the legacy layouts directory.
+     * Only writes the file on first install or if the file was removed; never overwrites
+     * an existing built-in file so user edits or future bundled updates are handled correctly.
+     */
+    private fun seedBuiltInLayout() {
+        try {
+            val dir = PathManager.DIR_LEGACY_CONTROL_LAYOUTS
+            if (!dir.exists()) dir.mkdirs()
+            val builtInFile = File(dir, BUILTIN_LEGACY_FILENAME)
+            // Only write the file if it is absent so user edits are preserved across launches.
+            // Use restoreBuiltInLayout() to explicitly reset to the factory default.
+            if (!builtInFile.exists()) {
+                val json = GlobalContext.readRawContent(R.raw.zeryth_default_legacy_layout)
+                builtInFile.writeText(json)
+                Logger.info(TAG, "Seeded built-in default legacy layout (first install).")
+            }
+        } catch (e: Exception) {
+            Logger.warning(TAG, "Failed to seed built-in legacy layout", e)
+        }
+    }
+
+    /**
+     * Overwrites the built-in Legacy layout file with the original bundled resource,
+     * restoring it to its factory default state.
+     */
+    fun restoreBuiltInLayout(
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val dir = PathManager.DIR_LEGACY_CONTROL_LAYOUTS
+                if (!dir.exists()) dir.mkdirs()
+                val builtInFile = File(dir, BUILTIN_LEGACY_FILENAME)
+                val json = GlobalContext.readRawContent(R.raw.zeryth_default_legacy_layout)
+                builtInFile.writeText(json)
+                Logger.info(TAG, "Restored built-in legacy layout to factory default.")
+                refresh()
+            }.onSuccess {
+                withContext(Dispatchers.Main) { onSuccess() }
+            }.onFailure { e ->
+                Logger.warning(TAG, "Failed to restore built-in legacy layout", e)
+                withContext(Dispatchers.Main) { onError(e as Exception) }
+            }
+        }
+    }
+
+    fun refresh() {
+        currentJob?.cancel()
+        currentJob = scope.launch(Dispatchers.IO) {
+            _isRefreshing.update { true }
+
+            seedBuiltInLayout()
+
+            val files = run {
+                val dir = PathManager.DIR_LEGACY_CONTROL_LAYOUTS
+                if (!dir.exists()) dir.mkdirs()
+                (dir.listFiles() ?: emptyArray())
+            }
+                .filter { it.isFile && it.exists() && it.extension.equals("json", ignoreCase = true) }
+
+            val loaded = files.mapNotNull { file ->
+                try {
+                    val jsonString = file.readText()
+                    if (!LegacyControlParser.isLegacyFormat(jsonString)) return@mapNotNull null
+                    val controls = LegacyControlParser.parse(jsonString) ?: return@mapNotNull null
+                    LegacyControlData(
+                        file = file,
+                        info = controls.info,
+                        buttonCount = controls.buttonCount,
+                        drawerCount = controls.drawerCount,
+                        joystickCount = controls.joystickCount,
+                        formatVersion = controls.formatVersion,
+                        isBuiltIn = file.name == BUILTIN_LEGACY_FILENAME
+                    )
+                } catch (e: Exception) {
+                    Logger.warning(TAG, "Failed to load legacy layout: ${file.name}", e)
+                    null
+                }
+            }
+                .sortedWith(
+                    compareByDescending<LegacyControlData> { it.isBuiltIn }
+                        .thenBy { it.info.name.ifEmpty { it.file.name } }
+                )
+
+            _dataList.update { loaded }
+            checkSettings()
+            _isRefreshing.update { false }
+        }
+    }
+
+    private fun checkSettings() {
+        val setting = AllSettings.legacyControlLayout.getValue()
+        val layout = _dataList.value.find { it.file.name == setting }
+            ?: _dataList.value.firstOrNull()?.also { AllSettings.legacyControlLayout.save(it.file.name) }
+        if (layout == null) AllSettings.legacyControlLayout.reset()
+        _selectedLayout.update { layout }
+    }
+
+    fun selectControl(data: LegacyControlData) {
+        if (!data.file.exists()) return
+        AllSettings.legacyControlLayout.save(data.file.name)
+        AllSettings.controlType.save("legacy")
+        _selectedLayout.update { data }
+    }
+
+    fun deleteControl(data: LegacyControlData) {
+        if (data.isBuiltIn) {
+            Logger.warning(TAG, "Attempted to delete built-in layout — blocked.")
+            return
+        }
+        scope.launch(Dispatchers.IO) {
+            if (!data.file.exists()) return@launch
+            FileUtils.deleteQuietly(data.file)
+            if (AllSettings.legacyControlLayout.getValue() == data.file.name) {
+                AllSettings.legacyControlLayout.reset()
+                AllSettings.controlType.save("zalith2")
+            }
+            refresh()
+        }
+    }
+
+    fun saveInfo(data: LegacyControlData, newInfo: LegacyControlInfo) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val jsonString = data.file.readText()
+                val updated = LegacyControlParser.updateInfo(jsonString, newInfo)
+                data.file.writeText(updated)
+                refresh()
+            } catch (e: Exception) {
+                Logger.warning(TAG, "Failed to save legacy control info: ${data.file.name}", e)
+            }
+        }
+    }
+
+    /** Creates a new empty Zalith 1 legacy layout file. */
+    fun createNew(name: String = "New Layout") {
+        scope.launch(Dispatchers.IO) {
+            val destFile = newFile()
+            try {
+                val json = """{"version":8,"scaledAt":100.0,"mControlDataList":[],"mDrawerDataList":[],"mJoystickDataList":[],"mControlInfoDataList":{"name":"${name}","version":"1.0","author":"","desc":""}}"""
+                destFile.writeText(json)
+                refresh()
+            } catch (e: Exception) {
+                FileUtils.deleteQuietly(destFile)
+                Logger.warning(TAG, "Failed to create new legacy layout", e)
+            }
+        }
+    }
+
+    /** Duplicates an existing legacy layout file. */
+    fun duplicate(data: LegacyControlData) {
+        scope.launch(Dispatchers.IO) {
+            val destFile = newFile()
+            try {
+                FileUtils.copyFile(data.file, destFile)
+                refresh()
+            } catch (e: Exception) {
+                FileUtils.deleteQuietly(destFile)
+                Logger.warning(TAG, "Failed to duplicate legacy layout: ${data.file.name}", e)
+            }
+        }
+    }
+
+    suspend fun importControl(
+        inputStream: InputStream,
+        onNotLegacy: () -> Unit,
+        onError: (Exception) -> Unit,
+        onFinished: () -> Unit = {}
+    ) = withContext(Dispatchers.IO) {
+        val destFile = newFile()
+        try {
+            val jsonString = inputStream.use { it.bufferedReader().readText() }
+            if (!LegacyControlParser.isLegacyFormat(jsonString)) {
+                onNotLegacy()
+                return@withContext
+            }
+            if (LegacyControlParser.parse(jsonString) == null) {
+                onError(Exception("Invalid legacy control format"))
+                return@withContext
+            }
+            destFile.writeText(jsonString)
+            refresh()
+            onFinished()
+        } catch (e: Exception) {
+            FileUtils.deleteQuietly(destFile)
+            onError(e)
+        }
+    }
+}

@@ -47,6 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
+import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchFilter
 import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.CurseForgeModpackCategory
 import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.curseForgeModLoaderFilters
 import com.movtery.zalithlauncher.game.download.assets.platform.modrinth.models.ModrinthFeatures
@@ -97,6 +98,33 @@ fun SearchModPackScreen(
         AllSettings.searchModpackPlatform.getValue()
     }
 
+    // 从持久化存储中恢复上次的过滤器配置（游戏版本为会话状态，不从持久化恢复）
+    val initialFilter = remember {
+        val platform = AllSettings.searchModpackPlatform.getValue()
+        val sortField = AllSettings.searchModpackSortField.getValue()
+        val categoryStrings = AllSettings.searchModpackCategories.getValue()
+        val categories = categoryStrings.mapNotNull { str ->
+            when (platform) {
+                Platform.MODRINTH -> ModrinthModpackCategory.entries.find { it.facetValue() == str }
+                    ?: ModrinthFeatures.entries.find { it.facetValue() == str }
+                Platform.CURSEFORGE -> CurseForgeModpackCategory.entries.find { it.describe() == str }
+            }
+        }
+        val modloaderName = AllSettings.searchModpackModLoader.getValue()
+        val modloader = if (modloaderName.isNotEmpty()) {
+            when (platform) {
+                Platform.CURSEFORGE -> curseForgeModLoaderFilters.find { it.getDisplayName() == modloaderName }
+                Platform.MODRINTH -> modrinthModLoaderFilters.find { it.getDisplayName() == modloaderName }
+            }
+        } else null
+        PlatformSearchFilter(
+            sortField = sortField,
+            gameVersion = null, // Game Version is session-only; not loaded from preferences
+            categories = categories,
+            modloader = modloader
+        )
+    }
+
     val context = LocalContext.current
     val modpackViewModel = rememberModpackViewModel()
 
@@ -136,6 +164,24 @@ fun SearchModPackScreen(
         initialPlatform = initialPlatform,
         onPlatformChange = {
             AllSettings.searchModpackPlatform.save(it)
+        },
+        initialFilter = initialFilter,
+        autoSelectEnabled = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectModpacks.getValue(),
+        onFilterChange = { platform, filter ->
+            AllSettings.searchModpackSortField.save(filter.sortField)
+            // Game Version is session-only; not saved to preferences
+            AllSettings.searchModpackCategories.save(
+                when (platform) {
+                    Platform.MODRINTH -> filter.categories.mapNotNull { cat ->
+                        (cat as? ModrinthModpackCategory)?.facetValue()
+                            ?: (cat as? ModrinthFeatures)?.facetValue()
+                    }
+                    Platform.CURSEFORGE -> filter.categories.mapNotNull { cat ->
+                        (cat as? CurseForgeModpackCategory)?.describe()
+                    }
+                }
+            )
+            AllSettings.searchModpackModLoader.save(filter.modloader?.getDisplayName() ?: "")
         },
         getCategories = { platform ->
             when (platform) {

@@ -88,6 +88,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
@@ -148,6 +149,7 @@ import com.movtery.zalithlauncher.game.account.yggdrasil.getFile
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_MINECRAFT_PURCHASE
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.enums.AccountTypeDisplayMode
 import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
@@ -324,7 +326,7 @@ fun rememberChromaBrush(): Brush {
 fun AccountAvatar(
     modifier: Modifier = Modifier,
     account: Account?,
-    avatarSize: Dp = 64.dp,
+    avatarSize: Dp = 72.dp,
     refreshKey: Any? = null,
     onClick: () -> Unit = {}
 ) {
@@ -338,7 +340,9 @@ fun AccountAvatar(
     ) {
         Column(
             modifier = Modifier
-                .padding(all = 12.dp)
+                .padding(all = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (account != null) {
                 PlayerFace(
@@ -356,36 +360,40 @@ fun AccountAvatar(
                     contentDescription = null
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 text = account?.username ?: stringResource(R.string.account_add_new_account),
                 maxLines = 1,
-                style = MaterialTheme.typography.titleSmall.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     brush = if (useChroma) chromaBrush else null
                 )
             )
-            if (account != null) {
-                val context = LocalContext.current
-                val playTimeMs = AllSettings.playTime.state
-                
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    text = getAccountTypeName(account),
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    text = PlayTimeUtils.getRankName(context, playTimeMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    text = PlayTimeUtils.formatPlayTime(context, playTimeMs),
-                    style = MaterialTheme.typography.labelSmall
-                )
+            if (account != null && AllSettings.showAccountType.state) {
+                when (AllSettings.accountTypeDisplayMode.state) {
+                    AccountTypeDisplayMode.HideAfterTimeout -> {
+                        val accountTypeAlpha = remember(account) { Animatable(1f) }
+                        LaunchedEffect(account) {
+                            accountTypeAlpha.animateTo(
+                                targetValue = 0f,
+                                animationSpec = tween(durationMillis = 5000, delayMillis = 3000)
+                            )
+                        }
+                        Text(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .alpha(accountTypeAlpha.value),
+                            text = getAccountTypeName(account),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    AccountTypeDisplayMode.AlwaysShow -> {
+                        Text(
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            text = getAccountTypeName(account),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
             }
         }
     }

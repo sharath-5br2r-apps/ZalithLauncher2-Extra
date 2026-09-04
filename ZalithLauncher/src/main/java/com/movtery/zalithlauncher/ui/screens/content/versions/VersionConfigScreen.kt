@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.movtery.zalithlauncher.game.version.profile.VersionProfileManager
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.control.ControlManager
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
@@ -104,45 +106,55 @@ fun VersionConfigScreen(
         ),
         Triple(NormalNavKey.Versions.Config, versionsScreenKey, false)
     ) { isVisible ->
-        val config = version.getVersionConfig()
+        // Observe profile changes so this screen recomposes when a Version Profile
+        // is switched. key(profileRevision) resets all remember {} blocks inside,
+        // causing the UI to re-read fresh values from the updated VersionConfig.
+        val profileChange by VersionProfileManager.profileChanges.collectAsStateWithLifecycle()
+        val profileRevision = profileChange
+            ?.takeIf { it.versionPath == version.getVersionPath().absolutePath }
+            ?.revision ?: 0L
 
-        AnimatedColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScrollWithBar(state = rememberScrollState())
-                .padding(all = 12.dp),
-            isVisible = isVisible
-        ) { scope ->
-            AnimatedItem(scope) { yOffset ->
-                VersionConfigs(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
-                    config = config,
-                    submitError = submitError
-                )
-            }
+        key(profileRevision) {
+            val config = version.getVersionConfig()
 
-            AnimatedItem(scope) { yOffset ->
-                GameConfigs(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
-                    config = config,
-                    submitError = submitError
-                )
-            }
+            AnimatedColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScrollWithBar(state = rememberScrollState())
+                    .padding(all = 12.dp),
+                isVisible = isVisible
+            ) { scope ->
+                AnimatedItem(scope) { yOffset ->
+                    VersionConfigs(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
+                        config = config,
+                        submitError = submitError
+                    )
+                }
 
-            AnimatedItem(scope) { yOffset ->
-                SupportConfigs(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
-                    config = config,
-                    onCheckVulkan = onCheckVulkan,
-                    showToast = showToast,
-                    submitError = submitError
-                )
+                AnimatedItem(scope) { yOffset ->
+                    GameConfigs(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
+                        config = config,
+                        submitError = submitError
+                    )
+                }
+
+                AnimatedItem(scope) { yOffset ->
+                    SupportConfigs(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
+                        config = config,
+                        onCheckVulkan = onCheckVulkan,
+                        showToast = showToast,
+                        submitError = submitError
+                    )
+                }
             }
         }
     }
@@ -154,6 +166,8 @@ private fun VersionConfigs(
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     SettingsCardColumn(
         modifier = modifier
     ) {
@@ -192,7 +206,7 @@ private fun VersionConfigs(
             summary = stringResource(R.string.settings_game_skip_game_integrity_check_summary)
         )
 
-        val renderers = Renderers.getRenderers()
+        val renderers = Renderers.getCompatibleRenderers(context).second
         val renderersIdList = getIDList(renderers) { IDItem(it.getUniqueIdentifier(), it.getRendererName()) }
         ListSettingsCard(
             modifier = Modifier.fillMaxWidth(),

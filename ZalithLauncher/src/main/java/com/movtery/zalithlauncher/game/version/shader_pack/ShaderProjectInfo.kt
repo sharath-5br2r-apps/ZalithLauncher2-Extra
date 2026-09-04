@@ -22,6 +22,9 @@ import android.os.Parcelable
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import kotlinx.parcelize.Parcelize
 
+/**
+ * 光影包在平台上对应的项目信息
+ */
 @Parcelize
 class ShaderProjectInfo(
     val id: String,

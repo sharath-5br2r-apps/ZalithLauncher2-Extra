@@ -21,6 +21,7 @@ package com.movtery.zalithlauncher.ui.components
 import android.app.Activity
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.annotation.OptIn
@@ -42,6 +43,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,6 +88,9 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -119,10 +124,12 @@ fun RecordingPlayerOverlay(
     title: String,
     onDismiss: () -> Unit
 ) {
-    val context     = LocalContext.current
-    val activityView = LocalView.current   // outside Dialog → refers to the Activity window
-    val activity    = context as? Activity
-    val scope       = rememberCoroutineScope()
+    val context      = LocalContext.current
+    // Captured in the composable (Activity) scope — before the Dialog window is created —
+    // so these always refer to the Activity window, not the Dialog's own window.
+    val activityView = LocalView.current
+    val activity     = context as? Activity
+    val scope        = rememberCoroutineScope()
 
     // ── ExoPlayer ─────────────────────────────────────────────────────────────
     val player = remember {
@@ -167,6 +174,20 @@ fun RecordingPlayerOverlay(
         onDispose { player.removeListener(listener); player.release() }
     }
 
+    // ── Lifecycle-aware playback (pause in background, resume in foreground) ──
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP  -> player.pause()
+                Lifecycle.Event.ON_START -> if (!isEnded) player.play()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // ── Position polling (200 ms) ─────────────────────────────────────────────
     LaunchedEffect(player) {
         while (true) {
@@ -189,23 +210,43 @@ fun RecordingPlayerOverlay(
     // ── Full-screen: hide system bars ONLY while in immersive mode ────────────
     //
     // Key design constraint: we ONLY touch system-bar visibility when entering
-    // full-screen. The player never calls ctrl.show() outside the DisposableEffect
-    // so it cannot accidentally surface bars that the launcher was hiding before
-    // the player was opened.
+    // full-screen.  On dispose we restore the launcher's own immersive flags
+    // directly via the legacy systemUiVisibility API — this is the same set of
+    // flags that FullScreenAppCompatActivity.applyFullscreen() applies, so the
+    // window always returns to the exact state it was in before the player opened.
+    //
+    // We deliberately do NOT call ctrl.show(systemBars()) on restore because that
+    // modern API bypasses the legacy OnSystemUiVisibilityChangeListener, leaving
+    // the status bar permanently visible until the app is restarted.
     //
     // When isFullScreen flips false → true  : the effect body runs (bars hidden).
-    // When isFullScreen flips true  → false : onDispose runs (bars restored).
+    // When isFullScreen flips true  → false : onDispose runs (immersive restored).
     // When the composable leaves the tree while isFullScreen = true : onDispose runs.
     // When the composable leaves the tree while isFullScreen = false: onDispose is
-    //   a no-op (early return guard).
+    //   a no-op (early-return guard).
+    @Suppress("DEPRECATION")
     DisposableEffect(isFullScreen) {
         if (!isFullScreen) return@DisposableEffect onDispose { /* no-op */ }
-        val window = activity?.window ?: return@DisposableEffect onDispose {}
-        val ctrl = WindowCompat.getInsetsController(window, activityView)
+        val window    = activity?.window ?: return@DisposableEffect onDispose {}
+        val decorView = window.decorView
+        val ctrl      = WindowCompat.getInsetsController(window, activityView)
         ctrl.hide(WindowInsetsCompat.Type.systemBars())
         ctrl.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        onDispose { ctrl.show(WindowInsetsCompat.Type.systemBars()) }
+        onDispose {
+            // Restore the launcher's immersive mode using the exact same flags
+            // that FullScreenAppCompatActivity.applyFullscreen() uses.  This re-
+            // activates the OnSystemUiVisibilityChangeListener so bars auto-hide
+            // again and prevents the "status bar stuck visible" bug.
+            decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            )
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -255,6 +296,11 @@ fun RecordingPlayerOverlay(
             dialogWindow?.setBackgroundDrawable(
                 ColorDrawable(android.graphics.Color.TRANSPARENT)
             )
+            // Explicitly clear FLAG_DIM_BEHIND in addition to setting dim amount to
+            // zero.  Without clearing the flag the OS still applies a bluish/grey
+            // system dim overlay behind the dialog window, which persists until the
+            // window is destroyed.  Clearing the flag removes it completely.
+            dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             dialogWindow?.setDimAmount(0f)
             dialogWindow?.let { w ->
                 // Allow the dialog to draw behind system bars (notch, status bar,
@@ -407,8 +453,8 @@ fun RecordingPlayerOverlay(
                 BackgroundCard(
                     shape    = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
-                        .fillMaxWidth(0.88f)
-                        .widthIn(max = 620.dp)
+                        .fillMaxWidth(0.62f)
+                        .widthIn(max = 460.dp)
                         .align(Alignment.Center)
                 ) {
                     // ── Title bar ─────────────────────────────────────────────
@@ -467,22 +513,26 @@ fun RecordingPlayerOverlay(
                                 )
                         )
                         VideoGestureLayer(
-                            onTap      = { /* controls always visible in card mode */ },
+                            onTap      = { controlsVisible = !controlsVisible },
                             onDoubleTap = { offset, width ->
                                 seek(if (offset < width / 2f) -5 else 5)
+                                controlsVisible = true
                             }
                         )
                         SeekIndicator(seekVisible = seekVisible, seekAccumSec = seekAccumSec)
-                        // Centre play/pause/replay — always visible in card mode
-                        CentrePlayButton(
+                        // Centre play/pause/replay — auto-hides with controlsVisible.
+                        // Extracted to a private composable so ColumnScope (from BackgroundCard)
+                        // does not leak in and cause Kotlin to pick ColumnScope.AnimatedVisibility
+                        // as the overload while the actual receiver is BoxScope.
+                        CardModePlayButton(
+                            visible     = controlsVisible,
                             isBuffering = isBuffering,
                             isEnded     = isEnded,
                             isPlaying   = isPlaying,
-                            tint        = Color.White,
-                            size        = 60.dp,
-                            iconSize    = 34.dp,
-                            modifier    = Modifier.align(Alignment.Center),
-                            onClick     = ::togglePlayback
+                            onClick     = {
+                                togglePlayback()
+                                controlsVisible = true
+                            }
                         )
                     }
 
@@ -561,6 +611,43 @@ private fun SeekIndicator(seekVisible: Boolean, seekAccumSec: Int) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Animated wrapper for [CentrePlayButton] used in card (overlay) mode.
+ *
+ * Extracted from the `BackgroundCard { Box { … } }` nesting so that
+ * [AnimatedVisibility] is called from a receiver-free composable context.
+ * Without this, the outer [ColumnScope] implicit receiver (from BackgroundCard)
+ * causes Kotlin to resolve the call to [ColumnScope.AnimatedVisibility], which
+ * cannot be dispatched from a [BoxScope] and produces a compile error.
+ */
+@Composable
+private fun CardModePlayButton(
+    visible: Boolean,
+    isBuffering: Boolean,
+    isEnded: Boolean,
+    isPlaying: Boolean,
+    onClick: () -> Unit
+) {
+    AnimatedVisibility(
+        visible  = visible,
+        enter    = fadeIn(tween(200)),
+        exit     = fadeOut(tween(300)),
+        modifier = Modifier
+            .fillMaxSize()
+            .wrapContentSize(Alignment.Center)
+    ) {
+        CentrePlayButton(
+            isBuffering = isBuffering,
+            isEnded     = isEnded,
+            isPlaying   = isPlaying,
+            tint        = Color.White,
+            size        = 60.dp,
+            iconSize    = 34.dp,
+            onClick     = onClick
+        )
     }
 }
 

@@ -84,10 +84,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
+import com.movtery.zalithlauncher.game.version.profile.VersionProfileManager
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
@@ -139,6 +141,7 @@ import java.util.LinkedList
 import kotlin.time.Duration.Companion.milliseconds
 
 private class ShadersManageViewModel(
+    private val version: Version,
     val shadersDir: File
 ) : ViewModel() {
     var nameFilter by mutableStateOf("")
@@ -162,16 +165,20 @@ private class ShadersManageViewModel(
     var disabledCount by mutableStateOf(-1)
         private set
 
+    /**
+     * 已选择的文件
+     */
     val selectedPacks = mutableStateListOf<RemoteShaderPack>()
 
     var deleteAllOperation by mutableStateOf<DeleteAllOperation>(DeleteAllOperation.None)
 
     private var packCount = FolderFileCounter(shadersDir)
 
+    //远端图标加载队列，避免同时对大量光影包发起网络请求
     private val queueMutex = Mutex()
     private val shadersToLoad = mutableListOf<RemoteShaderPack>()
     private val loadQueue = LinkedList<Pair<RemoteShaderPack, Boolean>>()
-    private val semaphore = Semaphore(8)
+    private val semaphore = Semaphore(8) //一次最多允许同时加载8个光影包的图标
 
     fun selectAllFiles() {
         filteredShaders?.forEach { pack ->
@@ -198,13 +205,11 @@ private class ShadersManageViewModel(
     fun enableSelectedPacks() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                selectedPacks.forEach { pack ->
-                    val info = pack.info
-                    if (!info.isEnabled) {
-                        val newName = info.file.name.dropLast(9)
-                        info.file.renameTo(File(shadersDir, newName))
-                    }
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedPacks.map { it.info.file },
+                    enabled = true
+                )
             }
             withContext(Dispatchers.Main) { selectedPacks.clear() }
             refresh(checkCount = false)
@@ -214,12 +219,11 @@ private class ShadersManageViewModel(
     fun disableSelectedPacks() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                selectedPacks.forEach { pack ->
-                    val info = pack.info
-                    if (info.isEnabled) {
-                        info.file.renameTo(File(shadersDir, "${info.file.name}.disabled"))
-                    }
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedPacks.map { it.info.file },
+                    enabled = false
+                )
             }
             withContext(Dispatchers.Main) { selectedPacks.clear() }
             refresh(checkCount = false)
@@ -230,12 +234,11 @@ private class ShadersManageViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val info = pack.info
-                if (info.isEnabled) {
-                    info.file.renameTo(File(shadersDir, "${info.file.name}.disabled"))
-                } else {
-                    val newName = info.file.name.dropLast(9)
-                    info.file.renameTo(File(shadersDir, newName))
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = listOf(info.file),
+                    enabled = !info.isEnabled
+                )
             }
             refresh(checkCount = false)
         }
@@ -249,6 +252,7 @@ private class ShadersManageViewModel(
         job = viewModelScope.launch {
             shadersState = LoadingState.Loading
             selectedPacks.clear()
+            //数据即将重建，重置图标加载队列的记录，避免陈旧对象阻塞后续加载
             shadersToLoad.clear()
             if (checkCount) packCount.checkDir()
 
@@ -257,6 +261,7 @@ private class ShadersManageViewModel(
                     val list = shadersDir.listFiles()?.filter { file ->
                         if (!file.isFile) return@filter false
                         val ext = file.extension.lowercase()
+                        //接受 .zip 或 .zip.disabled
                         ext == "zip" || (ext == "disabled" && file.name.dropLast(9).endsWith(".zip", ignoreCase = true))
                     }?.map { file ->
                         ensureActive()
@@ -330,6 +335,10 @@ private class ShadersManageViewModel(
                 }
                 if (isAscending) value else -value
             }
+            ?.let { sorted ->
+                val (enabled, disabled) = sorted.partition { it.info.isEnabled }
+                enabled + disabled
+            }
     }
 
     private fun startQueueProcessor() {
@@ -338,7 +347,7 @@ private class ShadersManageViewModel(
                 try {
                     ensureActive()
                 } catch (_: Exception) {
-                    break
+                    break //取消
                 }
 
                 val task = queueMutex.withLock {
@@ -356,6 +365,7 @@ private class ShadersManageViewModel(
                         pack.load(loadFromCache)
                     } finally {
                         semaphore.release()
+                        //加载完成（无论成功与否），允许后续重新加入队列（例如刷新或强制重试）
                         shadersToLoad.remove(pack)
                     }
                 }
@@ -363,6 +373,7 @@ private class ShadersManageViewModel(
         }
     }
 
+    /** 尝试从远端平台获取光影包对应的项目信息（用于展示图标） */
     fun loadShaderPack(pack: RemoteShaderPack, loadFromCache: Boolean = true) {
         if (shadersToLoad.contains(pack)) return
 
@@ -386,7 +397,7 @@ private fun rememberShadersManageViewModel(
 ) = viewModel(
     key = version.toString() + "_" + VersionFolders.SHADERS.folderName
 ) {
-    ShadersManageViewModel(shadersDir)
+    ShadersManageViewModel(version, shadersDir)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -416,9 +427,15 @@ fun ShadersManagerScreen(
         Triple(NormalNavKey.Versions.ShadersManager, versionsScreenKey, false),
     ) { isVisible ->
         val viewModel = rememberShadersManageViewModel(shadersDir, version)
+        val profileChange by VersionProfileManager.profileChanges.collectAsStateWithLifecycle()
 
         LaunchedEffect(Unit) {
             viewModel.checkCountAndRefresh()
+        }
+        LaunchedEffect(profileChange, version) {
+            if (profileChange?.versionPath == version.getVersionPath().absolutePath) {
+                viewModel.refresh(checkCount = false)
+            }
         }
 
         DeleteAllOperation(
@@ -564,6 +581,7 @@ private fun ShadersActionsHeader(
                 .padding(top = 4.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                //状态过滤器
                 Box {
                     var expanded by remember { mutableStateOf(false) }
                     IconButton(onClick = { expanded = !expanded }) {
@@ -607,6 +625,7 @@ private fun ShadersActionsHeader(
                     }
                 }
 
+                //排序
                 Box {
                     var expanded by remember { mutableStateOf(false) }
                     IconButton(onClick = { expanded = !expanded }) {
@@ -834,9 +853,11 @@ private fun ShaderPackItem(
         scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
     }
 
+    //尝试从平台获取该光影包对应的图标
     LaunchedEffect(pack) {
         onLoad()
     }
+
 
     Surface(
         modifier = modifier
@@ -851,6 +872,7 @@ private fun ShaderPackItem(
             modifier = Modifier.padding(all = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            //光影包图标
             ShaderPackIcon(
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
@@ -859,6 +881,7 @@ private fun ShaderPackItem(
                 iconSize = 40.dp,
                 isDisabled = !shaderPackInfo.isEnabled
             )
+
 
             Column(
                 modifier = Modifier
@@ -932,11 +955,13 @@ private fun ShaderPackItem(
                     )
                 }
 
+                //启用/禁用
                 Checkbox(
                     checked = shaderPackInfo.isEnabled,
                     onCheckedChange = { onToggleEnabled() }
                 )
 
+                //删除
                 IconButton(
                     modifier = Modifier.size(38.dp),
                     onClick = onDelete
@@ -965,6 +990,7 @@ private fun ShaderPackIcon(
     ) { colorFilter ->
         val projectInfo = pack.projectInfo
         if (projectInfo != null) {
+            //已在平台上匹配到该光影包，展示远端获取到的图标
             AssetsIcon(
                 modifier = Modifier.size(iconSize),
                 iconUrl = projectInfo.iconUrl,
@@ -972,6 +998,7 @@ private fun ShaderPackIcon(
                 colorFilter = colorFilter
             )
         } else {
+            //未匹配到远端项目，展示默认的光影包图标
             Box(
                 modifier = Modifier.size(iconSize),
                 contentAlignment = Alignment.Center

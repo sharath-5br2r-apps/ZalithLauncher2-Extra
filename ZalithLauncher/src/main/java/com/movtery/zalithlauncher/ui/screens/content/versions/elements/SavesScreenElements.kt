@@ -18,9 +18,10 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.versions.elements
 
+import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.version.saves.SaveData
-import com.movtery.zalithlauncher.game.version.saves.isCompatible
 import com.movtery.zalithlauncher.utils.string.stripColorCodes
+import java.io.File
 
 sealed interface SavesOperation {
     data object None : SavesOperation
@@ -34,23 +35,36 @@ sealed interface SavesOperation {
     data class BackupSave(val saveData: SaveData) : SavesOperation
     /** 删除存档对话框 */
     data class DeleteSave(val saveData: SaveData) : SavesOperation
+    /** 批量删除选中存档的确认对话框 */
+    data class DeleteSelectedSaves(val files: List<File>) : SavesOperation
 }
 
 /**
  * 存档过滤器
  */
-data class SavesFilter(val onlyShowCompatible: Boolean, val saveName: String = "")
+data class SavesFilter(
+    val stateFilter: SaveStateFilter = SaveStateFilter.All,
+    val saveName: String = ""
+)
+
+enum class SaveStateFilter(val textRes: Int) {
+    All(R.string.generic_all),
+    Enabled(R.string.generic_enabled),
+    Disabled(R.string.generic_disabled)
+}
 
 /**
  * 简易过滤器，过滤特定的存档
- * @param minecraftVersion 当前 MC 的版本，用于比较版本兼容性
  * @param savesFilter 存档过滤器
  */
 fun List<SaveData>.filterSaves(
-    minecraftVersion: String,
     savesFilter: SavesFilter
 ) = this.filter {
-    val isCompatible = !savesFilter.onlyShowCompatible || it.isCompatible(minecraftVersion)
+    val matchesState = when (savesFilter.stateFilter) {
+        SaveStateFilter.All -> true
+        SaveStateFilter.Enabled -> it.isWorldEnabled
+        SaveStateFilter.Disabled -> !it.isWorldEnabled
+    }
 
     val nameMatches = savesFilter.saveName.isEmpty() ||
             //存档名、存档文件夹名均可参与搜索
@@ -58,5 +72,5 @@ fun List<SaveData>.filterSaves(
             it.levelName?.stripColorCodes()?.contains(savesFilter.saveName, true) == true ||
             it.saveFile.name.stripColorCodes().contains(savesFilter.saveName, true)
 
-    isCompatible && nameMatches
+    matchesState && nameMatches
 }

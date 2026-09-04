@@ -12,6 +12,9 @@ on:
       - '**/CHANGELOG_*.md'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   Build:
     uses: ./.github/workflows/build.yml

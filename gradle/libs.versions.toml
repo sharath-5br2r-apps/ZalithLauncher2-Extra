@@ -43,6 +43,7 @@ okhttp = "5.5.0"
 okio = "3.18.1"
 processPhoenix = "3.0.0"
 proxyClientAndroid = "0.0.5"
+compose-richtext = "1.0.0-alpha05"
 reorderable = "3.1.0"
 room = "2.8.4"
 toml4j = "0.7.2"
@@ -125,6 +126,9 @@ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 process-phoenix = { module = "com.jakewharton:process-phoenix", version.ref = "processPhoenix" }
 proxy-client-android = { module = "top.fifthlight.touchcontroller:proxy-client-android", version.ref = "proxyClientAndroid" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
+richtext-commonmark = { module = "com.halilibo.compose-richtext:richtext-commonmark", version.ref = "compose-richtext" }
+richtext-ui = { module = "com.halilibo.compose-richtext:richtext-ui", version.ref = "compose-richtext" }
+richtext-ui-material3 = { module = "com.halilibo.compose-richtext:richtext-ui-material3", version.ref = "compose-richtext" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipher" }
 toml4j = { module = "com.moandjiezana.toml:toml4j", version.ref = "toml4j" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }

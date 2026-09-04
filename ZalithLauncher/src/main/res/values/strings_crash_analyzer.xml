@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Crash Analyzer strings — Zeryth Fork -->
+<resources>
+
+    <!-- ── Crash Analyzer screen ─────────────────────────────────────────── -->
+    <string name="crash_analyzer_title">Crash Analyzer</string>
+    <string name="crash_analyzer_analyzing">Analyzing crash…</string>
+    <string name="crash_analyzer_error">Analysis Failed</string>
+    <string name="crash_report_actions">Crash Report</string>
+    <string name="crash_copy_summary">Copy Summary</string>
+    <string name="crash_copy_technical">Copy Technical</string>
+    <string name="crash_share_report">Share Report</string>
+
+    <!-- ── Categories ────────────────────────────────────────────────────── -->
+    <string name="crash_category_renderer">Renderer Crash</string>
+    <string name="crash_category_gpu_driver">GPU Driver Crash</string>
+    <string name="crash_category_java_runtime">Java Runtime Crash</string>
+    <string name="crash_category_jvm_native">JVM Native Crash</string>
+    <string name="crash_category_oom">Out of Memory</string>
+    <string name="crash_category_fabric_loader">Fabric Loader Error</string>
+    <string name="crash_category_forge_loader">Forge Loader Error</string>
+    <string name="crash_category_neoforge_loader">NeoForge Loader Error</string>
+    <string name="crash_category_missing_dep">Missing Dependency</string>
+    <string name="crash_category_mod_conflict">Mod Conflict</string>
+    <string name="crash_category_corrupted_mod">Corrupted Mod</string>
+    <string name="crash_category_corrupted_world">Corrupted World</string>
+    <string name="crash_category_corrupted_resource_pack">Corrupted Resource Pack</string>
+    <string name="crash_category_corrupted_shader">Corrupted Shader Pack</string>
+    <string name="crash_category_invalid_jvm_args">Invalid JVM Arguments</string>
+    <string name="crash_category_wrong_java">Wrong Java Version</string>
+    <string name="crash_category_auth_failure">Authentication Failure</string>
+    <string name="crash_category_network">Network Failure</string>
+    <string name="crash_category_storage">Storage Failure</string>
+    <string name="crash_category_permission">Permission Failure</string>
+    <string name="crash_category_unknown">Unknown Crash</string>
+
+    <!-- ── Severity ───────────────────────────────────────────────────────── -->
+    <string name="crash_severity_critical">Critical</string>
+    <string name="crash_severity_high">High</string>
+    <string name="crash_severity_medium">Medium</string>
+    <string name="crash_severity_low">Low</string>
+    <string name="crash_severity_unknown">Unknown</string>
+
+    <!-- ── Summary card ───────────────────────────────────────────────────── -->
+    <string name="crash_summary_title">Crash Summary</string>
+    <string name="crash_summary_confidence">Diagnosis Confidence</string>
+    <string name="crash_summary_root_cause">Root Cause</string>
+    <string name="crash_summary_offending">Offending Component</string>
+    <string name="crash_summary_mc_version">Minecraft Version</string>
+    <string name="crash_summary_loader">Loader</string>
+    <string name="crash_summary_renderer">Renderer</string>
+    <string name="crash_summary_java">Java Version</string>
+    <string name="crash_summary_timestamp">Crash Time</string>
+
+    <!-- ── Confidence bands ───────────────────────────────────────────────── -->
+    <string name="crash_confidence_extremely_high">Extremely High</string>
+    <string name="crash_confidence_high">High</string>
+    <string name="crash_confidence_medium">Medium</string>
+    <string name="crash_confidence_low">Low</string>
+    <string name="crash_confidence_very_low">Very Low</string>
+
+    <!-- ── Evidence card ──────────────────────────────────────────────────── -->
+    <string name="crash_evidence_title">Evidence</string>
+    <string name="crash_evidence_none">No specific evidence was collected. The crash may be unknown.</string>
+    <string name="crash_evidence_offending">Offending component: %s</string>
+
+    <!-- ── Timeline card ──────────────────────────────────────────────────── -->
+    <string name="crash_timeline_title">Startup Timeline</string>
+    <string name="crash_timeline_failed_here">Crash occurred here</string>
+    <string name="crash_stage_jvm_start">JVM Started</string>
+    <string name="crash_stage_renderer">Renderer Initialized</string>
+    <string name="crash_stage_mods">Mods Loaded</string>
+    <string name="crash_stage_resource_packs">Resource Packs Loaded</string>
+    <string name="crash_stage_shaders">Shader Packs Loaded</string>
+    <string name="crash_stage_world">World Loading</string>
+    <string name="crash_stage_in_game">In-Game</string>
+
+    <!-- ── Repairs card ───────────────────────────────────────────────────── -->
+    <string name="crash_repairs_title">Recommended Fixes</string>
+    <string name="crash_repair_reversible">✓ Reversible</string>
+    <string name="crash_repair_irreversible">⚠ Not reversible</string>
+    <string name="crash_repair_apply">Apply Fix</string>
+    <string name="crash_repair_confirm_title">Confirm Repair</string>
+    <string name="crash_repair_confirm_action">Action</string>
+    <string name="crash_repair_confirm_reversible">This action can be undone.</string>
+    <string name="crash_repair_confirm_irreversible">⚠ This action cannot be easily undone.</string>
+    <string name="crash_repair_confirm_yes">Apply</string>
+
+    <!-- ── View mode toggle ───────────────────────────────────────────────── -->
+    <string name="crash_view_plain">Plain Language</string>
+    <string name="crash_view_technical">Technical</string>
+
+    <!-- crash_show_logs, crash_share_logs, crash_exit, crash_restart already defined in strings.xml -->
+
+</resources>

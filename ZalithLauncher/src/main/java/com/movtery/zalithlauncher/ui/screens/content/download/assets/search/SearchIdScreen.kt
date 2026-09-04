@@ -85,6 +85,8 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Pl
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ProjectUrlsContent
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ResultProjectLayout
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ScreenshotItemLayout
+import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ShowScreenshotsButton
+import com.movtery.zalithlauncher.utils.network.isUsingMobileData
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.logging.Logger
@@ -384,6 +386,8 @@ private fun ResultLayout(
 
     val urls = remember { project.platformUrls(classes) }
     val screenshots = remember { project.platformScreenshots() }
+    //Wi-Fi下自动加载截图；移动数据下默认不自动加载，需要用户手动点击按钮才开始加载，避免消耗不必要的移动流量
+    var showScreenshots by remember { mutableStateOf(!isUsingMobileData(context)) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -451,19 +455,31 @@ private fun ResultLayout(
             }
         }
 
-        items(screenshots) { screenshot ->
-            val scale = remember { Animatable(initialValue = 0.95f) }
-            LaunchedEffect(Unit) {
-                scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
-            }
+        //屏幕截图：默认不自动加载，点击按钮后才开始加载
+        if (screenshots.isNotEmpty()) {
+            if (!showScreenshots) {
+                item {
+                    ShowScreenshotsButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { showScreenshots = true }
+                    )
+                }
+            } else {
+                items(screenshots) { screenshot ->
+                    val scale = remember { Animatable(initialValue = 0.95f) }
+                    LaunchedEffect(Unit) {
+                        scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
+                    }
 
-            ScreenshotItemLayout(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer(scaleY = scale.value, scaleX = scale.value),
-                screenshot = screenshot,
-                shape = MaterialTheme.shapes.large,
-            )
+                    ScreenshotItemLayout(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer(scaleY = scale.value, scaleX = scale.value),
+                        screenshot = screenshot,
+                        shape = MaterialTheme.shapes.large,
+                    )
+                }
+            }
         }
     }
 }

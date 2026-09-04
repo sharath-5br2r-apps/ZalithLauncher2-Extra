@@ -44,6 +44,9 @@ import java.io.InputStream
 
 private const val TAG = "ControlManager"
 
+/** Reserved filename for the launcher's bundled default Zalith 2 layout. */
+const val BUILTIN_CONTROL_FILENAME = "zeryth_builtin_default_layout.json"
+
 /**
  * 控制布局管理者
  */
@@ -77,14 +80,26 @@ object ControlManager {
     fun checkDefaultAndRefresh(context: Context) {
         cachedContext = context
         scope.launch(Dispatchers.IO) {
-            val files = (PathManager.DIR_CONTROL_LAYOUTS.listFiles() ?: emptyArray())
-                .filter { file ->
-                    file.isFile && file.exists() && file.extension.equals("json", true)
-                }
-            if (files.isEmpty()) {
-                unpackDefaultControl(context)
-            }
+            // Always ensure the bundled built-in layout exists at the reserved path.
+            seedBuiltInControlLayout(context)
             refresh()
+        }
+    }
+
+    /**
+     * Ensures the bundled default Zalith 2 layout exists at the reserved filename.
+     * Only seeds the file when it is absent so that user edits are preserved across launches.
+     * Use [restoreBuiltInLayout] to explicitly reset to the factory default.
+     */
+    private fun seedBuiltInControlLayout(context: Context) {
+        try {
+            val dir = PathManager.DIR_CONTROL_LAYOUTS
+            if (!dir.exists()) dir.mkdirs()
+            val builtInFile = File(dir, BUILTIN_CONTROL_FILENAME)
+            context.copyAssetFile(fileName = "default_layout.json", output = builtInFile, overwrite = false)
+            Logger.info(TAG, "Seeded built-in default Zalith 2 layout (kept existing edits).")
+        } catch (e: Exception) {
+            Logger.warning(TAG, "Failed to seed built-in Zalith 2 layout", e)
         }
     }
 
@@ -108,11 +123,14 @@ object ControlManager {
                 ControlData(
                     file = file,
                     controlLayout = ObservableControlLayout(layout),
-                    isSupport = true
+                    isBuiltIn = file.name == BUILTIN_CONTROL_FILENAME
                 )
             }?.let { list ->
                 _dataList.update {
-                    list.sortedBy { it.controlLayout.info.name.default }
+                    list.sortedWith(
+                        compareByDescending<ControlData> { it.isBuiltIn }
+                            .thenBy { if (it.isSupport) it.controlLayout.info.name.default else it.file.name }
+                    )
                 }
             }
             checkSettings()
@@ -139,25 +157,12 @@ object ControlManager {
     }
 
     /**
-     * 解压默认控制布局
-     */
-    private suspend fun unpackDefaultControl(
-        context: Context
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val file = getNewRandomFile()
-            context.copyAssetFile(fileName = "default_layout.json", output = file, overwrite = false)
-        } catch (e: Exception) {
-            Logger.warning(TAG, "Failed to unpack default control layout", e)
-        }
-    }
-
-    /**
      * 选择控制布局
      */
     fun selectControl(data: ControlData) {
         if (!data.file.exists() || !data.isSupport) return
         AllSettings.controlLayout.save(data.file.name)
+        AllSettings.controlType.save("zalith2")
         _selectedLayout.update { data }
     }
 
@@ -165,6 +170,10 @@ object ControlManager {
      * 在协程内删除控制布局
      */
     fun deleteControl(data: ControlData) {
+        if (data.isBuiltIn) {
+            Logger.warning(TAG, "Attempted to delete built-in layout — blocked.")
+            return
+        }
         scope.launch(Dispatchers.IO) {
             if (!data.file.exists()) return@launch
             FileUtils.deleteQuietly(data.file)
@@ -189,9 +198,35 @@ object ControlManager {
                 layout.saveToFile(data.file)
             } catch (e: Exception) {
                 submitError(e)
-                FileUtils.deleteQuietly(data.file)
+                if (!data.isBuiltIn) FileUtils.deleteQuietly(data.file)
             }
             refresh()
+        }
+    }
+
+    /**
+     * Overwrites the built-in Zalith 2 layout file with the original bundled asset,
+     * restoring it to its factory default state.
+     */
+    fun restoreBuiltInLayout(
+        context: Context,
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val dir = PathManager.DIR_CONTROL_LAYOUTS
+                if (!dir.exists()) dir.mkdirs()
+                val builtInFile = File(dir, BUILTIN_CONTROL_FILENAME)
+                context.copyAssetFile(fileName = "default_layout.json", output = builtInFile, overwrite = true)
+                Logger.info(TAG, "Restored built-in Zalith 2 layout to factory default.")
+                refresh()
+            }.onSuccess {
+                withContext(Dispatchers.Main) { onSuccess() }
+            }.onFailure { e ->
+                Logger.warning(TAG, "Failed to restore built-in layout", e)
+                withContext(Dispatchers.Main) { onError(e as Exception) }
+            }
         }
     }
 

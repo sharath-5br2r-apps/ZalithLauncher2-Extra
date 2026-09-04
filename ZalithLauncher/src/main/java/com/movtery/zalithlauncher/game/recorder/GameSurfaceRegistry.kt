@@ -21,6 +21,13 @@ package com.movtery.zalithlauncher.game.recorder
 import android.view.View
 import java.lang.ref.WeakReference
 
+/**
+ * Holds a weak reference to the game's rendering View (SurfaceView or TextureView).
+ * The reference is registered by VMActivity when the game surface is created and
+ * cleared on destroy.  [GameRecorder] reads from this registry to capture frames
+ * via PixelCopy (SurfaceView) or getBitmap (TextureView) — both capture only the
+ * raw surface buffer, completely excluding any Compose overlay composables.
+ */
 object GameSurfaceRegistry {
     @Volatile private var viewRef: WeakReference<View>? = null
 

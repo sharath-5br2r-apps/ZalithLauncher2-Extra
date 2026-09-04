@@ -65,6 +65,7 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.GameSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.GamepadSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.JavaManageScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.LauncherSettingsScreen
+import com.movtery.zalithlauncher.ui.screens.content.settings.QuickAccessCustomizationScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.RendererSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.TurnipDriversScreen
 import com.movtery.zalithlauncher.ui.screens.navigateOnce
@@ -269,6 +270,9 @@ private fun NavigationUI(
                                 eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
                             }
                         )
+                    }
+                    entry<NormalNavKey.Settings.QuickAccessCustomization> {
+                        QuickAccessCustomizationScreen(key, settingsScreenKey, mainScreenKey)
                     }
                 }
             )

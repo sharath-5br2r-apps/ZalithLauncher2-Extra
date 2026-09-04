@@ -46,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -176,6 +177,7 @@ fun <E> AddonListLayout(
     color: Color = cardColor(influencedByBackground),
     contentColor: Color = onCardColor(),
     blur: Int = AllSettings.backgroundBlur.state,
+    bottomContent: @Composable (() -> Unit)? = null,
 ) {
     var selectedItem by remember { mutableStateOf<E?>(null) }
 
@@ -237,32 +239,35 @@ fun <E> AddonListLayout(
                         exit = shrinkVertically(animationSpec = getAnimateTween()) + fadeOut(),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = maxListHeight)
-                                .padding(vertical = 4.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp)
-                        ) {
-                            items(items) { item ->
-                                AddonListItem(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(all = 4.dp),
-                                    selected = selectedItem == item,
-                                    itemName = getItemText(item),
-                                    summary = summary?.let {
-                                        { it.invoke(item) }
-                                    },
-                                    onClick = {
-                                        if (expanded && selectedItem != item) {
-                                            onValueChange(item)
-                                            selectedItem = item
-                                            if (autoCollapse) expanded = false
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = maxListHeight)
+                                    .padding(vertical = 4.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            ) {
+                                items(items) { item ->
+                                    AddonListItem(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(all = 4.dp),
+                                        selected = selectedItem == item,
+                                        itemName = getItemText(item),
+                                        summary = summary?.let {
+                                            { it.invoke(item) }
+                                        },
+                                        onClick = {
+                                            if (expanded && selectedItem != item) {
+                                                onValueChange(item)
+                                                selectedItem = item
+                                                if (autoCollapse) expanded = false
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
+                            bottomContent?.invoke()
                         }
                     }
                 }

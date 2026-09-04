@@ -1,0 +1,56 @@
+[
+  {
+    "id": "adreno_default",
+    "gpuFamily": "Adreno",
+    "matchTerms": ["adreno"],
+    "supportedRenderers": ["MobileGlues", "Holy GL4ES", "ANGLE"],
+    "knownIssues": ["ANGLE may fail during EGL initialization on some vendor drivers."],
+    "recommendedRenderer": "MobileGlues",
+    "avoidRenderers": ["ANGLE"]
+  },
+  {
+    "id": "mali_default",
+    "gpuFamily": "Mali",
+    "matchTerms": ["mali"],
+    "supportedRenderers": ["MobileGlues", "Holy GL4ES"],
+    "knownIssues": ["Some Mali drivers are sensitive to aggressive OpenGL ES extensions."],
+    "recommendedRenderer": "Holy GL4ES",
+    "avoidRenderers": ["ANGLE"]
+  },
+  {
+    "id": "xclipse_default",
+    "gpuFamily": "Xclipse",
+    "matchTerms": ["xclipse"],
+    "supportedRenderers": ["MobileGlues", "Holy GL4ES"],
+    "knownIssues": ["Renderer support depends on the device driver revision."],
+    "recommendedRenderer": "MobileGlues",
+    "avoidRenderers": []
+  },
+  {
+    "id": "powervr_default",
+    "gpuFamily": "PowerVR",
+    "matchTerms": ["powervr", "rogue"],
+    "supportedRenderers": ["Holy GL4ES"],
+    "knownIssues": ["Limited extension support can affect newer renderer backends."],
+    "recommendedRenderer": "Holy GL4ES",
+    "avoidRenderers": ["ANGLE"]
+  },
+  {
+    "id": "tensor_default",
+    "gpuFamily": "Google Tensor",
+    "matchTerms": ["tensor", "pixel"],
+    "supportedRenderers": ["MobileGlues", "Holy GL4ES"],
+    "knownIssues": ["Renderer behavior can vary across Pixel driver releases."],
+    "recommendedRenderer": "MobileGlues",
+    "avoidRenderers": []
+  },
+  {
+    "id": "mediatek_default",
+    "gpuFamily": "MediaTek",
+    "matchTerms": ["mediatek", "immortalis", "mali-g"],
+    "supportedRenderers": ["MobileGlues", "Holy GL4ES"],
+    "knownIssues": ["Device-specific vendor drivers may expose different GLES capabilities."],
+    "recommendedRenderer": "Holy GL4ES",
+    "avoidRenderers": []
+  }
+]

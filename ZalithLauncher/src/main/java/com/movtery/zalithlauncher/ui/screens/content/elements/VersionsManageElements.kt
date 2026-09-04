@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -100,12 +101,17 @@ import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
+import com.movtery.zalithlauncher.ui.theme.itemColor
+import com.movtery.zalithlauncher.ui.theme.onItemColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.FilledTonalButton
 
 private const val TAG = "VersionsManageElements"
 
@@ -685,7 +691,8 @@ class VersionItemCallbacks(
     val onExportClick: () -> Unit,
     val onDeleteClick: () -> Unit,
     val onPinned: () -> Unit,
-    val onAddShortcutClick: () -> Unit
+    val onAddShortcutClick: () -> Unit,
+    val onLaunchClick: () -> Unit
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -735,6 +742,18 @@ fun VersionItemLayout(
             )
 
             IconButton(
+                onClick = callbacks.onLaunchClick,
+                enabled = version.isValid()
+            ) {
+                Icon(
+                    modifier = Modifier.size(24.dp),
+                    painter = painterResource(R.drawable.ic_play_arrow_filled),
+                    contentDescription = stringResource(R.string.versions_manage_launch),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            IconButton(
                 onClick = {
                     val currentValue = version.pinnedState
                     runCatching {
@@ -779,6 +798,8 @@ fun VersionItemLayout(
                     contentDescription = stringResource(R.string.versions_manage_settings)
                 )
             }
+
+            var listManageProfilesOpen by remember { mutableStateOf(false) }
 
             Row {
                 var menuExpanded by remember { mutableStateOf(false) }
@@ -854,6 +875,20 @@ fun VersionItemLayout(
                         }
                     )
                     DropdownMenuItem(
+                        text = { Text(text = stringResource(R.string.version_profile_manage)) },
+                        leadingIcon = {
+                            Icon(
+                                modifier = Modifier.size(20.dp),
+                                painter = painterResource(R.drawable.ic_style_outlined),
+                                contentDescription = stringResource(R.string.version_profile_manage)
+                            )
+                        },
+                        onClick = {
+                            listManageProfilesOpen = true
+                            menuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
                         text = { Text(text = stringResource(R.string.generic_delete)) },
                         leadingIcon = {
                             Icon(
@@ -868,6 +903,13 @@ fun VersionItemLayout(
                         }
                     )
                 }
+            }
+
+            if (listManageProfilesOpen) {
+                ManageProfilesPopup(
+                    version = version,
+                    onDismiss = { listManageProfilesOpen = false }
+                )
             }
         }
     }
@@ -1057,6 +1099,7 @@ fun VersionIconImage(
     }
 }
 
+
 /**
  * 模组加载器图标展示组件，包装 [Image]
  */
@@ -1102,3 +1145,260 @@ private fun getLoaderIconRes(
         else -> defaultIcon
     }
 }
+
+  @OptIn(ExperimentalLayoutApi::class)
+  @Composable
+  fun VersionGridItemLayout(
+      version: Version,
+      selected: Boolean,
+      callbacks: VersionItemCallbacks,
+      modifier: Modifier = Modifier,
+      color: Color = itemColor(),
+      contentColor: Color = onItemColor()
+  ) {
+      val scale = remember { Animatable(initialValue = 0.92f) }
+      LaunchedEffect(Unit) {
+          scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
+      }
+
+      Surface(
+          modifier = modifier
+              .graphicsLayer(scaleY = scale.value, scaleX = scale.value),
+          color = color,
+          contentColor = contentColor,
+          shape = MaterialTheme.shapes.large,
+          onClick = {
+              if (selected) return@Surface
+              callbacks.onSelected()
+          }
+      ) {
+          Column(
+              modifier = Modifier
+                  .fillMaxSize()
+                  .padding(horizontal = 12.dp, vertical = 10.dp),
+              verticalArrangement = Arrangement.spacedBy(5.dp)
+          ) {
+              // ── Header: icon + selection indicator ───────────────────────────
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                  VersionIconImage(version = version, modifier = Modifier.size(44.dp))
+                  Spacer(modifier = Modifier.weight(1f))
+                  RadioButton(
+                      selected = selected,
+                      onClick = { if (!selected) callbacks.onSelected() }
+                  )
+              }
+
+              // ── Version name ─────────────────────────────────────────────────
+              Text(
+                  modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                  text = version.getVersionName(),
+                  style = MaterialTheme.typography.labelLarge,
+                  maxLines = 1
+              )
+
+              // ── MC version + loader info ──────────────────────────────────────
+              val versionInfo = remember(version) { version.getVersionInfo() }
+              if (versionInfo != null) {
+                  FlowRow(
+                      modifier = Modifier.alpha(0.68f),
+                      horizontalArrangement = Arrangement.spacedBy(6.dp)
+                  ) {
+                      Text(text = versionInfo.minecraftVersion, style = MaterialTheme.typography.labelSmall)
+                      versionInfo.loaderInfo?.let { loaderInfo ->
+                          Text(text = "•", style = MaterialTheme.typography.labelSmall)
+                          Text(text = loaderInfo.loader.displayName, style = MaterialTheme.typography.labelSmall)
+                          Text(text = loaderInfo.version, style = MaterialTheme.typography.labelSmall)
+                      }
+                  }
+              }
+
+              // ── Last played / play time ───────────────────────────────────────
+              PlayTimeInfoRow(versionName = remember(version) { version.getVersionName() })
+
+              Spacer(modifier = Modifier.weight(1f))
+
+              // ── Actions row: pin, settings, overflow ─────────────────────────
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                  val saveFailedText = stringResource(R.string.versions_config_failed_to_save)
+                  IconButton(
+                      onClick = {
+                          val cur = version.pinnedState
+                          runCatching { version.setPinnedAndSave(!cur) }
+                              .onFailure { e ->
+                                  Logger.error(TAG, "Failed to save version config!", e)
+                                  callbacks.submitError(ErrorViewModel.ThrowableMessage(title = androidText(saveFailedText), message = androidText(e.getMessageOrToString())))
+                              }
+                              .onSuccess { callbacks.onPinned() }
+                      },
+                      enabled = version.isValid()
+                  ) {
+                      Crossfade(targetState = version.pinnedState) { pinned ->
+                          Icon(
+                              modifier = Modifier.size(20.dp).rotate(45.0f),
+                              painter = if (pinned) painterResource(R.drawable.ic_pinned_filled)
+                                        else painterResource(R.drawable.ic_pinned_outlined),
+                              contentDescription = stringResource(R.string.versions_manage_pin)
+                          )
+                      }
+                  }
+
+                  IconButton(onClick = callbacks.onSettingsClick, enabled = version.isValid()) {
+                      Icon(
+                          modifier = Modifier.size(20.dp),
+                          painter = painterResource(R.drawable.ic_settings_filled),
+                          contentDescription = stringResource(R.string.versions_manage_settings)
+                      )
+                  }
+
+                  Spacer(modifier = Modifier.weight(1f))
+
+                  var gridManageProfilesOpen by remember { mutableStateOf(false) }
+                  var gridMenuExpanded by remember { mutableStateOf(false) }
+                  Box {
+                      IconButton(onClick = { gridMenuExpanded = !gridMenuExpanded }) {
+                          Icon(
+                              modifier = Modifier.size(20.dp),
+                              painter = painterResource(R.drawable.ic_more_horiz),
+                              contentDescription = stringResource(R.string.generic_more)
+                          )
+                      }
+                      DropdownMenu(
+                          expanded = gridMenuExpanded,
+                          shape = MaterialTheme.shapes.large,
+                          shadowElevation = 3.dp,
+                          onDismissRequest = { gridMenuExpanded = false }
+                      ) {
+                          DropdownMenuItem(text = { Text(stringResource(R.string.generic_rename)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_edit_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onRenameClick(); gridMenuExpanded = false })
+                          DropdownMenuItem(text = { Text(stringResource(R.string.generic_copy)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_file_copy_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onCopyClick(); gridMenuExpanded = false })
+                          DropdownMenuItem(text = { Text(stringResource(R.string.versions_export)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_folder_zip_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onExportClick(); gridMenuExpanded = false })
+                          DropdownMenuItem(text = { Text(stringResource(R.string.versions_manage_add_shortcut)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_add_box_outlined), null, Modifier.size(20.dp)) }, onClick = { callbacks.onAddShortcutClick(); gridMenuExpanded = false })
+                          DropdownMenuItem(
+                              text = { Text(stringResource(R.string.version_profile_manage)) },
+                              leadingIcon = { Icon(painterResource(R.drawable.ic_style_outlined), null, Modifier.size(20.dp)) },
+                              onClick = { gridManageProfilesOpen = true; gridMenuExpanded = false }
+                          )
+                          DropdownMenuItem(text = { Text(stringResource(R.string.generic_delete)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_delete_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onDeleteClick(); gridMenuExpanded = false })
+                      }
+                  }
+
+                  if (gridManageProfilesOpen) {
+                      ManageProfilesPopup(
+                          version = version,
+                          onDismiss = { gridManageProfilesOpen = false }
+                      )
+                  }
+              }
+
+              // ── Polished primary launch button ───────────────────────────────
+              Button(
+                  onClick = callbacks.onLaunchClick,
+                  enabled = version.isValid(),
+                  modifier = Modifier.fillMaxWidth().height(40.dp),
+                  shape = MaterialTheme.shapes.extraLarge,
+                  elevation = androidx.compose.material3.ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                  contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 0.dp)
+              ) {
+                  Icon(
+                      modifier = Modifier.size(16.dp),
+                      painter = painterResource(R.drawable.ic_play_arrow_filled),
+                      contentDescription = null
+                  )
+                  Spacer(modifier = Modifier.width(6.dp))
+                  MarqueeText(text = stringResource(R.string.versions_manage_launch))
+              }
+          }
+      }
+  }
+
+  @Composable
+  fun VersionCompactItemLayout(
+      version: Version,
+      selected: Boolean,
+      callbacks: VersionItemCallbacks,
+      modifier: Modifier = Modifier,
+      color: Color = itemColor(),
+      contentColor: Color = onItemColor()
+  ) {
+      val scale = remember { Animatable(initialValue = 0.97f) }
+      LaunchedEffect(Unit) {
+          scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
+      }
+
+      Surface(
+          modifier = modifier.graphicsLayer(scaleY = scale.value, scaleX = scale.value),
+          color = color,
+          contentColor = contentColor,
+          shape = MaterialTheme.shapes.medium,
+          onClick = {
+              if (selected) return@Surface
+              callbacks.onSelected()
+          }
+      ) {
+          Row(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 10.dp, vertical = 5.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+              VersionIconImage(version = version, modifier = Modifier.size(24.dp))
+
+              Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                      modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                      text = version.getVersionName(),
+                      style = MaterialTheme.typography.labelMedium,
+                      maxLines = 1
+                  )
+                  if (version.isValid() && version.isSummaryValid()) {
+                      Text(
+                          modifier = Modifier
+                              .basicMarquee(iterations = Int.MAX_VALUE)
+                              .alpha(0.65f),
+                          text = remember(version) { version.getVersionSummary() },
+                          style = MaterialTheme.typography.labelSmall,
+                          maxLines = 1
+                      )
+                  }
+              }
+
+              IconButton(onClick = callbacks.onLaunchClick, enabled = version.isValid()) {
+                  Icon(
+                      modifier = Modifier.size(20.dp),
+                      painter = painterResource(R.drawable.ic_play_arrow_filled),
+                      contentDescription = stringResource(R.string.versions_manage_launch),
+                      tint = MaterialTheme.colorScheme.primary
+                  )
+              }
+
+              var compactManageProfilesOpen by remember { mutableStateOf(false) }
+              var compactMenuExpanded by remember { mutableStateOf(false) }
+              Box {
+                  IconButton(onClick = { compactMenuExpanded = !compactMenuExpanded }) {
+                      Icon(modifier = Modifier.size(18.dp), painter = painterResource(R.drawable.ic_more_horiz), contentDescription = stringResource(R.string.generic_more))
+                  }
+                  DropdownMenu(expanded = compactMenuExpanded, shape = MaterialTheme.shapes.large, shadowElevation = 3.dp, onDismissRequest = { compactMenuExpanded = false }) {
+                      DropdownMenuItem(text = { Text(stringResource(R.string.generic_rename)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_edit_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onRenameClick(); compactMenuExpanded = false })
+                      DropdownMenuItem(text = { Text(stringResource(R.string.generic_copy)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_file_copy_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onCopyClick(); compactMenuExpanded = false })
+                      DropdownMenuItem(text = { Text(stringResource(R.string.versions_export)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_folder_zip_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onExportClick(); compactMenuExpanded = false })
+                      DropdownMenuItem(text = { Text(stringResource(R.string.versions_manage_settings)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_settings_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onSettingsClick(); compactMenuExpanded = false })
+                      DropdownMenuItem(text = { Text(stringResource(R.string.versions_manage_add_shortcut)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_add_box_outlined), null, Modifier.size(20.dp)) }, onClick = { callbacks.onAddShortcutClick(); compactMenuExpanded = false })
+                      DropdownMenuItem(
+                          text = { Text(stringResource(R.string.version_profile_manage)) },
+                          leadingIcon = { Icon(painterResource(R.drawable.ic_style_outlined), null, Modifier.size(20.dp)) },
+                          onClick = { compactManageProfilesOpen = true; compactMenuExpanded = false }
+                      )
+                      DropdownMenuItem(text = { Text(stringResource(R.string.generic_delete)) }, leadingIcon = { Icon(painterResource(R.drawable.ic_delete_filled), null, Modifier.size(20.dp)) }, onClick = { callbacks.onDeleteClick(); compactMenuExpanded = false })
+                  }
+              }
+
+              if (compactManageProfilesOpen) {
+                  ManageProfilesPopup(
+                      version = version,
+                      onDismiss = { compactManageProfilesOpen = false }
+                  )
+              }
+          }
+      }
+  }
+  

@@ -22,20 +22,52 @@ import android.util.Log;
 
 public class NativeLibraryLoader {
     private static final String TAG = "NativeLibraryLoader";
+    private static volatile boolean pojavLibLoaded;
 
     /**
-     * Android 14 (API 34) üzerinde FFmpeg subprocess'te
+     * On some devices running Android 14 (API 34), the linker raised the following
+     * error when exporting video through Replay Mod via libffmpeg.so:
      * "cannot locate symbol native_handle_create referenced by libandroid.so"
-     * hatası alınıyor. native_handle_create Android 13 ve öncesinde
-     * libcutils.so'da, Android 14+ ise libnativewindow.so'da tanımlı.
      * <p>
-     * Ana çözüm java_exec_hooks.c'de: FFmpeg subprocess'inin LD_PRELOAD'ına
-     * libnativewindow.so eklendi. Bu sayede subprocess başlar başlamaz
-     * native_handle_create global olarak çözümlenebilir hale geliyor.
+     * Inspecting libffmpeg.so with readelf shows it does not directly depend on
+     * libandroid, but some of the sub-libraries FFmpeg uses underneath (MediaCodec/AImage
+     * based hardware encoder paths) indirectly trigger these symbols at runtime. The issue
+     * stems from these system libraries not yet being loaded/linked into the process by
+     * the time FFmpeg is dlopen'd.
      * <p>
-     * Buradaki dlopen(RTLD_GLOBAL) ise olası in-process FFmpeg yüklemelerine
-     * karşı ek güvence. RTLD_LOCAL fallback kullanılmaz çünkü RTLD_LOCAL
-     * ile yüklenen bir lib sonradan RTLD_GLOBAL'a çevrilemez.
+     * Fix: before the game process starts (i.e. before {@link ZLBridge} is first touched
+     * and the actual pojavexec/awt libraries are loaded), force-preload these system
+     * libraries at the Java layer via System.loadLibrary so their symbols become resolvable
+     * process-wide.
+     * <p>
+     * On some devices/architectures one of these libraries may not be found or may already
+     * be loaded; each one is therefore loaded independently inside its own try/catch so a
+     * missing library never prevents the game from starting.
+     */
+    public static void preloadFFmpegSystemDependencies() {
+        loadSystemLibraryQuietly("cutils");
+        loadSystemLibraryQuietly("android");
+        loadSystemLibraryQuietly("mediandk");
+    }
+
+    private static void loadSystemLibraryQuietly(String libraryName) {
+        try {
+            System.loadLibrary(libraryName);
+            Log.i(TAG, "Preloaded system library: lib" + libraryName + ".so");
+        } catch (UnsatisfiedLinkError | SecurityException e) {
+            // This library may be unavailable or inaccessible on some devices/architectures;
+            // log it quietly and continue so the game is never prevented from starting.
+            Log.w(TAG, "Failed to preload system library: lib" + libraryName + ".so", e);
+        }
+    }
+
+    /**
+     * Android 14+ moved native_handle_create from libcutils.so into libnativewindow.so.
+     * The primary fix lives in java_exec_hooks.c, which adds libnativewindow.so to the
+     * FFmpeg subprocess's LD_PRELOAD so the symbol resolves as soon as the subprocess
+     * starts. This dlopen(RTLD_GLOBAL) pass is an additional safety net for any in-process
+     * FFmpeg usage; RTLD_LOCAL is not used as a fallback since a lib loaded RTLD_LOCAL
+     * cannot later be upgraded to RTLD_GLOBAL.
      */
     public static void reloadFFmpegSystemDependenciesGlobally() {
         dlopenSystemLibGlobally("libcutils.so");
@@ -58,7 +90,29 @@ public class NativeLibraryLoader {
     }
 
     public static void loadPojavLib() {
+        if (pojavLibLoaded) {
+            return;
+        }
         System.loadLibrary("pojavexec");
+        pojavLibLoaded = true;
+    }
+
+    /**
+     * Attempts to make the PojavLauncher native bridge available without
+     * turning an optional input action into an activity crash.
+     */
+    public static boolean tryLoadPojavLib() {
+        try {
+            loadPojavLib();
+            return true;
+        } catch (UnsatisfiedLinkError | SecurityException e) {
+            Log.w(TAG, "PojavLauncher native bridge is unavailable", e);
+            return false;
+        }
+    }
+
+    public static boolean isPojavLibLoaded() {
+        return pojavLibLoaded;
     }
 
     public static void loadExitHookLib() {

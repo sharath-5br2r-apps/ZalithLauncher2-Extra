@@ -35,5 +35,9 @@ class ModFile(
     val projectId: String,
     val platform: Platform,
     val loaders: Array<ModLoaderDisplayLabel>,
-    val datePublished: String
+    val datePublished: String,
+    /** Minecraft versions advertised by the remote file, when available. */
+    val gameVersions: Array<String> = emptyArray(),
+    /** Version label advertised by the remote file, when available. */
+    val version: String? = null
 ): Parcelable

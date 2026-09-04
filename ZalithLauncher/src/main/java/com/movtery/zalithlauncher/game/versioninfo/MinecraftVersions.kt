@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.game.versioninfo
 
 import com.google.gson.reflect.TypeToken
 import com.movtery.zalithlauncher.game.addons.mirror.mapBMCLMirrorUrls
+import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
 import com.movtery.zalithlauncher.game.versioninfo.models.VersionManifest
 import com.movtery.zalithlauncher.game.versioninfo.models.mapVersion
 import com.movtery.zalithlauncher.path.PathManager
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "MinecraftVersions"
@@ -44,6 +46,60 @@ object MinecraftVersions {
 
     private val _allVersions = MutableStateFlow<List<MinecraftVersion>>(emptyList())
     val allVersions = _allVersions.asStateFlow()
+
+    /** In-memory session cache: versionId → estimated download size in bytes */
+    private val sizeCache = ConcurrentHashMap<String, Long>()
+
+    /**
+     * Returns the total download size (client JAR + required libraries + all game assets)
+     * for a version. The calculation mirrors [com.movtery.zalithlauncher.game.version.download.BaseMinecraftDownloader]
+     * so the displayed value represents the true download payload for a fresh install.
+     *
+     * Library size logic follows the downloader exactly:
+     * - org.lwjgl is excluded (bundled by the launcher).
+     * - Modern libraries (with a `downloads.artifact` block): use `artifact.size`.
+     * - Legacy libraries (no `downloads` block): use the top-level `size` field.
+     * - Libraries whose `downloads` block is present but has no `artifact` are skipped
+     *   (the downloader skips them too).
+     *
+     * Results are cached in memory for the session so repeated calls are instant.
+     * Returns null if the size cannot be determined.
+     */
+    suspend fun getVersionDownloadSize(versionId: String, versionUrl: String): Long? {
+        sizeCache[versionId]?.let { return it }
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val json = fetchStringFromUrls(versionUrl.mapBMCLMirrorUrls())
+                val gameManifest = GSON.fromJson(json, GameManifest::class.java)
+
+                val clientSize = gameManifest.downloads?.client?.size ?: 0L
+                val assetTotalSize = gameManifest.rawAssetIndex?.totalSize ?: 0L
+
+                // Sum library sizes using the same logic as BaseMinecraftDownloader.loadLibraryDownloads()
+                val librariesSize = gameManifest.libraries
+                    ?.filter { library -> !library.name.startsWith("org.lwjgl") }
+                    ?.sumOf { library ->
+                        when {
+                            // Modern format: downloads block with an artifact entry
+                            library.downloads?.artifact != null ->
+                                library.downloads.artifact.size.takeIf { it > 0L } ?: 0L
+                            // Legacy format: no downloads block at all — fall back to top-level size
+                            library.downloads == null ->
+                                library.size.takeIf { it > 0L } ?: 0L
+                            // downloads present but no artifact — downloader skips these
+                            else -> 0L
+                        }
+                    } ?: 0L
+
+                val total = clientSize + assetTotalSize + librariesSize
+                if (total > 0L) sizeCache[versionId] = total
+                total.takeIf { it > 0L }
+            }.getOrElse { e ->
+                Logger.warning(TAG, "Failed to fetch download size for $versionId", e)
+                null
+            }
+        }
+    }
 
     /**
      * 刷新Minecraft版本的版本号列表

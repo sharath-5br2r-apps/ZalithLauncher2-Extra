@@ -178,26 +178,26 @@ fun SearchFilter(
             )
         }
 
-        item {
-            val allVersions by MinecraftVersions.allVersions.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) {
-                runCatching {
-                    MinecraftVersions.refreshVersions(force = false)
-                }.onFailure {
-                    Logger.warning("SearchFilter", "Failed to refresh Minecraft versions")
-                }
-            }
-            GameVersionFilterLayout(
-                modifier = Modifier.fillMaxWidth(),
-                searchPlatform = searchPlatform,
-                allVersions = allVersions,
-                installedVersions = installedVersions,
-                selectedVersion = gameVersion,
-                onVersionChange = { new ->
-                    if (new != gameVersion) onGameVersionChange(new)
-                }
-            )
-        }
+          item {
+              val allVersions by MinecraftVersions.allVersions.collectAsStateWithLifecycle()
+              LaunchedEffect(Unit) {
+                  runCatching {
+                      MinecraftVersions.refreshVersions(force = false)
+                  }.onFailure {
+                      Logger.warning("SearchFilter", "Failed to refresh Minecraft versions")
+                  }
+              }
+              GameVersionFilterLayout(
+                  modifier = Modifier.fillMaxWidth(),
+                  searchPlatform = searchPlatform,
+                  allVersions = allVersions,
+                  installedVersions = installedVersions,
+                  selectedVersion = gameVersion,
+                  onVersionChange = { new ->
+                      if (new != gameVersion) onGameVersionChange(new)
+                  }
+              )
+          }
 
         extraFilter?.invoke(this@LazyColumn)
 
@@ -860,6 +860,9 @@ private fun FilterListItem(
             FilterSelectionMode.Single -> RadioButton(selected = selected, onClick = onClick)
             FilterSelectionMode.Multiple -> Checkbox(checked = selected, onCheckedChange = onCheckedChange)
         }
+        // Give itemLayout the remaining row width (instead of its natural wrap-content size)
+        // so content inside it can right-align things (e.g. a trailing icon) against the
+        // actual edge of the list item rather than sitting immediately after the text.
         Box(modifier = Modifier.weight(1f)) {
             itemLayout()
         }

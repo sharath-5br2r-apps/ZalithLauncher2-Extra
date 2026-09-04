@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.components.InstallableItem
+import com.movtery.zalithlauncher.components.UnpackManager
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
@@ -107,7 +108,7 @@ private fun ActionMenu(
     modifier: Modifier = Modifier,
     onAgreeClick: () -> Unit = {}
 ) {
-    var installing by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf(UnpackManager.isInstalling) }
 
     val xOffset by swapAnimateDpAsState(
         targetValue = 40.dp,

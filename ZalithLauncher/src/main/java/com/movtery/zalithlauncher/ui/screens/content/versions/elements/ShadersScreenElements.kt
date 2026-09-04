@@ -24,17 +24,23 @@ import java.io.File
 sealed interface ShaderOperation {
     data object None : ShaderOperation
     data object Progress : ShaderOperation
+    /** 删除光影包对话框 */
     data class Delete(val info: ShaderPackInfo) : ShaderOperation
 }
 
 data class ShaderPackInfo(
     val file: File,
     val fileSize: Long,
+    /** 是否已启用（false 表示文件名以 .disabled 结尾） */
     val isEnabled: Boolean = !file.name.endsWith(".disabled", ignoreCase = true),
+    /** 显示名称（剥除 .disabled 后缀，保留 .zip） */
     val displayName: String = if (file.name.endsWith(".disabled", ignoreCase = true))
         file.name.dropLast(9) else file.name
 )
 
+/**
+ * 过滤光影包列表
+ */
 fun List<ShaderPackInfo>.filterShaders(
     nameFilter: String,
     stateFilter: PackStateFilter = PackStateFilter.All
@@ -48,6 +54,9 @@ fun List<ShaderPackInfo>.filterShaders(
     matchesName && matchesState
 }
 
+/**
+ * 过滤光影包列表（携带远端项目信息的包装类型）
+ */
 fun List<RemoteShaderPack>.filterRemoteShaders(
     nameFilter: String,
     stateFilter: PackStateFilter = PackStateFilter.All

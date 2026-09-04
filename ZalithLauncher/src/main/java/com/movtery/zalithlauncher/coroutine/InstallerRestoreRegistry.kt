@@ -18,7 +18,6 @@
 
 package com.movtery.zalithlauncher.coroutine
 
-// ew bro let me import entire settings for some lines of code
 import com.movtery.zalithlauncher.setting.AllSettings
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.StateFlow
@@ -49,9 +48,19 @@ object InstallerRestoreRegistry {
 
     private val registry = ConcurrentHashMap<String, RestorableInstaller>()
 
+    /**
+     * Force the Task Menu into its collapsed state.
+     *
+     * This is the single shared implementation used by every download/install popup
+     * (Minecraft version, Modpack, Mod, Resource Pack, Shaders) when a task is sent to
+     * the background task list. It always writes `false` regardless of the previously
+     * stored expanded/collapsed preference, so the Task Menu never "remembers" a prior
+     * expanded state when a new task is backgrounded. The user can still manually expand
+     * it afterward; the next backgrounded task will collapse it again.
+     */
     fun collapseTaskMenu() {
         AllSettings.launcherTaskMenuExpanded.save(false)
-    } // RIGHT HERE MA BOI
+    }
 
     /** Register a restorable installer entry for the given background task ID. */
     fun register(taskId: String, entry: RestorableInstaller) {

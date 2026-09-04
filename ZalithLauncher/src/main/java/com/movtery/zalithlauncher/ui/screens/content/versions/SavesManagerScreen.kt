@@ -18,31 +18,35 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.versions
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,10 +59,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.nonInteractiveScrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,6 +74,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -86,18 +94,22 @@ import coil3.compose.AsyncImage
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.context.COPY_LABEL_SAVE_SEED
 import com.movtery.zalithlauncher.coroutine.TaskSystem
+import com.movtery.zalithlauncher.game.download.assets.platform.Platform
+import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.installed.VersionInfo
+import com.movtery.zalithlauncher.game.version.saves.DISABLED_SAVES_FOLDER
 import com.movtery.zalithlauncher.game.version.saves.SaveData
+import com.movtery.zalithlauncher.game.version.saves.disableWorld
+import com.movtery.zalithlauncher.game.version.saves.enableWorld
 import com.movtery.zalithlauncher.game.version.saves.isCompatible
 import com.movtery.zalithlauncher.game.version.saves.parseLevelDatFile
+import com.movtery.zalithlauncher.game.version.saves.readSaveDownloadSource
 import com.movtery.zalithlauncher.game.version.saves.unpackSaveZip
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
-import com.movtery.zalithlauncher.ui.components.ContentCheckBox
-import com.movtery.zalithlauncher.ui.components.EdgeDirection
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.LittleTextLabel
 import com.movtery.zalithlauncher.ui.components.ProgressDialog
@@ -105,7 +117,6 @@ import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
 import com.movtery.zalithlauncher.ui.components.TooltipIconButton
-import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -114,8 +125,10 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.SortByDropdownMenu
 import com.movtery.zalithlauncher.ui.screens.content.elements.SortByEnum
 import com.movtery.zalithlauncher.ui.screens.content.elements.rememberMultipleUriImportTaskBuilder
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.FileNameInputDialog
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.DisabledStateIcon
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.LoadingState
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.MinecraftColorTextNormal
+import com.movtery.zalithlauncher.ui.screens.content.versions.elements.SaveStateFilter
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.SavesFilter
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.SavesOperation
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.filterSaves
@@ -144,7 +157,7 @@ private class SavesManageViewModel(
     val minecraftVersion: String,
     val savesDir: File
 ) : ViewModel() {
-    var savesFilter by mutableStateOf(SavesFilter(onlyShowCompatible = false, saveName = ""))
+    var savesFilter by mutableStateOf(SavesFilter())
         private set
 
     var allSaves by mutableStateOf<List<SaveData>>(emptyList())
@@ -159,25 +172,41 @@ private class SavesManageViewModel(
     var savesState by mutableStateOf<LoadingState>(LoadingState.Loading)
         private set
 
+    /** 已选择的存档 */
+    val selectedSaves = mutableStateListOf<SaveData>()
+
     private var job: Job? = null
 
     fun refresh() {
         job?.cancel()
         job = viewModelScope.launch {
             savesState = LoadingState.Loading
+            selectedSaves.clear()
 
             withContext(Dispatchers.IO) {
                 val tempList = mutableListOf<SaveData>()
-                savesDir.listFiles()?.filter { it.isDirectory }?.takeIf { it.isNotEmpty() }?.let { dirs ->
+                val disabledSavesDir = File(savesDir.parentFile, DISABLED_SAVES_FOLDER)
+                // 同时扫描 saves/（启用）和 disabled_saves/（禁用）两个目录
+                val dirsToScan = buildList {
+                    savesDir.listFiles()?.filter { it.isDirectory }?.let { addAll(it) }
+                    disabledSavesDir.listFiles()?.filter { it.isDirectory }?.let { addAll(it) }
+                }
+                if (dirsToScan.isNotEmpty()) {
                     try {
-                        dirs.forEach { dir ->
+                        dirsToScan.forEach { dir ->
                             ensureActive()
-                            //解析存档 level.dat，读取必要数据
+                            val isEnabled = dir.parentFile?.absolutePath == savesDir.absolutePath
+                            val levelDat = File(dir, "level.dat")
+                            val downloadSource = readSaveDownloadSource(dir)
                             val data = parseLevelDatFile(
                                 saveFile = dir,
-                                levelDatFile = File(dir, "level.dat"),
+                                levelDatFile = levelDat,
                                 worldGenDatFile = File(dir, "data/minecraft/world_gen_settings.dat")
                                     .takeIf { it.isFile && it.exists() }
+                            ).copy(
+                                isWorldEnabled = isEnabled,
+                                downloadPlatform = downloadSource?.first,
+                                downloadProjectId = downloadSource?.second
                             )
                             tempList.add(data)
                         }
@@ -219,7 +248,7 @@ private class SavesManageViewModel(
     private fun filterSaves() {
         filteredSaves = allSaves
             .takeIf { it.isNotEmpty() }
-            ?.filterSaves(minecraftVersion, savesFilter)
+            ?.filterSaves(savesFilter)
             ?.sortedWith { o1, o2 ->
                 val file1 = o1.saveFile
                 val file2 = o2.saveFile
@@ -237,6 +266,78 @@ private class SavesManageViewModel(
                     -value
                 }
             }
+    }
+
+    /** 立即更新某个存档的启用/禁用状态及文件夹路径（不重新解析所有存档） */
+    fun updateWorldEnabledState(saveData: SaveData, isEnabled: Boolean, newSaveFile: File) {
+        allSaves = allSaves.map { save ->
+            if (save.saveFile.absolutePath == saveData.saveFile.absolutePath) {
+                save.copy(isWorldEnabled = isEnabled, saveFile = newSaveFile)
+            } else {
+                save
+            }
+        }
+        selectedSaves.clear()
+        filterSaves()
+    }
+
+    fun selectAllSaves() {
+        filteredSaves?.forEach { save ->
+            if (!selectedSaves.contains(save)) {
+                selectedSaves.add(save)
+            }
+        }
+    }
+
+    fun clearSelected() {
+        filteredSaves?.let {
+            selectedSaves.removeAll(it)
+        }
+    }
+
+    /** 在 ViewModel 协程作用域内执行任务 */
+    fun doInScope(block: suspend () -> Unit) {
+        viewModelScope.launch { block() }
+    }
+
+    fun enableSelectedSaves() {
+        doInScope {
+            withContext(Dispatchers.IO) {
+                selectedSaves.toList().forEach { save ->
+                    if (!save.isWorldEnabled) {
+                        val newFile = save.enableWorld()
+                        if (newFile != null) {
+                            withContext(Dispatchers.Main) {
+                                updateWorldEnabledState(save, true, newFile)
+                            }
+                        }
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) {
+                selectedSaves.clear()
+            }
+        }
+    }
+
+    fun disableSelectedSaves() {
+        doInScope {
+            withContext(Dispatchers.IO) {
+                selectedSaves.toList().forEach { save ->
+                    if (save.isWorldEnabled) {
+                        val newFile = save.disableWorld()
+                        if (newFile != null) {
+                            withContext(Dispatchers.Main) {
+                                updateWorldEnabledState(save, false, newFile)
+                            }
+                        }
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) {
+                selectedSaves.clear()
+            }
+        }
     }
 }
 
@@ -263,6 +364,7 @@ fun SavesManagerScreen(
     onQuickPlay: (Version, String) -> Unit,
     backToMainScreen: () -> Unit,
     swapToDownload: () -> Unit,
+    onSwapMoreInfo: (id: String, Platform) -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     if (!version.isValid()) {
@@ -337,6 +439,11 @@ fun SavesManagerScreen(
                             runProgress {
                                 FileUtils.deleteQuietly(saveData.saveFile)
                             }
+                        },
+                        deleteSelectedSaves = { files ->
+                            runProgress {
+                                files.forEach { FileUtils.deleteQuietly(it) }
+                            }
                         }
                     )
 
@@ -345,6 +452,9 @@ fun SavesManagerScreen(
                             modifier = Modifier.fillMaxWidth(),
                             savesFilter = viewModel.savesFilter,
                             onSavesFilterChange = { viewModel.updateFilter(it) },
+                            allSavesCount = viewModel.allSaves.size,
+                            enabledSavesCount = viewModel.allSaves.count { it.isWorldEnabled },
+                            disabledSavesCount = viewModel.allSaves.count { !it.isWorldEnabled },
                             supportedSortByEnums = viewModel.supportedSortByEnums,
                             sortByEnum = viewModel.sortByEnum,
                             onSortByChanged = { viewModel.updateSortBy(it) },
@@ -353,7 +463,19 @@ fun SavesManagerScreen(
                             savesDir = savesDir,
                             swapToDownload = swapToDownload,
                             refreshSaves = { viewModel.refresh() },
-                            submitError = submitError
+                            submitError = submitError,
+                            isSavesSelected = viewModel.selectedSaves.isNotEmpty(),
+                            onDeleteSelected = {
+                                if (viewModel.selectedSaves.isNotEmpty()) {
+                                    savesOperation = SavesOperation.DeleteSelectedSaves(
+                                        viewModel.selectedSaves.map { it.saveFile }
+                                    )
+                                }
+                            },
+                            onSelectAll = { viewModel.selectAllSaves() },
+                            onClearSelected = { viewModel.clearSelected() },
+                            onEnableSelected = { viewModel.enableSelectedSaves() },
+                            onDisableSelected = { viewModel.disableSelectedSaves() }
                         )
 
                         SavesList(
@@ -363,6 +485,34 @@ fun SavesManagerScreen(
                             savesList = viewModel.filteredSaves,
                             quickPlay = quickPlay,
                             minecraftVersion = minecraftVersion,
+                            selectedSaves = viewModel.selectedSaves,
+                            addToSelected = { viewModel.selectedSaves.add(it) },
+                            removeFromSelected = { viewModel.selectedSaves.remove(it) },
+                            onSwapMoreInfo = onSwapMoreInfo,
+                            onEnable = { saveData ->
+                                viewModel.doInScope {
+                                    withContext(Dispatchers.IO) {
+                                        val newFile = saveData.enableWorld()
+                                        if (newFile != null) {
+                                            withContext(Dispatchers.Main) {
+                                                viewModel.updateWorldEnabledState(saveData, true, newFile)
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            onDisable = { saveData ->
+                                viewModel.doInScope {
+                                    withContext(Dispatchers.IO) {
+                                        val newFile = saveData.disableWorld()
+                                        if (newFile != null) {
+                                            withContext(Dispatchers.Main) {
+                                                viewModel.updateWorldEnabledState(saveData, false, newFile)
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             updateOperation = { savesOperation = it }
                         )
                     }
@@ -385,6 +535,9 @@ private fun SavesActionsHeader(
     modifier: Modifier,
     savesFilter: SavesFilter,
     onSavesFilterChange: (SavesFilter) -> Unit,
+    allSavesCount: Int,
+    enabledSavesCount: Int,
+    disabledSavesCount: Int,
     supportedSortByEnums: List<SortByEnum>,
     sortByEnum: SortByEnum,
     onSortByChanged: (SortByEnum) -> Unit,
@@ -394,6 +547,12 @@ private fun SavesActionsHeader(
     swapToDownload: () -> Unit,
     refreshSaves: () -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+    isSavesSelected: Boolean,
+    onDeleteSelected: () -> Unit,
+    onSelectAll: () -> Unit,
+    onClearSelected: () -> Unit,
+    onEnableSelected: () -> Unit,
+    onDisableSelected: () -> Unit,
     inputFieldColor: Color = itemColor(),
     inputFieldContentColor: Color = onItemColor()
 ) {
@@ -405,6 +564,54 @@ private fun SavesActionsHeader(
                 .padding(top = 4.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    var expanded by remember { mutableStateOf(false) }
+                    IconButton(
+                        onClick = { expanded = !expanded }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_filter_alt_outlined),
+                            contentDescription = stringResource(R.string.mods_update_task_filter)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        SaveStateFilter.entries.forEach { filter ->
+                            val count = when (filter) {
+                                SaveStateFilter.Enabled -> enabledSavesCount
+                                SaveStateFilter.Disabled -> disabledSavesCount
+                                else -> allSavesCount
+                            }
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(text = stringResource(filter.textRes))
+                                        Text(text = "($count)")
+                                    }
+                                },
+                                onClick = {
+                                    onSavesFilterChange(savesFilter.copy(stateFilter = filter))
+                                    expanded = false
+                                },
+                                trailingIcon = if (filter == savesFilter.stateFilter) {
+                                    {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_check),
+                                            contentDescription = null
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
                 Box {
                     var expanded by remember { mutableStateOf(false) }
                     IconButton(
@@ -443,71 +650,101 @@ private fun SavesActionsHeader(
                     singleLine = true
                 )
 
-                val scrollState = rememberScrollState()
-                LaunchedEffect(Unit) {
-                    scrollState.scrollTo(scrollState.maxValue)
-                }
-                Row(
-                    modifier = Modifier
-                        .fadeEdge(
-                            state = scrollState,
-                            length = 32.dp,
-                            direction = EdgeDirection.Horizontal
-                        )
-                        .widthIn(max = this@BoxWithConstraints.maxWidth / 2)
-                        .horizontalScroll(scrollState),
-                    verticalAlignment = Alignment.CenterVertically
+                // 选中存档时展示上下文操作栏（仿照 Mods 页面）
+                AnimatedVisibility(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    visible = isSavesSelected
                 ) {
-                    ContentCheckBox(
-                        checked = savesFilter.onlyShowCompatible,
-                        onCheckedChange = { onSavesFilterChange(savesFilter.copy(onlyShowCompatible = it)) }
-                    ) {
-                        Text(
-                            text = stringResource(R.string.manage_only_show_valid),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    val taskBuilder = rememberMultipleUriImportTaskBuilder(
-                        id = "ContentManager.Saves.Import",
-                        targetDir = savesDir,
-                        checkExtension = listOf("zip"),
-                        errorMessage = stringResource(R.string.saves_manage_import_failed),
-                        submitError = submitError,
-                        onImported = refreshSaves,
-                        onFileCopied = { task, file ->
-                            task.updateProgress(-1f)
-                            task.updateMessage(androidText(
-                                R.string.saves_manage_import_unpacking, file.name
-                            ))
-                            unpackSaveZip(file, savesDir)
-                        }
-                    )
-                    ImportMultipleFileButton(
-                        extension = "zip",
-                        progressUris = { uris ->
-                            TaskSystem.submitTask(
-                                taskBuilder(uris)
+                    Row {
+                        // 删除选中
+                        IconButton(onClick = onDeleteSelected) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_delete_outlined),
+                                contentDescription = null
                             )
                         }
-                    )
+                        // 全选
+                        IconButton(onClick = onSelectAll) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_select_all),
+                                contentDescription = null
+                            )
+                        }
+                        // 取消选择
+                        IconButton(onClick = onClearSelected) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_deselect),
+                                contentDescription = null
+                            )
+                        }
 
-                    IconTextButton(
-                        onClick = swapToDownload,
-                        painter = painterResource(R.drawable.ic_download_2_filled),
-                        text = stringResource(R.string.generic_download)
-                    )
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                    IconButton(
-                        onClick = refreshSaves
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_refresh),
-                            contentDescription = stringResource(R.string.generic_refresh)
+                        // 启用选中
+                        IconButton(onClick = onEnableSelected) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_outlined),
+                                contentDescription = null
+                            )
+                        }
+                        // 禁用选中
+                        IconButton(onClick = onDisableSelected) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility_off_outlined),
+                                contentDescription = null
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        VerticalDivider(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                val taskBuilder = rememberMultipleUriImportTaskBuilder(
+                    id = "ContentManager.Saves.Import",
+                    targetDir = savesDir,
+                    checkExtension = listOf("zip"),
+                    errorMessage = stringResource(R.string.saves_manage_import_failed),
+                    submitError = submitError,
+                    onImported = refreshSaves,
+                    onFileCopied = { task, file ->
+                        task.updateProgress(-1f)
+                        task.updateMessage(androidText(
+                            R.string.saves_manage_import_unpacking, file.name
+                        ))
+                        unpackSaveZip(file, savesDir)
+                    }
+                )
+                ImportMultipleFileButton(
+                    extension = "zip",
+                    progressUris = { uris ->
+                        TaskSystem.submitTask(
+                            taskBuilder(uris)
+                        )
+                    }
+                )
+
+                IconTextButton(
+                    onClick = swapToDownload,
+                    painter = painterResource(R.drawable.ic_download_2_filled),
+                    text = stringResource(R.string.generic_download)
+                )
+
+                IconButton(
+                    onClick = refreshSaves
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_refresh),
+                        contentDescription = stringResource(R.string.generic_refresh)
+                    )
                 }
             }
         }
@@ -523,6 +760,12 @@ private fun SavesList(
     savesList: List<SaveData>?,
     quickPlay: VersionInfo.QuickPlay,
     minecraftVersion: String,
+    selectedSaves: List<SaveData>,
+    addToSelected: (SaveData) -> Unit,
+    removeFromSelected: (SaveData) -> Unit,
+    onSwapMoreInfo: (id: String, Platform) -> Unit,
+    onEnable: (SaveData) -> Unit,
+    onDisable: (SaveData) -> Unit,
     updateOperation: (SavesOperation) -> Unit
 ) {
     savesList?.let { list ->
@@ -547,13 +790,24 @@ private fun SavesList(
                         saveData = saveData,
                         quickPlay = quickPlay,
                         minecraftVersion = minecraftVersion,
+                        selected = selectedSaves.contains(saveData),
+                        onToggleSelected = {
+                            if (selectedSaves.contains(saveData)) {
+                                removeFromSelected(saveData)
+                            } else {
+                                addToSelected(saveData)
+                            }
+                        },
+                        onSwapMoreInfo = onSwapMoreInfo,
+                        onEnable = { onEnable(saveData) },
+                        onDisable = { onDisable(saveData) },
                         updateOperation = updateOperation
                     )
                 }
             }
         } else {
             //如果列表是空的，则是由搜索导致的
-            //展示“无匹配项”文本
+            //展示"无匹配项"文本
             Box(modifier = Modifier.fillMaxSize()) {
                 ScalingLabel(
                     modifier = Modifier.align(Alignment.Center),
@@ -583,16 +837,25 @@ private fun SaveItemLayout(
     saveData: SaveData,
     quickPlay: VersionInfo.QuickPlay,
     minecraftVersion: String,
-    onClick: () -> Unit = {},
+    selected: Boolean = false,
+    onToggleSelected: () -> Unit = {},
+    onSwapMoreInfo: (id: String, Platform) -> Unit = { _, _ -> },
+    onEnable: () -> Unit = {},
+    onDisable: () -> Unit = {},
     updateOperation: (SavesOperation) -> Unit = {},
     shape: Shape = MaterialTheme.shapes.large,
     itemColor: Color = itemColor(),
     itemContentColor: Color = onItemColor(),
+    borderColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     //存档是否与当前 MC 版本兼容
     val isCompatible = saveData.isCompatible(minecraftVersion)
 
     val context = LocalContext.current
+
+    val borderWidth by animateDpAsState(
+        if (selected) 2.dp else (-1).dp
+    )
 
     val scale = remember { Animatable(initialValue = 0.95f) }
     LaunchedEffect(Unit) {
@@ -600,8 +863,10 @@ private fun SaveItemLayout(
     }
 
     Surface(
-        modifier = modifier.graphicsLayer(scaleY = scale.value, scaleX = scale.value),
-        onClick = onClick,
+        modifier = modifier
+            .graphicsLayer(scaleY = scale.value, scaleX = scale.value)
+            .border(width = borderWidth, color = borderColor, shape = shape),
+        onClick = onToggleSelected,
         shape = shape,
         color = itemColor,
         contentColor = itemContentColor,
@@ -611,12 +876,20 @@ private fun SaveItemLayout(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             //存档的封面图标
-            SaveIcon(
+            DisabledStateIcon(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(shape = RoundedCornerShape(10.dp)),
-                saveData = saveData
-            )
+                    .align(Alignment.CenterVertically)
+                    .size(48.dp)
+                    .clip(shape = RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                isDisabled = !saveData.isWorldEnabled
+            ) { colorFilter ->
+                SaveIcon(
+                    modifier = Modifier.fillMaxSize(),
+                    saveData = saveData,
+                    colorFilter = colorFilter
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -659,6 +932,7 @@ private fun SaveItemLayout(
                                 LittleTextLabel(text = stringResource(gameMode.nameRes))
                             }
                         }
+
                     }
                 }
 
@@ -685,25 +959,47 @@ private fun SaveItemLayout(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (saveData.isValid) {
-                    //详细信息展示
-                    TooltipIconButton(
-                        modifier = Modifier.size(38.dp),
-                        tooltip = {
-                            RichTooltip(
-                                modifier = Modifier.padding(all = 3.dp),
-                                title = { Text(text = stringResource(R.string.saves_manage_info)) },
-                                shadowElevation = 3.dp
-                            ) {
-                                SaveInfoTooltip(saveData) { seed ->
-                                    copyText(COPY_LABEL_SAVE_SEED, seed, context)
+                    // 启用 / 禁用 复选框
+                    Checkbox(
+                        checked = saveData.isWorldEnabled,
+                        onCheckedChange = { checked ->
+                            if (checked) onEnable() else onDisable()
+                        }
+                    )
+
+                    // 信息按钮：若世界来自下载平台，则打开下载详情页；否则展示本地信息 tooltip
+                    val dlPlatform = saveData.downloadPlatform
+                    val dlProjectId = saveData.downloadProjectId
+                    if (dlPlatform != null && dlProjectId != null) {
+                        IconButton(
+                            modifier = Modifier.size(38.dp),
+                            onClick = { onSwapMoreInfo(dlProjectId, dlPlatform) }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info_outlined),
+                                contentDescription = stringResource(R.string.saves_manage_info)
+                            )
+                        }
+                    } else {
+                        TooltipIconButton(
+                            modifier = Modifier.size(38.dp),
+                            tooltip = {
+                                RichTooltip(
+                                    modifier = Modifier.padding(all = 3.dp),
+                                    title = { Text(text = stringResource(R.string.saves_manage_info)) },
+                                    shadowElevation = 3.dp
+                                ) {
+                                    SaveInfoTooltip(saveData) { seed ->
+                                        copyText(COPY_LABEL_SAVE_SEED, seed, context)
+                                    }
                                 }
                             }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info_outlined),
+                                contentDescription = stringResource(R.string.saves_manage_info)
+                            )
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_info_outlined),
-                            contentDescription = stringResource(R.string.saves_manage_info)
-                        )
                     }
                 } else {
                     Text(
@@ -745,7 +1041,8 @@ private fun SaveItemLayout(
 private fun SaveIcon(
     modifier: Modifier = Modifier,
     saveData: SaveData,
-    triggerRefresh: Any? = null
+    triggerRefresh: Any? = null,
+    colorFilter: ColorFilter? = null
 ) {
     val iconFile = remember(saveData) {
         File(saveData.saveFile, "icon.png")
@@ -759,8 +1056,9 @@ private fun SaveIcon(
         model = model,
         contentDescription = null,
         alignment = Alignment.Center,
-        contentScale = ContentScale.Fit,
-        modifier = modifier
+        contentScale = ContentScale.Crop,
+        modifier = modifier,
+        colorFilter = colorFilter
     )
 }
 
@@ -951,7 +1249,8 @@ private fun SaveOperation(
     quickPlay: (saveName: String) -> Unit,
     renameSave: (SaveData, String) -> Unit,
     backupSave: (SaveData, String) -> Unit,
-    deleteSave: (SaveData) -> Unit
+    deleteSave: (SaveData) -> Unit,
+    deleteSelectedSaves: (List<File>) -> Unit
 ) {
     when (savesOperation) {
         is SavesOperation.None -> {}
@@ -1003,6 +1302,20 @@ private fun SaveOperation(
                 },
                 onConfirm = {
                     deleteSave(saveData)
+                    updateOperation(SavesOperation.None)
+                }
+            )
+        }
+        is SavesOperation.DeleteSelectedSaves -> {
+            val files = savesOperation.files
+            SimpleAlertDialog(
+                title = stringResource(R.string.generic_warning),
+                text = stringResource(R.string.saves_manage_delete_selected_warning, files.size),
+                onDismiss = {
+                    updateOperation(SavesOperation.None)
+                },
+                onConfirm = {
+                    deleteSelectedSaves(files)
                     updateOperation(SavesOperation.None)
                 }
             )

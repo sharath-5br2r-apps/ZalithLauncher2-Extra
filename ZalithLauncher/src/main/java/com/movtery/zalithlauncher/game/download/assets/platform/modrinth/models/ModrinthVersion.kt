@@ -158,7 +158,8 @@ class ModrinthVersion(
             platform = platform(),
             //若未提供项目Id，则判定其无效或被删除，跳过该依赖
             projectId = dependency.projectId ?: return@mapNotNull null,
-            type = dependency.dependencyType
+            type = dependency.dependencyType,
+            versionId = dependency.versionId
         )
     }
 

@@ -1,0 +1,357 @@
+[
+  {
+    "id": "sig_oom_heap_001",
+    "category": "OUT_OF_MEMORY",
+    "confidence": 97,
+    "severity": "HIGH",
+    "rootCause": "Java heap space exhausted — Minecraft ran out of RAM.",
+    "rootCauseDetail": "Minecraft allocated all available heap memory and crashed. This usually means more RAM is needed, or a mod is leaking memory.",
+    "technicalDetail": "java.lang.OutOfMemoryError: Java heap space — the JVM ran out of heap memory during execution.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "java.lang.OutOfMemoryError: Java heap space", "weight": 0.95 },
+      { "field": "allLogs", "type": "contains", "value": "OutOfMemoryError", "weight": 0.6 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "OutOfMemoryError: Java heap space detected in logs",
+      "OutOfMemoryError detected in logs"
+    ],
+    "recommendedFixes": [
+      "Increase RAM allocation in Launcher Settings",
+      "Remove memory-intensive mods",
+      "Enable auto RAM allocation"
+    ],
+    "repairActionTypes": ["ALLOCATE_RECOMMENDED_RAM"],
+    "tags": ["oom", "memory", "heap"]
+  },
+  {
+    "id": "sig_oom_killed_001",
+    "category": "OUT_OF_MEMORY",
+    "confidence": 95,
+    "severity": "HIGH",
+    "rootCause": "Process killed by the Android OS due to insufficient system RAM (exit code 137).",
+    "rootCauseDetail": "Android's low-memory killer terminated Minecraft because the device ran out of available RAM. This is common on devices with 3 GB RAM or less.",
+    "technicalDetail": "Exit code 137 = SIGKILL sent by the Android OOM killer. The process did not crash — it was forcibly terminated.",
+    "patterns": [
+      { "field": "exitCode", "type": "exitCode", "value": "137", "weight": 0.95 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": ["Exit code 137 — OOM-killed by Android OS"],
+    "recommendedFixes": [
+      "Reduce RAM allocation to avoid triggering the OOM killer",
+      "Close background apps before launching",
+      "Remove mods that consume excessive memory"
+    ],
+    "repairActionTypes": ["ALLOCATE_RECOMMENDED_RAM"],
+    "tags": ["oom", "sigkill", "android", "memory"]
+  },
+  {
+    "id": "sig_renderer_sigsegv_001",
+    "category": "RENDERER_CRASH",
+    "confidence": 93,
+    "severity": "HIGH",
+    "rootCause": "Renderer caused a segmentation fault (SIGSEGV) — native renderer library crashed.",
+    "rootCauseDetail": "The graphics renderer crashed with a fatal memory error. This is almost always caused by an incompatibility between the selected renderer and your GPU driver.",
+    "technicalDetail": "SIGSEGV in a renderer or GL library. Exit code 139 or signal 11.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "SIGSEGV", "weight": 0.8 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "libEGL", "weight": 0.6 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "SIGSEGV (segmentation fault) detected — renderer native crash",
+      "libEGL reference found in crash context"
+    ],
+    "recommendedFixes": [
+      "Switch to a different renderer (e.g., from ANGLE to MobileGlues)",
+      "Reset renderer settings to defaults",
+      "Check GPU compatibility database for your device"
+    ],
+    "repairActionTypes": ["SWITCH_RENDERER", "RESET_RENDERER_SETTINGS"],
+    "tags": ["renderer", "sigsegv", "native", "gpu"]
+  },
+  {
+    "id": "sig_renderer_egl_fail_001",
+    "category": "RENDERER_CRASH",
+    "confidence": 96,
+    "severity": "HIGH",
+    "rootCause": "EGL (OpenGL ES) context creation failed — renderer cannot initialize.",
+    "rootCauseDetail": "The renderer failed to create an EGL context. This means OpenGL ES is not working on your device with the current renderer. Try switching to a different renderer.",
+    "technicalDetail": "EGL context creation failure — eglCreateContext or eglMakeCurrent returned an error.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Could not initialize EGL", "weight": 0.9 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Failed to create EGL context", "weight": 0.9 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "EGL_BAD_CONFIG", "weight": 0.75 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "EGL initialization failure detected",
+      "EGL context creation error detected",
+      "EGL_BAD_CONFIG error detected"
+    ],
+    "recommendedFixes": [
+      "Switch to a different renderer",
+      "Reset renderer configuration"
+    ],
+    "repairActionTypes": ["SWITCH_RENDERER", "RESET_RENDERER_SETTINGS"],
+    "tags": ["renderer", "egl", "opengl", "init"]
+  },
+  {
+    "id": "sig_fabric_missing_dep_001",
+    "category": "MISSING_DEPENDENCY",
+    "confidence": 92,
+    "severity": "MEDIUM",
+    "rootCause": "A mod dependency is missing — required class not found.",
+    "rootCauseDetail": "A mod is trying to use a class from another mod or library that isn't installed. Make sure all required dependencies are installed and that their versions match.",
+    "technicalDetail": "java.lang.NoClassDefFoundError or ClassNotFoundException — a class required by an installed mod could not be found at runtime.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "java.lang.NoClassDefFoundError", "weight": 0.9 },
+      { "field": "allLogs", "type": "contains", "value": "java.lang.ClassNotFoundException", "weight": 0.8 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "NoClassDefFoundError — required class missing at runtime",
+      "ClassNotFoundException — class not found in classpath"
+    ],
+    "recommendedFixes": [
+      "Install missing mod dependencies",
+      "Update all mods to versions compatible with each other",
+      "Check mod documentation for required dependencies"
+    ],
+    "repairActionTypes": ["DISABLE_SELECTED_MOD", "REPAIR_DEPENDENCIES"],
+    "tags": ["mod", "dependency", "missing", "fabric"]
+  },
+  {
+    "id": "sig_no_such_method_001",
+    "category": "MOD_CONFLICT",
+    "confidence": 90,
+    "severity": "MEDIUM",
+    "rootCause": "A mod is calling a method that no longer exists — API version mismatch.",
+    "rootCauseDetail": "A mod was built against a different version of another mod or Minecraft's API. This usually happens when mods are not updated together, or when mixing mods from different Minecraft versions.",
+    "technicalDetail": "java.lang.NoSuchMethodError — a method signature has changed between the version the mod was compiled against and the version currently installed.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "java.lang.NoSuchMethodError", "weight": 0.92 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "NoSuchMethodError — mod API version mismatch"
+    ],
+    "recommendedFixes": [
+      "Update Fabric API to the latest version",
+      "Update the conflicting mod",
+      "Remove incompatible mods",
+      "Verify all mods target the same Minecraft version"
+    ],
+    "repairActionTypes": ["DISABLE_SELECTED_MOD"],
+    "tags": ["mod", "conflict", "api", "method"]
+  },
+  {
+    "id": "sig_fabric_incompatible_001",
+    "category": "FABRIC_LOADER_ERROR",
+    "confidence": 94,
+    "severity": "MEDIUM",
+    "rootCause": "Fabric Loader reported incompatible mods.",
+    "rootCauseDetail": "Fabric Loader found that one or more of your mods are incompatible with each other or with the current Minecraft version. Check the error message for the specific conflicting mod.",
+    "technicalDetail": "net.fabricmc.loader reported 'Incompatible mod set' — a dependency constraint was violated.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "Incompatible mod set!", "weight": 0.95 },
+      { "field": "allLogs", "type": "contains", "value": "net.fabricmc.loader", "weight": 0.6 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "Fabric 'Incompatible mod set' error detected",
+      "Fabric Loader class found in crash context"
+    ],
+    "recommendedFixes": [
+      "Read the Fabric error message to identify conflicting mods",
+      "Update or remove the incompatible mod",
+      "Ensure Fabric API version matches the mods' requirements"
+    ],
+    "repairActionTypes": ["DISABLE_SELECTED_MOD"],
+    "affectedLoaders": ["fabric"],
+    "tags": ["fabric", "loader", "incompatible"]
+  },
+  {
+    "id": "sig_mixin_conflict_001",
+    "category": "MOD_CONFLICT",
+    "confidence": 89,
+    "severity": "MEDIUM",
+    "rootCause": "Mixin injection conflict between mods.",
+    "rootCauseDetail": "Two or more mods are both trying to modify the same part of Minecraft's code using Mixin, and their changes are incompatible. This is a known issue when combining certain mods.",
+    "technicalDetail": "org.spongepowered.asm.mixin.MixinException or 'Cannot apply mixin' — Mixin injection failed due to conflicting modifications.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "MixinException", "weight": 0.9 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Cannot apply mixin", "weight": 0.9 },
+      { "field": "allLogs", "type": "contains", "value": "org.spongepowered.asm.mixin", "weight": 0.65 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "MixinException detected — mod injection conflict",
+      "Mixin application failure detected",
+      "SpongePowered ASM Mixin framework reference found"
+    ],
+    "recommendedFixes": [
+      "Identify conflicting mods from the Mixin error message",
+      "Remove or disable one of the conflicting mods",
+      "Check if there is a compatibility patch mod available"
+    ],
+    "repairActionTypes": ["DISABLE_SELECTED_MOD"],
+    "tags": ["mixin", "mod", "conflict"]
+  },
+  {
+    "id": "sig_wrong_java_version_001",
+    "category": "WRONG_JAVA_VERSION",
+    "confidence": 97,
+    "severity": "HIGH",
+    "rootCause": "Java class file version mismatch — wrong Java version is installed.",
+    "rootCauseDetail": "Minecraft (or a mod) was compiled for a newer version of Java than you have installed. For example, Minecraft 1.17+ requires Java 17 or later, but Java 8 was detected.",
+    "technicalDetail": "java.lang.UnsupportedClassVersionError — the class file version is higher than the version supported by the installed JVM.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "UnsupportedClassVersionError", "weight": 0.98 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Unsupported class file major version", "weight": 0.96 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "UnsupportedClassVersionError — Java version too old",
+      "Unsupported class file major version — Java version mismatch"
+    ],
+    "recommendedFixes": [
+      "Install Java 17 or later for Minecraft 1.17+",
+      "Install Java 21 for Minecraft 1.21+",
+      "Select the correct Java runtime in Launcher Settings"
+    ],
+    "repairActionTypes": ["REINSTALL_JAVA_RUNTIME"],
+    "tags": ["java", "version", "unsupported"]
+  },
+  {
+    "id": "sig_invalid_jvm_arg_001",
+    "category": "INVALID_JVM_ARGUMENTS",
+    "confidence": 88,
+    "severity": "MEDIUM",
+    "rootCause": "An invalid or unrecognized JVM argument prevented the JVM from starting.",
+    "rootCauseDetail": "One of the JVM arguments you have set is not supported by the installed Java version, or has been misspelled. The JVM exits immediately when it encounters an unrecognized argument.",
+    "technicalDetail": "JVM startup failure due to unrecognized flag — the JVM printed an error about an unrecognized VM option.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Unrecognized VM option", "weight": 0.95 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Invalid VM option", "weight": 0.95 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Could not create the Java Virtual Machine", "weight": 0.85 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "Unrecognized JVM option detected",
+      "Invalid JVM option detected",
+      "JVM creation failure — possibly caused by bad JVM arguments"
+    ],
+    "recommendedFixes": [
+      "Reset JVM arguments to safe defaults",
+      "Remove deprecated flags like -XX:+AggressiveOpts"
+    ],
+    "repairActionTypes": ["RESET_JVM_ARGUMENTS", "RESTORE_RECOMMENDED_JVM_SETTINGS"],
+    "tags": ["jvm", "args", "flag", "startup"]
+  },
+  {
+    "id": "sig_sodium_optifine_001",
+    "category": "MOD_CONFLICT",
+    "confidence": 99,
+    "severity": "MEDIUM",
+    "rootCause": "Sodium and OptiFine are both installed — these mods are incompatible.",
+    "rootCauseDetail": "Sodium and OptiFine both replace Minecraft's rendering engine and cannot be used together. Remove OptiFine and use Iris for shader support instead.",
+    "technicalDetail": "Known incompatible mod pair: Sodium + OptiFine. These mods replace overlapping rendering systems.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "sodium", "weight": 0.5 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "optifine", "weight": 0.5 }
+    ],
+    "minMatchCount": 2,
+    "evidenceTemplates": [
+      "Sodium mod detected in logs",
+      "OptiFine detected in logs — known conflict with Sodium"
+    ],
+    "recommendedFixes": [
+      "Remove OptiFine from your mods folder",
+      "Use Iris Shaders instead of OptiFine for shader support",
+      "Keep Sodium installed as a performance mod"
+    ],
+    "repairActionTypes": ["DISABLE_SELECTED_MOD"],
+    "knownIncompatibleMods": ["optifine"],
+    "tags": ["sodium", "optifine", "conflict", "known"]
+  },
+  {
+    "id": "sig_native_sigabrt_001",
+    "category": "JVM_NATIVE_CRASH",
+    "confidence": 90,
+    "severity": "CRITICAL",
+    "rootCause": "Native crash — process aborted (SIGABRT).",
+    "rootCauseDetail": "A native library called abort() or triggered an assertion failure. This is often caused by a renderer library, GPU driver, or corrupted native dependency.",
+    "technicalDetail": "Fatal signal 6 (SIGABRT) — process abort. Check hs_err_pid log for the crashing frame.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Fatal signal 6 (SIGABRT)", "weight": 0.95 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "SIGABRT", "weight": 0.7 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "Fatal SIGABRT (process abort) detected",
+      "SIGABRT signal detected — native library abort"
+    ],
+    "recommendedFixes": [
+      "Switch to a different renderer",
+      "Reinstall the Java runtime",
+      "Check for GPU driver updates"
+    ],
+    "repairActionTypes": ["SWITCH_RENDERER", "REINSTALL_JAVA_RUNTIME"],
+    "tags": ["native", "sigabrt", "crash"]
+  },
+  {
+    "id": "sig_corrupted_world_001",
+    "category": "CORRUPTED_WORLD",
+    "confidence": 82,
+    "severity": "HIGH",
+    "rootCause": "World data appears corrupted — level.dat or chunk data is unreadable.",
+    "rootCauseDetail": "Minecraft encountered corrupted world data while loading or during play. This can happen after a crash, storage failure, or interrupted save.",
+    "technicalDetail": "IOException or NBT parsing failure while reading level.dat or chunk region files.",
+    "patterns": [
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "level.dat", "weight": 0.5 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "corrupted", "weight": 0.5 },
+      { "field": "allLogs", "type": "containsIgnoreCase", "value": "Failed to load level", "weight": 0.85 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "level.dat reference found in crash context",
+      "World corruption indicator detected",
+      "World load failure detected"
+    ],
+    "recommendedFixes": [
+      "Restore the world from a backup if available",
+      "Try loading a different world to verify the issue is world-specific",
+      "Use a world repair tool"
+    ],
+    "repairActionTypes": [],
+    "tags": ["world", "corrupted", "save"]
+  },
+  {
+    "id": "sig_network_failure_001",
+    "category": "NETWORK_FAILURE",
+    "confidence": 80,
+    "severity": "LOW",
+    "rootCause": "Network connection failure during authentication or resource download.",
+    "rootCauseDetail": "Minecraft could not connect to Mojang authentication servers or download required resources. This is usually a temporary issue — check your internet connection and try again.",
+    "technicalDetail": "ConnectException, UnknownHostException, or SocketTimeoutException during network operation.",
+    "patterns": [
+      { "field": "allLogs", "type": "contains", "value": "java.net.ConnectException", "weight": 0.7 },
+      { "field": "allLogs", "type": "contains", "value": "java.net.UnknownHostException", "weight": 0.7 },
+      { "field": "allLogs", "type": "contains", "value": "SocketTimeoutException", "weight": 0.65 }
+    ],
+    "minMatchCount": 1,
+    "evidenceTemplates": [
+      "Network connection failure detected",
+      "Host resolution failure detected",
+      "Socket timeout detected"
+    ],
+    "recommendedFixes": [
+      "Check your internet connection",
+      "Try launching with offline mode enabled",
+      "Use a local account to bypass authentication"
+    ],
+    "repairActionTypes": [],
+    "tags": ["network", "connection", "auth"]
+  }
+]

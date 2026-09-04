@@ -26,6 +26,7 @@ import com.materialkolor.PaletteStyle
 import com.movtery.layer_controller.utils.snap.SnapMode
 import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
+import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSortField
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
@@ -35,6 +36,8 @@ import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
 import com.movtery.zalithlauncher.setting.enums.HomePageType
+import com.movtery.zalithlauncher.setting.enums.MainScreenMode
+import com.movtery.zalithlauncher.setting.enums.AccountTypeDisplayMode
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
 import com.movtery.zalithlauncher.ui.control.HotbarRule
@@ -162,6 +165,14 @@ object AllSettings : SettingsRegistry() {
      * 自动内存分配
      */
     val autoRamAllocation = boolSetting("autoRamAllocation", false)
+
+    /**
+     * 自动内存分配模式（仅在 [autoRamAllocation] 为 true 时有意义）
+     * "static"  = one-time total-RAM lookup table (original behaviour, set once)
+     * "dynamic" = live free RAM minus safety headroom, refreshed every 5 s (default)
+     * "maximum" = live free RAM, no headroom, refreshed every 5 s
+     */
+    val autoRamAllocationMode = stringSetting("autoRamAllocationMode", "dynamic")
 
     /**
      * 自定义Jvm启动参数
@@ -426,6 +437,20 @@ object AllSettings : SettingsRegistry() {
     val launcherFestivalEffects = boolSetting("launcherFestivalEffects", true)
 
     /**
+     * Show the Version Profile indicator pill above the selected version card.
+     */
+    val showVersionProfileIndicator = boolSetting("showVersionProfileIndicator", false)
+
+    /**
+     * Quick Access 面板快捷方式（有序列表，存储快捷方式ID）
+     * 默认顺序：FPS、文件管理器、版本管理、控制布局
+     */
+    val quickAccessShortcuts = stringListSetting(
+        "quickAccessShortcuts",
+        listOf("fps", "file_manager", "versions", "controls")
+    )
+
+    /**
      * 动画倍速
      */
     val launcherAnimateSpeed = intSetting("launcherAnimateSpeed", 5, 0..10)
@@ -438,7 +463,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器页面切换动画类型
      */
-    val launcherSwapAnimateType = enumSetting("launcherSwapAnimateType", TransitionAnimationType.SLICE_IN)
+    val launcherSwapAnimateType = enumSetting("launcherSwapAnimateType", TransitionAnimationType.JELLY_BOUNCE)
 
     /**
      * 启动器背景元素不透明度
@@ -471,6 +496,15 @@ object AllSettings : SettingsRegistry() {
     val homePageURL = stringSetting("homePageURL", "")
 
     /**
+     * 版本列表视图模式：0=列表(LIST), 1=网格(GRID)
+     */
+    val versionViewMode = intSetting("versionViewMode", 0, 0..2)
+
+    /**
+     * 启动器主屏幕布局模式：Default（简洁，默认）/ Advanced（完整）
+     */
+    val mainScreenMode = enumSetting("mainScreenMode", MainScreenMode.Default)
+    /**
      * 启动器上次检查更新时，用户选择忽略的版本号
      */
     val lastIgnoredVersion = intSetting("lastIgnoredVersion", null)
@@ -495,11 +529,59 @@ object AllSettings : SettingsRegistry() {
      */
     val classicVersionPicker = boolSetting("classicVersionPicker", true)
 
+    /**
+     * 自动选择下载内容（主开关）
+     * 开启时，搜索下载内容时若只有一个已安装版本则自动预选游戏版本
+     */
+    val autoSelectDownloadContent = boolSetting("autoSelectDownloadContent", true)
+    /** 自动选择 — 整合包 */
+    val autoSelectModpacks = boolSetting("autoSelectModpacks", true)
+    /** 自动选择 — 模组 */
+    val autoSelectMods = boolSetting("autoSelectMods", true)
+    /** 自动选择 — 资源包 */
+    val autoSelectResourcePacks = boolSetting("autoSelectResourcePacks", true)
+    /** 自动选择 — 光影 */
+    val autoSelectShaderPacks = boolSetting("autoSelectShaderPacks", true)
+    /** 自动选择 — 存档 */
+    val autoSelectSaves = boolSetting("autoSelectSaves", true)
+    /**
+     * Migration flag: true once the auto-select sub-settings have been reset to their defaults
+     * after the feature was repurposed from auto-scrolling to game-version auto-selection.
+     */
+    val autoSelectGameVersionMigrationDone = boolSetting("autoSelectGameVersionMigrationDone", false)
+
+    /**
+     * 主屏幕账号卡片：是否显示账号类型文字（默认关闭）
+     */
+    val showAccountType = boolSetting("showAccountType", false)
+
+    /**
+     * 主屏幕账号卡片：账号类型文字显示模式
+     */
+    val accountTypeDisplayMode = enumSetting("accountTypeDisplayMode", AccountTypeDisplayMode.HideAfterTimeout)
+
     //Control
     /**
      * 全局默认控制布局文件名
      */
     val controlLayout = stringSetting("controlLayout", "")
+    val legacyControlLayout = stringSetting("legacyControlLayout", "")
+    /**
+     * Active control type: "zalith2" or "legacy"
+     */
+    val controlType = stringSetting("controlType", "zalith2")
+
+    /** Legacy (ZL1 backport) button snapping — snap control buttons to a grid when editing */
+    val buttonSnapping = boolSetting("buttonSnapping", false)
+
+    /** Legacy (ZL1 backport) button snapping distance in dp */
+    val buttonSnappingDistance = intSetting("buttonSnappingDistance", 8, 1..64)
+
+    /** Legacy (ZL1 backport) global button scale percentage (25–200 %) */
+    val buttonScale = intSetting("buttonscale", 100, 25..200)
+
+    /** Legacy (ZL1 backport) whether button labels are shown in all-caps */
+    val buttonAllCaps = boolSetting("buttonAllCaps", false)
 
     //Other
     /**
@@ -514,8 +596,9 @@ object AllSettings : SettingsRegistry() {
 
     /**
      * 启动器任务菜单是否展开
+     * Default is false so the Task Menu starts collapsed when a task is first minimized.
      */
-    val launcherTaskMenuExpanded = boolSetting("launcherTaskMenuExpanded", true)
+    val launcherTaskMenuExpanded = boolSetting("launcherTaskMenuExpanded", false)
 
     /**
      * 在游戏菜单悬浮窗上显示帧率
@@ -526,6 +609,11 @@ object AllSettings : SettingsRegistry() {
      * 在游戏菜单悬浮窗上显示内存
      */
     val showMemory = boolSetting("showMemory", false)
+
+    /**
+     * 内存显示模式：显示已分配JVM内存 (Allocated) 还是系统总内存 (System)
+     */
+    val memoryDisplayMode = enumSetting("memoryDisplayMode", com.movtery.zalithlauncher.setting.enums.MemoryDisplayMode.System)
 
     /**
      * 在游戏画面上展示菜单悬浮窗
@@ -623,6 +711,13 @@ object AllSettings : SettingsRegistry() {
     val disclaimerAccepted = boolSetting("disclaimerAccepted", false)
 
     /**
+     * 是否已完成首次启动的主屏幕模式选择
+     * false = 尚未选择（首次启动显示引导弹窗）
+     * true  = 已选择，不再显示
+     */
+    val mainScreenModeSelected = boolSetting("mainScreenModeSelected", false)
+
+    /**
      * 玩家结束运行游戏的次数
      */
     val finishedGame = intSetting("finishedGame", 0)
@@ -667,6 +762,40 @@ object AllSettings : SettingsRegistry() {
      */
     val searchShadersPlatform = enumSetting("searchShadersPlatform", Platform.CURSEFORGE)
 
+    // ------- 下载页过滤器持久化 (Issue #22) -------
+
+    /** 搜索模组：排序方式 */
+    val searchModSortField = enumSetting("searchModSortField", PlatformSortField.RELEVANCE)
+    /** 搜索模组：游戏版本（空字符串代表不筛选） */
+    val searchModGameVersion = stringSetting("searchModGameVersion", "")
+    /** 搜索模组：已选分类（序列化为字符串列表） */
+    val searchModCategories = stringListSetting("searchModCategories", emptyList())
+    /** 搜索模组：模组加载器（空字符串代表不筛选） */
+    val searchModModLoader = stringSetting("searchModModLoader", "")
+
+    /** 搜索整合包：排序方式 */
+    val searchModpackSortField = enumSetting("searchModpackSortField", PlatformSortField.RELEVANCE)
+    /** 搜索整合包：游戏版本（空字符串代表不筛选） */
+    val searchModpackGameVersion = stringSetting("searchModpackGameVersion", "")
+    /** 搜索整合包：已选分类（序列化为字符串列表） */
+    val searchModpackCategories = stringListSetting("searchModpackCategories", emptyList())
+    /** 搜索整合包：模组加载器（空字符串代表不筛选） */
+    val searchModpackModLoader = stringSetting("searchModpackModLoader", "")
+
+    /** 搜索资源包：排序方式 */
+    val searchResourcePackSortField = enumSetting("searchResourcePackSortField", PlatformSortField.RELEVANCE)
+    /** 搜索资源包：游戏版本（空字符串代表不筛选） */
+    val searchResourcePackGameVersion = stringSetting("searchResourcePackGameVersion", "")
+    /** 搜索资源包：已选分类（序列化为字符串列表） */
+    val searchResourcePackCategories = stringListSetting("searchResourcePackCategories", emptyList())
+
+    /** 搜索光影：排序方式 */
+    val searchShadersSortField = enumSetting("searchShadersSortField", PlatformSortField.RELEVANCE)
+    /** 搜索光影：游戏版本（空字符串代表不筛选） */
+    val searchShadersGameVersion = stringSetting("searchShadersGameVersion", "")
+    /** 搜索光影：已选分类（序列化为字符串列表） */
+    val searchShadersCategories = stringListSetting("searchShadersCategories", emptyList())
+
     /**
      * 搜索模组时保存的过滤器状态（JSON）
      */
@@ -693,13 +822,22 @@ object AllSettings : SettingsRegistry() {
     val searchSavesFilter = stringSetting("searchSavesFilter", "")
 
     /**
-     * 在下载页面显示快照版本（snapshot/old/aprilfools等）
-     */
-    val showSnapshotVersions = boolSetting("showSnapshotVersions", false)
-
-    /**
      * 启动 MC26.2+ 时，自动检查 Vulkan
      */
     val autoVulkanChecker = boolSetting("autoVulkanChecker", true)
 
+    //FSR
+    val fsrEnabled = boolSetting("fsrEnabled", false)
+    val fsrQuality = intSetting("fsrQuality", 2, 1..4) // 1=UltraQuality, 2=Quality, 3=Balanced, 4=Performance
+
+    // ZL1 Legacy Backport setting (named to avoid JVM signature clash with getDisableGestures)
+    val zl1DisableGestures = boolSetting("zl1_disableGestures", false)
+
+    // ZL1 Legacy Backport @JvmStatic accessors — callable as AllSettings.xxx() from Java
+    @JvmStatic fun getGyroSmoothing() = gyroscopeSmoothing
+    @JvmStatic fun getGyroSampleRate() = gyroscopeSampleRate
+    @JvmStatic fun getMouseScale() = mouseSize
+    @JvmStatic fun getMouseSpeed() = mouseCaptureSensitivity
+    @JvmStatic fun getDisableGestures() = zl1DisableGestures
+    @JvmStatic fun getDeadZoneScale() = gamepadDeadZoneScale
 }

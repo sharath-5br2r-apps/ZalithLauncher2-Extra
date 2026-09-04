@@ -20,4 +20,7 @@ package com.movtery.zalithlauncher.game.version.shader_pack
 
 import com.tencent.mmkv.MMKV
 
+/**
+ * 光影包项目缓存 MMKV，文件 HASH 值对应项目
+ */
 fun shaderProjectCache(): MMKV = MMKV.mmkvWithID("ShaderProjectHashMapper", MMKV.MULTI_PROCESS_MODE)

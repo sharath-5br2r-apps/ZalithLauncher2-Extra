@@ -46,7 +46,17 @@ fun SendKeycodeOperation(
                 onDismissRequest = {
                     onChange(SendKeycodeState.None)
                 },
+                onTap = { keyString ->
+                    // Normal tap: instant Key Down followed by Key Up — identical to a
+                    // real keyboard press. The key is never left held.
+                    lifecycleScope.launch {
+                        lwjglEvent(keyString, isMouse = false, isPressed = true)
+                        lwjglEvent(keyString, isMouse = false, isPressed = false)
+                    }
+                },
                 onSwitch = { keyString, pressed ->
+                    // Long press: toggle held state. Track in pressedEvents so the
+                    // DisposableEffect can release all held keys on keyboard close.
                     lifecycleScope.launch {
                         if (pressed) pressedEvents.add(keyString)
                         else pressedEvents.remove(keyString)

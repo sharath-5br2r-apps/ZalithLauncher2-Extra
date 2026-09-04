@@ -43,7 +43,12 @@ fun MutableList<TitledTask>.addTask(
         TitledTask(
             title = title,
             runningIcon = icon,
-            task = Task.runTask(id = id, dispatcher = dispatcher, task = action)
+            task = Task.runTask(
+                id = id,
+                runningIcon = icon,
+                dispatcher = dispatcher,
+                task = action
+            )
         )
     )
 }

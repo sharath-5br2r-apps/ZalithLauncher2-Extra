@@ -32,6 +32,12 @@ jmethodID method_SystemClipboardDataReceived = NULL;
 jfieldID field_x;
 jfieldID field_y;
 
+// JVM heap monitoring — used by getJvmHeapMemory() to mirror Minecraft's F3 debug screen
+static jclass    class_Runtime      = NULL;
+static jobject   runtimeInstance    = NULL;
+static jmethodID method_TotalMemory = NULL;
+static jmethodID method_FreeMemory  = NULL;
+
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     if (dalvikJavaVMPtr == NULL) {
         //Save dalvik global JavaVM pointer
@@ -45,6 +51,31 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         method_PutClipboardData = (*env)->GetStaticMethodID(env, class_ZLInvoker, "putClipboardData", "(Ljava/lang/String;Ljava/lang/String;)V");
     } else if (dalvikJavaVMPtr != vm) {
         runtimeJavaVMPtr = vm;
+        // Cache java.lang.Runtime while we have the JVM JNIEnv so that
+        // getJvmHeapMemory() can query the same values Minecraft's F3 reads.
+        JNIEnv* jvmEnv = NULL;
+        (*vm)->GetEnv(vm, (void**)&jvmEnv, JNI_VERSION_1_4);
+        if (jvmEnv != NULL && class_Runtime == NULL) {
+            jclass localRuntime = (*jvmEnv)->FindClass(jvmEnv, "java/lang/Runtime");
+            if (localRuntime != NULL) {
+                class_Runtime = (*jvmEnv)->NewGlobalRef(jvmEnv, localRuntime);
+                (*jvmEnv)->DeleteLocalRef(jvmEnv, localRuntime);
+                jmethodID getRuntime = (*jvmEnv)->GetStaticMethodID(jvmEnv, class_Runtime,
+                        "getRuntime", "()Ljava/lang/Runtime;");
+                if (getRuntime != NULL) {
+                    jobject localInstance = (*jvmEnv)->CallStaticObjectMethod(jvmEnv,
+                            class_Runtime, getRuntime);
+                    if (localInstance != NULL) {
+                        runtimeInstance = (*jvmEnv)->NewGlobalRef(jvmEnv, localInstance);
+                        (*jvmEnv)->DeleteLocalRef(jvmEnv, localInstance);
+                    }
+                }
+                method_TotalMemory = (*jvmEnv)->GetMethodID(jvmEnv, class_Runtime,
+                        "totalMemory", "()J");
+                method_FreeMemory  = (*jvmEnv)->GetMethodID(jvmEnv, class_Runtime,
+                        "freeMemory",  "()J");
+            }
+        }
     }
 
     return JNI_VERSION_1_4;
@@ -236,4 +267,34 @@ Java_com_movtery_zalithlauncher_bridge_ZLBridge_moveWindow(JNIEnv *env, jclass c
     }
     (*runtimeJNIEnvPtr_INPUT)->DeleteLocalRef(runtimeJNIEnvPtr_INPUT, rectangle);
     (*runtimeJNIEnvPtr_INPUT)->DeleteLocalRef(runtimeJNIEnvPtr_INPUT, frames);
+}
+
+// Returns Minecraft JVM heap memory packed as (totalMB << 32) | usedMB.
+// Matches Minecraft's F3 debug screen exactly:
+//   total = Runtime.getRuntime().totalMemory()   (currently committed JVM heap)
+//   used  = total - Runtime.getRuntime().freeMemory()
+// Returns -1 when the JVM has not yet started or initialisation failed.
+JNIEXPORT jlong JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_getJvmHeapMemory(
+        JNIEnv* env, jclass clazz) {
+    if (runtimeJavaVMPtr == NULL || runtimeInstance == NULL ||
+            method_TotalMemory == NULL || method_FreeMemory == NULL) {
+        return -1LL;
+    }
+    JNIEnv* jvmEnv = NULL;
+    jboolean needDetach = JNI_FALSE;
+    jint rc = (*runtimeJavaVMPtr)->GetEnv(runtimeJavaVMPtr, (void**)&jvmEnv, JNI_VERSION_1_4);
+    if (rc == JNI_EDETACHED) {
+        (*runtimeJavaVMPtr)->AttachCurrentThread(runtimeJavaVMPtr, &jvmEnv, NULL);
+        needDetach = JNI_TRUE;
+    } else if (rc != JNI_OK || jvmEnv == NULL) {
+        return -1LL;
+    }
+    jlong total = (*jvmEnv)->CallLongMethod(jvmEnv, runtimeInstance, method_TotalMemory);
+    jlong used  = total - (*jvmEnv)->CallLongMethod(jvmEnv, runtimeInstance, method_FreeMemory);
+    if (needDetach) {
+        (*runtimeJavaVMPtr)->DetachCurrentThread(runtimeJavaVMPtr);
+    }
+    jlong totalMB = total / (1024LL * 1024LL);
+    jlong usedMB  = used  / (1024LL * 1024LL);
+    return (totalMB << 32) | (usedMB & 0xFFFFFFFFL);
 }

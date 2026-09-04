@@ -56,6 +56,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -76,15 +78,24 @@ import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
+import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.coroutine.TaskSystem
+import com.movtery.zalithlauncher.coroutine.InstallerRestoreRegistry
+import com.movtery.zalithlauncher.coroutine.TitledTask
+import androidx.compose.ui.text.style.TextOverflow
+import com.movtery.zalithlauncher.ui.screens.content.elements.TitleTaskFlowDialog
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.enums.MainScreenMode
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
+import com.movtery.zalithlauncher.ui.components.RadioCard
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.screens.BackStackNavKey
@@ -98,6 +109,7 @@ import com.movtery.zalithlauncher.ui.screens.content.FileEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileSelectorScreen
 import com.movtery.zalithlauncher.ui.screens.content.HomePageEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
+import com.movtery.zalithlauncher.ui.screens.content.elements.AboutDialog
 import com.movtery.zalithlauncher.ui.screens.content.LicenseScreen
 import com.movtery.zalithlauncher.ui.screens.content.GameStatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.CapeGalleryScreen
@@ -139,18 +151,19 @@ fun MainScreen(
 ) {
     val tasks by TaskSystem.tasksFlow.collectAsStateWithLifecycle()
 
-    //监控当前是否有任务正在进行
+    //çæ§å½åæ¯å¦æä»»å¡æ­£å¨è¿è¡
     LaunchedEffect(tasks) {
         if (tasks.isEmpty()) {
             eventViewModel.sendKeepScreen(false)
         } else {
-            //有任务正在进行，避免熄屏
+            //æä»»å¡æ­£å¨è¿è¡ï¼é¿åçå±
             eventViewModel.sendKeepScreen(true)
         }
     }
 
     val isTaskMenuExpanded = AllSettings.launcherTaskMenuExpanded.state
     val showDisclaimer = AllSettings.disclaimerAccepted.state
+    val mainScreenModeSelected = AllSettings.mainScreenModeSelected.state
     val context = androidx.compose.ui.platform.LocalContext.current
 
     if (!showDisclaimer) {
@@ -167,19 +180,124 @@ fun MainScreen(
                 context.startActivity(intent)
             }
         )
+    } else if (!mainScreenModeSelected) {
+        // First-launch only: ask the user which main screen layout they prefer.
+        // Non-dismissable — the user must tap a card and confirm.
+        var selectedMode by remember { mutableStateOf(MainScreenMode.Default) }
+
+        AlertDialog(
+            onDismissRequest = { /* non-dismissable — user must make a choice */ },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_setting_launcher),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(text = stringResource(R.string.onboarding_main_screen_mode_title))
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    // Default option card
+                    RadioCard(
+                        selected = selectedMode == MainScreenMode.Default,
+                        onClick = { selectedMode = MainScreenMode.Default },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_home_filled),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_launcher_main_screen_mode_default),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.onboarding_main_screen_mode_default_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Advanced option card
+                    RadioCard(
+                        selected = selectedMode == MainScreenMode.Advanced,
+                        onClick = { selectedMode = MainScreenMode.Advanced },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_dashboard_filled),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_launcher_main_screen_mode_advanced),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.onboarding_main_screen_mode_advanced_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Hint: can be changed later in Settings
+                    Text(
+                        text = stringResource(R.string.onboarding_main_screen_mode_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        AllSettings.mainScreenMode.save(selectedMode)
+                        AllSettings.mainScreenModeSelected.save(true)
+                    }
+                ) {
+                    Text(stringResource(R.string.generic_confirm))
+                }
+            }
+        )
     }
 
     fun changeTasksExpandedState() {
         AllSettings.launcherTaskMenuExpanded.save(!isTaskMenuExpanded)
     }
 
-    /** 回到主页面通用函数 */
+    /** åå°ä¸»é¡µé¢éç¨å½æ° */
     val toMainScreen: () -> Unit = {
         screenBackStackModel.mainScreen.clearWith(NormalNavKey.LauncherMain)
     }
 
     val mainScreenKey = screenBackStackModel.mainScreen.currentKey
     val inLauncherScreen = mainScreenKey == null || mainScreenKey is NormalNavKey.LauncherMain
+    val launcherRightPanelCollapsed by screenBackStackModel.launcherRightPanelCollapsed.collectAsStateWithLifecycle()
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     val isBackgroundValid = LocalBackgroundViewModel.current?.isValid == true
     val launcherBackgroundOpacity = AllSettings.launcherBackgroundOpacity.state.toFloat() / 100f
@@ -203,7 +321,7 @@ fun MainScreen(
                     .height(40.dp),
                 mainScreenKey = mainScreenKey,
                 inLauncherScreen = inLauncherScreen,
-                taskRunning = tasks.isEmpty(),
+                tasksCount = tasks.size,
                 isTasksExpanded = isTaskMenuExpanded,
                 contentColor = onBackgroundColor(),
                 onScreenBack = {
@@ -225,6 +343,12 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
+                toFileManagerScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.BuiltInFileManager()
+                    )
+                },
                 toRecordingsScreen = {
                     screenBackStackModel.mainScreen.removeAndNavigateTo(
                         removes = screenBackStackModel.clearBeforeNavKeys,
@@ -241,7 +365,13 @@ fun MainScreen(
                 changeExpandedState = {
                     changeTasksExpandedState()
                 },
+                onTitleClick = { showAboutDialog = true },
+                launcherRightPanelCollapsed = launcherRightPanelCollapsed,
             )
+
+            if (showAboutDialog) {
+                AboutDialog(onDismissRequest = { showAboutDialog = false })
+            }
 
             Box(
                 modifier = Modifier
@@ -277,7 +407,8 @@ fun MainScreen(
 private fun <E: TitledNavKey> TopBar(
     mainScreenKey: E?,
     inLauncherScreen: Boolean,
-    taskRunning: Boolean,
+    launcherRightPanelCollapsed: Boolean = false,
+    tasksCount: Int,
     isTasksExpanded: Boolean,
     modifier: Modifier = Modifier,
     contentColor: Color,
@@ -289,6 +420,7 @@ private fun <E: TitledNavKey> TopBar(
     toRecordingsScreen: () -> Unit,
     openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
+    onTitleClick: () -> Unit = {},
 ) {
     val festivals = LocalFestivals.current
 
@@ -302,6 +434,8 @@ private fun <E: TitledNavKey> TopBar(
     ) {
         ConstraintLayout(modifier = modifier) {
             val (backCenter, title, endButtons) = createRefs()
+            val rightPanelGuidelineOffset = if (inLauncherScreen && !launcherRightPanelCollapsed) 290.dp else 0.dp
+            val contentEnd = createGuidelineFromEnd(rightPanelGuidelineOffset)
 
             val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
@@ -324,7 +458,7 @@ private fun <E: TitledNavKey> TopBar(
                             modifier = Modifier.fillMaxHeight(),
                             onClick = {
                                 if (!inLauncherScreen) {
-                                    //不在主屏幕时才允许返回
+                                    //ä¸å¨ä¸»å±å¹æ¶æåè®¸è¿å
                                     backDispatcher?.onBackPressed() ?: run {
                                         onScreenBack()
                                     }
@@ -342,7 +476,7 @@ private fun <E: TitledNavKey> TopBar(
                             modifier = Modifier.fillMaxHeight(),
                             onClick = {
                                 if (!inLauncherScreen) {
-                                    //不在主屏幕时才允许回到主页面
+                                    //ä¸å¨ä¸»å±å¹æ¶æåè®¸åå°ä¸»é¡µé¢
                                     toMainScreen()
                                 }
                             }
@@ -361,7 +495,12 @@ private fun <E: TitledNavKey> TopBar(
             Crossfade(
                 modifier = Modifier.constrainAs(title) {
                     centerVerticallyTo(parent)
-                    start.linkTo(backCenter.end, margin = 16.dp)
+                    if (inLauncherScreen) {
+                        start.linkTo(parent.start)
+                        end.linkTo(contentEnd)
+                    } else {
+                        start.linkTo(backCenter.end, margin = 16.dp)
+                    }
                 },
                 targetState = parentRes to childRes
             ) { (parent, child) ->
@@ -371,6 +510,7 @@ private fun <E: TitledNavKey> TopBar(
 
                 if (parent == null) {
                     Column(
+                        modifier = Modifier.clickable { onTitleClick() },
                         verticalArrangement = Arrangement.Center
                     ) {
                         if (festivals.isEmpty()) {
@@ -387,13 +527,6 @@ private fun <E: TitledNavKey> TopBar(
                                 maxLines = maxLines
                             )
                         }
-                        Text(
-                            modifier = Modifier.alpha(0.6f),
-                            text = stringResource(R.string.launcher_fork_subtitle),
-                            style = MaterialTheme.typography.labelSmall,
-                            softWrap = softWarp,
-                            maxLines = 1
-                        )
                     }
                 } else {
                     val titleText = if (child != null) {
@@ -422,7 +555,7 @@ private fun <E: TitledNavKey> TopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AnimatedVisibility(
-                    visible = !(isTasksExpanded || taskRunning),
+                    visible = !(isTasksExpanded || tasksCount == 0),
                     enter = slideInVertically(
                         initialOffsetY = { -50 }
                     ) + fadeIn(),
@@ -440,6 +573,12 @@ private fun <E: TitledNavKey> TopBar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LinearProgressIndicator(modifier = Modifier.weight(1f))
+                        if (tasksCount > 1) {
+                            Text(
+                                text = "$tasksCount",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                         Icon(
                             modifier = Modifier.size(22.dp),
                             painter = painterResource(R.drawable.ic_assignment_filled),
@@ -549,7 +688,7 @@ private fun NavigationUI(
     }
 
     if (backStack.isNotEmpty()) {
-        /** 导航至版本详细信息屏幕 */
+        /** å¯¼èªè³çæ¬è¯¦ç»ä¿¡æ¯å±å¹ */
         val navigateToVersions: (Version) -> Unit = remember(screenBackStackModel) {
             { version ->
                 screenBackStackModel.mainScreen.navigateTo(
@@ -558,7 +697,7 @@ private fun NavigationUI(
                 )
             }
         }
-        /** 导航至整合包导出屏幕 */
+        /** å¯¼èªè³æ´ååå¯¼åºå±å¹ */
         val navigateToExport: (Version) -> Unit = remember(screenBackStackModel) {
             { version ->
                 screenBackStackModel.mainScreen.removeAndNavigateTo(
@@ -647,7 +786,12 @@ private fun NavigationUI(
                         navigateToVersions = navigateToVersions,
                         navigateToExport = navigateToExport,
                         eventViewModel = eventViewModel,
-                        submitError = submitError
+                        submitError = submitError,
+                        onLaunchGame = { version ->
+                            eventViewModel.sendEvent(
+                                EventViewModel.Event.Launch.Game(version)
+                            )
+                        }
                     )
                 }
                 entry<NormalNavKey.FileSelector> { key ->
@@ -777,6 +921,29 @@ private fun TaskMenu(
     modifier: Modifier = Modifier,
     changeExpandedState: () -> Unit = {}
 ) {
+    var restoredEntry by remember { mutableStateOf<InstallerRestoreRegistry.RestorableInstaller?>(null) }
+
+    // Restore dialog: shown when user taps a minimized installer task
+    restoredEntry?.let { entry ->
+        val restoredTasks = entry.tasksFlow.collectAsStateWithLifecycle()
+        if (restoredTasks.value.isNotEmpty()) {
+            TitleTaskFlowDialog(
+                title = entry.title,
+                tasks = restoredTasks.value,
+                onCancel = {
+                    entry.onCancel()
+                    restoredEntry = null
+                },
+                onMinimize = {
+                    // Re-minimize: just dismiss the restored overlay
+                    restoredEntry = null
+                }
+            )
+        } else {
+            // Tasks finished while dialog was open — dismiss cleanly
+            restoredEntry = null
+        }
+    }
     val show = isExpanded && tasks.isNotEmpty()
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -843,19 +1010,16 @@ private fun TaskMenu(
                         key = { it.id },
                         contentType = { "task" }
                     ) { task ->
-                        val taskProgress by task.progress.collectAsStateWithLifecycle()
-                        val taskMessage by task.message.collectAsStateWithLifecycle()
-                        val rateBytesPerSec by task.rateBytesPerSec.collectAsStateWithLifecycle()
-
+                        val canRestore = InstallerRestoreRegistry.hasEntry(task.id)
                         TaskItem(
-                            taskProgress = taskProgress,
-                            taskMessage = taskMessage,
-                            rateBytesPerSec = rateBytesPerSec,
+                            task = task,
+                            onTaskClick = if (canRestore) {
+                                { restoredEntry = InstallerRestoreRegistry.getEntry(task.id) }
+                            } else null,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
                         ) {
-                            //取消任务
                             TaskSystem.cancelTask(task.id)
                         }
                     }
@@ -867,15 +1031,25 @@ private fun TaskMenu(
 
 @Composable
 private fun TaskItem(
-    taskProgress: Float,
-    taskMessage: AndroidStringText?,
-    rateBytesPerSec: Long?,
+    task: Task,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.large,
     color: Color = cardColor(false),
     contentColor: Color = onCardColor(),
+    onTaskClick: (() -> Unit)? = null,
     onCancelClick: () -> Unit = {}
 ) {
+    val taskStage by task.stage.collectAsStateWithLifecycle()
+    val taskMessage by task.message.collectAsStateWithLifecycle()
+    val taskProgress by task.progress.collectAsStateWithLifecycle()
+    val rateBytesPerSec by task.rateBytesPerSec.collectAsStateWithLifecycle()
+
+    val stateIcon = when (taskStage) {
+        TaskStage.PREPARING -> R.drawable.ic_schedule_outlined
+        TaskStage.RUNNING   -> task.runningIcon ?: R.drawable.ic_download
+        TaskStage.COMPLETED -> R.drawable.ic_check
+    }
+
     Surface(
         modifier = modifier,
         shape = shape,
@@ -883,61 +1057,108 @@ private fun TaskItem(
         contentColor = contentColor,
     ) {
         Row(
-            modifier = Modifier.padding(all = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            IconButton(
+            // Task-state icon
+            Icon(
                 modifier = Modifier
-                    .size(24.dp)
-                    .align(Alignment.CenterVertically),
-                onClick = onCancelClick
-            ) {
-                Icon(
-                    modifier = Modifier.size(20.dp),
-                    painter = painterResource(R.drawable.ic_close),
-                    contentDescription = stringResource(R.string.generic_cancel)
-                )
-            }
+                    .padding(top = 2.dp)
+                    .size(18.dp),
+                painter = painterResource(stateIcon),
+                contentDescription = null
+            )
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .align(Alignment.CenterVertically)
-            ) {
+            // Main content
+            Column(modifier = Modifier.weight(1f)) {
+
+                // Title row with action buttons
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    task.title?.let { title ->
+                        Text(
+                            modifier = Modifier.weight(1f),
+                            text = title,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } ?: Spacer(modifier = Modifier.weight(1f))
+
+                    if (onTaskClick != null) {
+                        IconButton(
+                            modifier = Modifier.size(22.dp),
+                            onClick = onTaskClick
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(18.dp),
+                                painter = painterResource(R.drawable.ic_arrow_drop_up_rounded),
+                                contentDescription = stringResource(R.string.generic_expand)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        modifier = Modifier.size(22.dp),
+                        onClick = onCancelClick
+                    ) {
+                        Icon(
+                            modifier = Modifier.size(18.dp),
+                            painter = painterResource(R.drawable.ic_close),
+                            contentDescription = stringResource(R.string.generic_cancel)
+                        )
+                    }
+                }
+
+                // Status message
                 taskMessage?.let { message ->
                     AndroidStringText(
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .alpha(0.75f),
                         text = message,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                if (taskProgress < 0) { //负数则代表不确定
+                // Progress bar
+                if (taskProgress < 0) {
                     LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
                     )
                 } else {
                     LinearProgressIndicator(
                         progress = { taskProgress },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
                     )
                 }
 
+                // Percentage + download speed
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    taskProgress.takeIf { it >= 0f }?.let { progress ->
+                    taskProgress.takeIf { it >= 0f }?.let {
                         Text(
-                            text = "${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelMedium
+                            text = "${(it * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                     rateBytesPerSec?.let { bytes ->
                         val text = remember(bytes) { "${formatFileSize(bytes)}/s" }
                         Text(
                             text = text,
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }

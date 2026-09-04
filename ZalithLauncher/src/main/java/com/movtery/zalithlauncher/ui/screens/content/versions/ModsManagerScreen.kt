@@ -25,7 +25,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
@@ -99,6 +98,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
@@ -111,6 +111,7 @@ import com.movtery.zalithlauncher.game.version.mod.LocalMod
 import com.movtery.zalithlauncher.game.version.mod.RemoteMod
 import com.movtery.zalithlauncher.game.version.mod.isDisabled
 import com.movtery.zalithlauncher.game.version.mod.isEnabled
+import com.movtery.zalithlauncher.game.version.profile.VersionProfileManager
 import com.movtery.zalithlauncher.game.version.mod.update.ModManifest
 import com.movtery.zalithlauncher.game.version.mod.update.ModUpdater
 import com.movtery.zalithlauncher.game.version.mod.update.SelectableModManifest
@@ -152,6 +153,7 @@ import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.file.FolderFileCounter
 import com.movtery.zalithlauncher.utils.file.formatFileSize
+import com.movtery.zalithlauncher.utils.network.isNetworkAvailable
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
@@ -177,6 +179,7 @@ import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
 
 private class ModsManageViewModel(
+    private val version: Version,
     modsDir: File
 ) : ViewModel() {
     val modReader = AllModReader(modsDir)
@@ -342,6 +345,10 @@ private class ModsManageViewModel(
                     -value
                 }
             }
+            ?.let { sorted ->
+                val (enabled, disabled) = sorted.partition { it.localMod.file.isEnabled() }
+                enabled + disabled
+            }
         checkCanUpdate()
     }
 
@@ -369,9 +376,11 @@ private class ModsManageViewModel(
     fun enableSelectedMods() {
         doInScope {
             withContext(Dispatchers.IO) {
-                selectedMods.forEach { mod ->
-                    if (mod.localMod.file.isDisabled()) mod.localMod.enable()
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedMods.map { it.localMod.file },
+                    enabled = true
+                )
             }
             withContext(Dispatchers.Main) {
                 refreshCounter()
@@ -384,9 +393,11 @@ private class ModsManageViewModel(
     fun disableSelectedMods() {
         doInScope {
             withContext(Dispatchers.IO) {
-                selectedMods.forEach { mod ->
-                    if (mod.localMod.file.isEnabled()) mod.localMod.disable()
-                }
+                VersionProfileManager.setFilesEnabled(
+                    version = version,
+                    files = selectedMods.map { it.localMod.file },
+                    enabled = false
+                )
             }
             withContext(Dispatchers.Main) {
                 refreshCounter()
@@ -573,7 +584,7 @@ private fun rememberModsManageViewModel(
     return viewModel(
         key = version.toString() + "_" + VersionFolders.MOD.folderName
     ) {
-        ModsManageViewModel(modsDir)
+        ModsManageViewModel(version, modsDir)
     }
 }
 
@@ -624,11 +635,17 @@ fun ModsManagerScreen(
     ) { isVisible ->
         val viewModel = rememberModsManageViewModel(version, modsDir)
         val updaterViewModel = rememberModsUpdaterViewModel(version, modsDir)
+        val profileChange by VersionProfileManager.profileChanges.collectAsStateWithLifecycle()
 
         //页面创建时，检查一次模组数量，如果不同，则说明有增删
         //可自动刷新一次模组列表
         LaunchedEffect(Unit) {
             viewModel.checkCountAndRefresh(context)
+        }
+        LaunchedEffect(profileChange, version) {
+            if (profileChange?.versionPath == version.getVersionPath().absolutePath) {
+                viewModel.refresh(context)
+            }
         }
 
         DeleteAllOperation(
@@ -805,7 +822,11 @@ fun ModsManagerScreen(
                                 //启用和禁用模组应该避免刷新所有模组，否则将会极度影响体验
                                 viewModel.doInScope {
                                     withContext(Dispatchers.IO) {
-                                        mod.localMod.enable()
+                                         VersionProfileManager.setFilesEnabled(
+                                             version = version,
+                                             files = listOf(mod.localMod.file),
+                                             enabled = true
+                                         )
                                     }
                                     withContext(Dispatchers.Main) {
                                         viewModel.refreshCounter()
@@ -815,7 +836,11 @@ fun ModsManagerScreen(
                             onDisable = { mod ->
                                 viewModel.doInScope {
                                     withContext(Dispatchers.IO) {
-                                        mod.localMod.disable()
+                                         VersionProfileManager.setFilesEnabled(
+                                             version = version,
+                                             files = listOf(mod.localMod.file),
+                                             enabled = false
+                                         )
                                     }
                                     withContext(Dispatchers.Main) {
                                         viewModel.refreshCounter()
@@ -865,15 +890,15 @@ private fun ModsActionsHeader(
     canUpdate: Boolean,
     onSelectAll: () -> Unit,
     onClearModsSelected: () -> Unit,
-    onEnableAll: () -> Unit = {},
-    onDisableAll: () -> Unit = {},
-    onUpdateAllMods: () -> Unit = {},
-    canUpdateAll: Boolean = false,
     swapToDownload: () -> Unit,
     refresh: () -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit = {},
     inputFieldColor: Color = itemColor(),
-    inputFieldContentColor: Color = onItemColor()
+    inputFieldContentColor: Color = onItemColor(),
+    onEnableAll: () -> Unit = {},
+    onDisableAll: () -> Unit = {},
+    onUpdateAllMods: () -> Unit = {},
+    canUpdateAll: Boolean = false
 ) {
     CardTitleLayout(modifier = modifier) {
         BoxWithConstraints(
@@ -1066,17 +1091,6 @@ private fun ModsActionsHeader(
                         .horizontalScroll(scrollState),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (canUpdateAll && hasModLoader) {
-                        IconButton(
-                            onClick = onUpdateAllMods
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_autorenew),
-                                contentDescription = stringResource(R.string.mods_update_all)
-                            )
-                        }
-                    }
-
                     val taskBuilder = rememberMultipleUriImportTaskBuilder(
                         id = "ContentManager.Mods.Import",
                         targetDir = modsDir,
@@ -1098,6 +1112,17 @@ private fun ModsActionsHeader(
                         painter = painterResource(R.drawable.ic_download_2_filled),
                         text = stringResource(R.string.generic_download)
                     )
+
+                    if (canUpdateAll && hasModLoader) {
+                        IconButton(
+                            onClick = onUpdateAllMods
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_autorenew),
+                                contentDescription = stringResource(R.string.mods_update_all)
+                            )
+                        }
+                    }
 
                     IconButton(
                         onClick = refresh
@@ -1430,6 +1455,9 @@ private fun ModIcon(
     iconSize: Dp,
     disableContainerSize: Dp = 28.dp
 ) {
+    val context = LocalContext.current
+    val isOnline = remember { isNetworkAvailable(context) }
+
     DisabledStateIcon(
         modifier = modifier,
         isDisabled = mod.localMod.file.isDisabled(),
@@ -1437,20 +1465,41 @@ private fun ModIcon(
     ) { colorFilter ->
         val projectInfo = mod.projectInfo
         val localIcon = mod.localMod.icon
-        if (localIcon != null) {
+
+        if (isOnline && projectInfo != null) {
+            // 联网时：优先展示网络图标（更新且加载更快），失败时回退至本地 JAR 图标
+            AssetsIcon(
+                iconUrl = projectInfo.iconUrl,
+                size = iconSize,
+                colorFilter = colorFilter,
+                fallbackContent = {
+                    if (localIcon != null) {
+                        ByteArrayIcon(
+                            modifier = Modifier.size(iconSize),
+                            triggerRefresh = mod,
+                            icon = localIcon,
+                            colorFilter = colorFilter,
+                        )
+                    } else {
+                        ModLoaderIcon(
+                            modifier = Modifier.size(iconSize),
+                            modloader = mod.localMod.loader,
+                            defaultIcon = R.drawable.ic_unknown_pack,
+                            colorFilter = colorFilter,
+                        )
+                    }
+                }
+            )
+        } else if (localIcon != null) {
+            // 离线或无远端信息时：从 JAR 文件中读取本地图标
             ByteArrayIcon(
                 modifier = Modifier.size(iconSize),
                 triggerRefresh = mod,
                 icon = localIcon,
                 colorFilter = colorFilter,
             )
-        } else if (projectInfo != null) {
-            AssetsIcon(
-                iconUrl = projectInfo.iconUrl,
-                size = iconSize,
-                colorFilter = colorFilter
-            )
         } else {
+            // 无本地图标时：展示模组加载器图标作为兜底
             ModLoaderIcon(
                 modifier = Modifier.size(iconSize),
                 modloader = mod.localMod.loader,

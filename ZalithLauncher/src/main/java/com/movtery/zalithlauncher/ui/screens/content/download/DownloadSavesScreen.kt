@@ -34,8 +34,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.download.assets.downloadDependenciesBatch
 import com.movtery.zalithlauncher.game.download.assets.downloadSingleForVersions
+import com.movtery.zalithlauncher.game.download.assets.downloadDependenciesBatch
+import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.version.saves.unpackSaveZip
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
@@ -46,9 +47,9 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Do
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.search.SearchSavesScreen
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -78,19 +79,26 @@ fun DownloadSavesScreen(
 
     //下载资源操作
     var operation by remember { mutableStateOf<DownloadSingleOperation>(DownloadSingleOperation.None) }
+    // 暂存当前下载操作对应的平台项目 ID（用于写入存档来源元数据）
+    var pendingProjectId by remember { mutableStateOf<String?>(null) }
     DownloadSingleOperation(
         operation = operation,
         changeOperation = { operation = it },
-        doInstall = { classes, version, versions ->
+        doInstall = { classes, version, versions, customFileName ->
+            val platform = version.platform()
+            val projectId = pendingProjectId
             downloadSingleForVersions(
                 context = context,
                 version = version,
                 versions = versions,
                 folder = classes.versionFolder.folderName,
+                customFileName = customFileName,
                 onFileCopied = { file, folder ->
                     unpackSaveZip(
                         zipFile = file,
-                        targetPath = folder
+                        targetPath = folder,
+                        platform = if (projectId != null) platform else null,
+                        projectId = projectId
                     )
                 },
                 onFileCancelled = { file, folder ->
@@ -118,15 +126,13 @@ fun DownloadSavesScreen(
                     folder = classes.versionFolder.folderName,
                     submitError = submitError,
                     onEachError = { name, error ->
-                        failedDependencies += "$name: $error"
+                        failedDependencies += "${name}: ${error}"
                     }
                 )
-                //之前这里没有把 onEachError 接到任何界面反馈上，
-                //导致依赖初始化/下载失败时用户完全无感知，看起来就像点了按钮却什么也没发生
                 if (failedDependencies.isNotEmpty()) {
                     submitError(
                         ErrorViewModel.ThrowableMessage(
-                            title = androidText(R.string.download_assets_install_failed),
+                            title = androidText(R.string.download_assets_download_all_deps),
                             message = androidText(failedDependencies.joinToString("\n"))
                         )
                     )
@@ -169,7 +175,10 @@ fun DownloadSavesScreen(
                         currentKey = downloadSavesScreenKey,
                         key = assetsKey,
                         eventViewModel = eventViewModel,
+                        autoSelect = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectSaves.getValue(),
                         onItemClicked = { classes, version, _, deps ->
+                            // 保存项目 ID，以便安装完成后写入存档来源元数据
+                            pendingProjectId = assetsKey.projectId
                             operation = if (isUsingMobileData(context)) {
                                 DownloadSingleOperation.WarningForMobileData(classes, version, deps)
                             } else {

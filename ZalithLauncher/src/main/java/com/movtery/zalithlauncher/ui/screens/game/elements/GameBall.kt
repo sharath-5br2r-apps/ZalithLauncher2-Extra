@@ -52,6 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.recorder.RecordingState
+import com.movtery.zalithlauncher.setting.enums.MemoryDisplayMode
 import com.movtery.zalithlauncher.ui.components.FloatingBall
 import com.movtery.zalithlauncher.ui.screens.content.elements.MemoryPreview
 
@@ -62,6 +63,7 @@ fun DraggableGameBall(
     onSavePos: () -> Unit,
     gameFps: Int?,
     showMemory: Boolean,
+    memoryDisplayMode: MemoryDisplayMode = MemoryDisplayMode.System,
     opened: Boolean,
     alpha: Float = 1f,
     onClick: () -> Unit = {},
@@ -71,7 +73,8 @@ fun DraggableGameBall(
     onPauseRecording: () -> Unit = {},
     onResumeRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
-    onToggleMic: () -> Unit = {}
+    onToggleMic: () -> Unit = {},
+    onTakeScreenshot: () -> Unit = {}
 ) {
     val isRecordingActive = recordingState == RecordingState.RECORDING ||
             recordingState == RecordingState.PAUSED
@@ -83,12 +86,15 @@ fun DraggableGameBall(
         position = position,
         onPositionChanged = onPositionChanged,
         onSavePos = onSavePos,
+        // Ball click always opens the Game Menu — fully accessible even while recording.
+        // Recording controls expand to the right of the ball instead of replacing it.
         onClick = onClick,
         alpha = alpha
     ) {
         GameBallContent(
             gameFps = gameFps,
             showMemory = showMemory,
+            memoryDisplayMode = memoryDisplayMode,
             opened = opened,
             isRecordingActive = isRecordingActive,
             isPaused = recordingState == RecordingState.PAUSED,
@@ -98,10 +104,24 @@ fun DraggableGameBall(
             onResumeRecording = onResumeRecording,
             onStopRecording = onStopRecording,
             onToggleMic = onToggleMic,
+            onTakeScreenshot = onTakeScreenshot,
         )
     }
 }
 
+/**
+ * Compact recording-control strip that expands to the **right** of the floating ball while a
+ * recording is active — matching the same horizontal-expansion pattern used by the FPS display
+ * and Memory display.
+ *
+ * Controls are rendered inside Compose and therefore live in the overlay layer on top of the
+ * game's SurfaceView.  Because [com.movtery.zalithlauncher.game.recorder.GameRecorder] captures
+ * frames via PixelCopy / getBitmap directly from the SurfaceView buffer, this strip is naturally
+ * absent from recorded video.
+ *
+ * The floating ball itself remains clickable and continues to open the built-in Game Menu as
+ * normal, so the user can access all in-game launcher functions without stopping the recording.
+ */
 @Composable
 private fun RecordingControlContent(
     isPaused: Boolean,
@@ -110,12 +130,14 @@ private fun RecordingControlContent(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
-    onToggleMic: () -> Unit
+    onToggleMic: () -> Unit,
+    onTakeScreenshot: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Recording indicator dot — red when active, dimmed when paused
         Icon(
             painter = painterResource(R.drawable.ic_fiber_manual_record),
             contentDescription = null,
@@ -124,10 +146,12 @@ private fun RecordingControlContent(
                    else Color.Red
         )
         Spacer(Modifier.width(3.dp))
+        // Live elapsed timer (MM:SS or HH:MM:SS)
         Text(
             text = elapsedMs.formatElapsedTime(),
             style = MaterialTheme.typography.labelSmall,
         )
+        // Microphone toggle — lit when mic capture is active
         IconButton(
             onClick = onToggleMic,
             modifier = Modifier.size(28.dp)
@@ -142,9 +166,23 @@ private fun RecordingControlContent(
                 ),
                 modifier = Modifier.size(18.dp),
                 tint = if (micEnabled) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.onSurface
+                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
+        // Screenshot — placed immediately beside the Microphone toggle for quick access.
+        // Injects F2 through the existing native input bridge so Minecraft captures the
+        // screenshot itself (identical to pressing F2 on a physical keyboard).
+        IconButton(
+            onClick = onTakeScreenshot,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_screenshot),
+                contentDescription = stringResource(R.string.recorder_screenshot),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        // Pause / Resume toggle
         IconButton(
             onClick = if (isPaused) onResume else onPause,
             modifier = Modifier.size(28.dp)
@@ -160,6 +198,7 @@ private fun RecordingControlContent(
                 modifier = Modifier.size(18.dp)
             )
         }
+        // Stop & Save
         IconButton(
             onClick = onStop,
             modifier = Modifier.size(28.dp)
@@ -174,6 +213,7 @@ private fun RecordingControlContent(
     }
 }
 
+/** Formats elapsed milliseconds as MM:SS, or HH:MM:SS for recordings longer than an hour. */
 private fun Long.formatElapsedTime(): String {
     val totalSeconds = this / 1000L
     val hours = totalSeconds / 3600
@@ -190,6 +230,7 @@ private fun Long.formatElapsedTime(): String {
 private fun GameBallContent(
     gameFps: Int?,
     showMemory: Boolean,
+    memoryDisplayMode: MemoryDisplayMode = MemoryDisplayMode.System,
     opened: Boolean,
     isRecordingActive: Boolean = false,
     isPaused: Boolean = false,
@@ -199,6 +240,7 @@ private fun GameBallContent(
     onResumeRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
     onToggleMic: () -> Unit = {},
+    onTakeScreenshot: () -> Unit = {},
 ) {
     val showFps = remember(gameFps) {
         gameFps != null
@@ -208,6 +250,7 @@ private fun GameBallContent(
         modifier = Modifier.padding(all = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Menu icon — always visible and always opens the built-in Game Menu
         Box(
             modifier = Modifier.size(28.dp),
             contentAlignment = Alignment.Center
@@ -265,6 +308,7 @@ private fun GameBallContent(
                     mainColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     textStyle = MaterialTheme.typography.labelSmall,
+                    isAllocatedMode = memoryDisplayMode == MemoryDisplayMode.Allocated,
                     usedText = { usedMemory, totalMemory ->
                         "${usedMemory.toInt()}MB/${totalMemory.toInt()}MB"
                     }
@@ -277,6 +321,9 @@ private fun GameBallContent(
             }
         }
 
+        // Recording controls expand to the right of the ball while recording is active.
+        // This mirrors how FPS and Memory displays expand horizontally from the ball.
+        // The ball's click target (Game Menu) remains fully functional during recording.
         AnimatedVisibility(
             visible = isRecordingActive,
             enter = expandIn(expandFrom = Alignment.CenterStart) + fadeIn(),
@@ -290,6 +337,7 @@ private fun GameBallContent(
                 onResume = onResumeRecording,
                 onStop = onStopRecording,
                 onToggleMic = onToggleMic,
+                onTakeScreenshot = onTakeScreenshot,
             )
         }
     }

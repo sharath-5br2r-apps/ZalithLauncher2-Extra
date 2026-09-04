@@ -34,8 +34,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.download.assets.downloadDependenciesBatch
 import com.movtery.zalithlauncher.game.download.assets.downloadSingleForVersions
+import com.movtery.zalithlauncher.game.download.assets.downloadDependenciesBatch
+import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
@@ -45,9 +46,10 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Do
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.search.SearchResourcePackScreen
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
+import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import kotlinx.coroutines.launch
@@ -76,12 +78,13 @@ fun DownloadResourcePackScreen(
     DownloadSingleOperation(
         operation = operation,
         changeOperation = { operation = it },
-        doInstall = { classes, version, versions ->
+        doInstall = { classes, version, versions, customFileName ->
             downloadSingleForVersions(
                 context = context,
                 version = version,
                 versions = versions,
                 folder = classes.versionFolder.folderName,
+                customFileName = customFileName,
                 submitError = submitError
             )
         },
@@ -100,18 +103,66 @@ fun DownloadResourcePackScreen(
                     folder = classes.versionFolder.folderName,
                     submitError = submitError,
                     onEachError = { name, error ->
-                        failedDependencies += "$name: $error"
+                        failedDependencies += "${name}: ${error}"
+                    },
+                    onEachSkipped = { name ->
+                        Logger.info("DownloadResourcePack", "Skipping already installed dependency: $name")
                     }
                 )
-                //之前这里没有把 onEachError 接到任何界面反馈上，
-                //导致依赖初始化/下载失败时用户完全无感知，看起来就像点了按钮却什么也没发生
                 if (failedDependencies.isNotEmpty()) {
                     submitError(
                         ErrorViewModel.ThrowableMessage(
-                            title = androidText(R.string.download_assets_install_failed),
+                            title = androidText(R.string.download_assets_download_all_deps),
                             message = androidText(failedDependencies.joinToString("\n"))
                         )
                     )
+                }
+            }
+        },
+        onInstallWithDependencies = { classes, version, gameVersions, requiredDeps ->
+            //一键安装：先安装所选资源包本体，再复用现有前置解析/下载/安装流水线安装所有必需前置项目
+            downloadSingleForVersions(
+                context = context,
+                version = version,
+                versions = gameVersions,
+                folder = classes.versionFolder.folderName,
+                submitError = submitError
+            )
+            if (requiredDeps.isNotEmpty()) {
+                scope.launch {
+                    val failedDependencies = mutableListOf<String>()
+                    // Each dependency may have its own target folder (e.g. a resource pack can
+                    // require a mod — that mod must land in "mods/", not "resourcepacks/").
+                    // Group by the dependency project's own platformClasses folder so every dep
+                    // reaches the correct directory, and so mod deps get the full
+                    // "already-installed" check that planDependencyDownloads provides.
+                    val depsByFolder = requiredDeps.groupBy { (_, project) ->
+                        project.platformClasses(classes).versionFolder.folderName
+                    }
+                    for ((folder, deps) in depsByFolder) {
+                        if (folder.isEmpty()) continue  // NONE / MOD_PACK — no target folder
+                        downloadDependenciesBatch(
+                            context = context,
+                            deps = deps,
+                            gameVersions = gameVersions,
+                            folder = folder,
+                            submitError = submitError,
+                            onEachError = { name, error ->
+                                failedDependencies += "${name}: ${error}"
+                            },
+                            onEachSkipped = { name ->
+                                Logger.info("DownloadResourcePack", "Skipping already installed dependency: $name")
+                            }
+                        )
+                    }
+                    if (failedDependencies.isNotEmpty()) {
+                        submitError(
+                            ErrorViewModel.ThrowableMessage(
+                                title = androidText(R.string.download_assets_install_with_deps),
+                                message = androidText(failedDependencies.joinToString("\n"))
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -151,6 +202,7 @@ fun DownloadResourcePackScreen(
                         currentKey = downloadResourcePackScreenKey,
                         key = assetsKey,
                         eventViewModel = eventViewModel,
+                        autoSelect = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectResourcePacks.getValue(),
                         onItemClicked = { classes, version, _, deps ->
                             operation = if (isUsingMobileData(context)) {
                                 DownloadSingleOperation.WarningForMobileData(classes, version, deps)

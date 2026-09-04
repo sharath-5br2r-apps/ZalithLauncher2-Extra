@@ -230,6 +230,9 @@
     <string name="download_assets_filter_search_name">搜索名称</string>
     <string name="download_assets_filter_search_platform">目标平台</string>
     <string name="download_assets_filter_game_version">游戏版本</string>
+    <string name="download_assets_filter_game_version_stable">正式版</string>
+    <string name="download_assets_filter_game_version_snapshots">快照版</string>
+    <string name="download_assets_filter_game_version_installed">已安装</string>
     <string name="download_assets_filter_category">类别</string>
     <string name="download_assets_filter_modloader">模组加载器</string>
     <string name="download_assets_filter_none">未选择</string>
@@ -353,6 +356,7 @@
     <string name="download_assets_category_configuration_medium">中等配置</string>
     <string name="download_assets_category_configuration_high">高等配置</string>
     <string name="download_assets_category_screenshot">截图</string>
+    <string name="download_assets_show_screenshots">显示截图</string>
     <!--  资源功能  -->
     <string name="download_assets_features_audio">音频</string>
     <string name="download_assets_features_blocks">方块</string>
@@ -806,6 +810,8 @@
     <string name="saves_manage_quick_play">快速启动</string>
     <string name="saves_manage_quick_play_disabled">快速启动（仅限 1.20+）</string>
     <string name="saves_manage_no_saves">当前版本还没有存档</string>
+    <string name="saves_manage_delete_selected_warning">您确定要删除选中的 %d 个存档吗？此操作无法撤销！</string>
+    <string name="manage_world_disabled">已禁用</string>
     <string name="saves_manage_import_unpacking">正在解压存档：%s</string>
     <string name="saves_manage_import_failed">导入存档时遇到问题</string>
     <string name="resource_pack_manage">资源包管理</string>

@@ -46,9 +46,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -94,6 +94,12 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.file.checkExtensionOrThrow
 import com.movtery.zalithlauncher.utils.file.formatFileSize
+import com.movtery.zalithlauncher.bridge.ZLBridge
+import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.computeDynamicRAMAllocation
+import com.movtery.zalithlauncher.setting.computeMaximumRAMAllocation
+import com.movtery.zalithlauncher.setting.findBestRAMAllocation
+import com.movtery.zalithlauncher.setting.unit.getOrMin
 import com.movtery.zalithlauncher.utils.platform.bytesToMB
 import com.movtery.zalithlauncher.utils.platform.getTotalMemory
 import com.movtery.zalithlauncher.utils.platform.getUsedMemory
@@ -412,7 +418,7 @@ fun TitleTaskFlowDialog(
                             }
                         }
                         Button(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (onMinimize != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
                             onClick = onCancel
                         ) {
                             MarqueeText(text = stringResource(R.string.generic_cancel))
@@ -528,6 +534,7 @@ fun MemoryPreview(
     textStyle: TextStyle = MaterialTheme.typography.labelMedium,
     textColorOnMemory: Color = MaterialTheme.colorScheme.onPrimary,
     textColorOnBackground: Color = MaterialTheme.colorScheme.onSurface,
+    isAllocatedMode: Boolean = false,
     usedText: @Composable (usedMemory: Double, totalMemory: Double) -> String,
     previewText: (@Composable (preview: Double) -> String)? = null
 ) {
@@ -537,12 +544,39 @@ fun MemoryPreview(
     var totalMemory by remember { mutableDoubleStateOf(0.0) }
     var usedMemory by remember { mutableDoubleStateOf(0.0) }
 
-    LaunchedEffect(Unit) {
+    // Restart the sampling loop whenever the display mode changes so the
+    // overlay switches instantly without restarting Minecraft.
+    LaunchedEffect(isAllocatedMode) {
         infinityCancellableBlock(delay = delay) {
-            //总内存
-            totalMemory = getTotalMemory(context).bytesToMB()
-            //已使用内存
-            usedMemory = getUsedMemory(context).bytesToMB()
+            if (isAllocatedMode) {
+                // Query the Minecraft JVM's Runtime directly via the native bridge.
+                // This reads the exact same values Minecraft's F3 debug screen reads:
+                //   total = Runtime.getRuntime().totalMemory()  (committed JVM heap)
+                //   used  = total - Runtime.getRuntime().freeMemory()
+                val packed = ZLBridge.getJvmHeapMemory()
+                if (packed >= 0L) {
+                    totalMemory = (packed ushr 32).toDouble()
+                    usedMemory  = (packed and 0xFFFFFFFFL).toDouble()
+                } else {
+                    // JVM not yet running (pre-launch) — fall back to configured allocation
+                    val allocatedMB = when {
+                        !AllSettings.autoRamAllocation.getValue() ->
+                            AllSettings.ramAllocation.getOrMin()
+                        else -> when (AllSettings.autoRamAllocationMode.getValue()) {
+                            "static"  -> findBestRAMAllocation(context)
+                            "maximum" -> computeMaximumRAMAllocation(context)
+                            else      -> computeDynamicRAMAllocation(context)
+                        }
+                    }
+                    totalMemory = allocatedMB.toDouble()
+                    usedMemory  = minOf(getUsedMemory(context).bytesToMB(), totalMemory)
+                }
+            } else {
+                //总内存
+                totalMemory = getTotalMemory(context).bytesToMB()
+                //已使用内存
+                usedMemory = getUsedMemory(context).bytesToMB()
+            }
         }
     }
 

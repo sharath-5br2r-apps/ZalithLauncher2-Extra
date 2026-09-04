@@ -115,8 +115,6 @@
     <string name="crash_share_logs">Çıktıları Paylaş</string>
     <string name="crash_restart">Tekrar Başlat</string>
     <string name="crash_exit">Çıkış Yap</string>
-    <string name="crash_analysis_main_crash">Ana Çökme (%d)</string>
-    <string name="crash_analysis_found_errors">Bulunan Hatalar (%d)</string>
     <string name="crash_launch_crash_title">Uygulama başlatılamadı</string>
     <string name="crash_launch_crash_message">Başlatıcı ciddi bir sorunla karşılaştı ve başlatma sırasında çöktü</string>
     <string name="error_import_image">Görsel içe aktarılırken bir hata oluştu</string>
@@ -151,6 +149,7 @@
     <string name="unpack_screen_launcher">Başlatıcı ana bileşenleri</string>
     <string name="main_launch_game">Başlat</string>
     <string name="main_task_menu">Görev Menüsü</string>
+    <string name="unpack_install_task_title">Bağımlılıklar yükleniyor</string>
     <string name="download_category_game">Oyun</string>
     <string name="download_category_modpack">Mod Paketi</string>
     <string name="download_category_mod">Modlar</string>
@@ -586,6 +585,12 @@
     <string name="settings_game_java_memory_allocation_text">Ayrılmış: %dMB</string>
     <string name="settings_game_auto_ram_allocation_title">Otomatik Bellek Tahsisi</string>
     <string name="settings_game_auto_ram_allocation_summary">Cihaz RAM\'ine göre optimum JVM belleğini otomatik olarak belirleyin. Etkinleştirildiğinde manuel kontroller devre dışı kalır.</string>
+    <string name="settings_game_auto_ram_mode_static">Statik</string>
+    <string name="settings_game_auto_ram_mode_static_summary">Toplam cihaz RAM\'ine göre tek seferlik tahsis; otomatik olarak değişmez</string>
+    <string name="settings_game_auto_ram_mode_dynamic">Dinamik</string>
+    <string name="settings_game_auto_ram_mode_dynamic_summary">Android ve arka plan hizmetleri için güvenli bir boşluk ayırır</string>
+    <string name="settings_game_auto_ram_mode_maximum">Maksimum</string>
+    <string name="settings_game_auto_ram_mode_maximum_summary">Boşluk ayırmadan tüm mevcut boş RAM\'i kullanır</string>
     <string name="settings_game_jvm_args_title">JVM Argümanları</string>
     <string name="settings_game_jvm_args_summary">JVM başlatılırken eklenen JVM parametreleri; emin olunmadan değiştirilmesi önerilmez, çünkü bu çökme olasılığını artırabilir</string>
     <string name="settings_game_show_log_automatic_title">Otomatik Olarak Günlükleri Göster</string>
@@ -737,6 +742,10 @@
     <string name="disclaimer_title">Resmi Olmayan Sürüm</string>
     <string name="disclaimer_content">Bu, Zalith Launcher 2\'nin resmi olmayan, değiştirilmiş bir versiyonudur.</string>
     <string name="disclaimer_original_repo">Orijinal Repo</string>
+    <string name="onboarding_main_screen_mode_title">Ana Ekran Düzeninizi Seçin</string>
+    <string name="onboarding_main_screen_mode_default_desc">Bugünün istatistiklerini gösteren sade bir görünüm. Hızlı oyun başlatmak için idealdir.</string>
+    <string name="onboarding_main_screen_mode_advanced_desc">Sürüm listesi, sekmeler ve hızlı erişim paneliyle tam başlatıcı arayüzü.</string>
+    <string name="onboarding_main_screen_mode_hint">Bunu daha sonra Ayarlar → Başlatıcı Ekranı → Ana Ekran Modu kısmından değiştirebilirsiniz</string>
     <string name="launcher_fork_subtitle">Zalith Launcher 2\'nin bir çatalıdır</string>
     <string name="about_acknowledgements_title">Teşekkür ve Atıflar</string>
     <string name="about_acknowledgements_pojav_text">%s PojavLauncherdan başlatma backend kodu kullanır</string>
@@ -1142,6 +1151,9 @@
     <string name="control_manage_create_new_field_blank">Bu alan boş bırakılamaz</string>
     <string name="control_manage_create_new_field_long">Metin çok uzun</string>
     <string name="control_manage_delete_message">%s Bu kontrol şemasını silmek istiyor musunuz?</string>
+    <string name="control_manage_builtin_restore">Varsayılanları Geri Yükle</string>
+    <string name="control_manage_builtin_restore_message">Bu yerleşik kontrol düzenini orijinal haline geri yüklemek istediğinizden emin misiniz?</string>
+    <string name="control_manage_builtin_restore_confirm">Geri Yükle</string>
     <string name="control_manage_saving">Kaydediliyor</string>
     <string name="control_manage_failed_to_save">Kaydetme başarısız</string>
     <string name="control_manage_list_empty">Kontrol şeması bulunamadı</string>
@@ -1191,8 +1203,6 @@
     <string name="control_editor_special_joystick_style_tip_summary">Uygulamasının zor olması nedeniyle, kontrol düzeni sistemi joystick bileşenlerini doğrudan entegre edemez. Joystick bileşenini kullanmak istiyorsanız, yalnızca oyun içi menüde evrensel joystick bileşenini etkinleştirebilirsiniz. Ancak, kontrol düzeni aracılığıyla joystick bileşeninin görünümünü sağlayarak stil birliğini koruyabilirsiniz.</string>
     <string name="settings_launcher_mirror_assets_search_title">Varlık Platformu Arama Kaynağı</string>
     <string name="settings_launcher_mirror_assets_download_title">Varlık Platformu İndirme Kaynağı</string>
-    <string name="settings_launcher_show_snapshot_versions_title">Snapshot Sürümlerini Göster</string>
-    <string name="settings_launcher_show_snapshot_versions_summary">İndirme sayfasındaki sürüm filtresinde snapshot, eski ve deneysel sürümleri göster</string>
     <string name="about_acknowledgements_mcim_text">%s, MCIM aynalama kaynağını kullanıyor</string>
     <string name="generic_copied">Kopyalandı</string>
     <string name="crash_link_share_button">Bağlantıyı Paylaş</string>

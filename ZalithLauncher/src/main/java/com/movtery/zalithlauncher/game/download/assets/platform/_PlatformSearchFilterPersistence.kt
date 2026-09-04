@@ -32,7 +32,7 @@ data class PersistedPlatformSearchFilter(
 
 fun saveSearchFilter(key: String, filter: PlatformSearchFilter) {
     val persisted = PersistedPlatformSearchFilter(
-        gameVersion = filter.gameVersion,
+        gameVersion = null, // Game Version is session-only; never persisted
         sortField = filter.sortField.name,
         categories = filter.categories.mapNotNull { (it as? Enum<*>)?.name },
         modloader = (filter.modloader as? Enum<*>)?.name
@@ -50,7 +50,7 @@ fun loadSearchFilter(key: String): PlatformSearchFilter? {
     }
 
     return PlatformSearchFilter(
-        gameVersion = persisted.gameVersion,
+        gameVersion = null, // Game Version is session-only; never restored from persistence
         sortField = sortField
     )
 }

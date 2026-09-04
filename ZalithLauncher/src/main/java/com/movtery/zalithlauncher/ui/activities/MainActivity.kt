@@ -34,19 +34,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.context.COPY_LABEL_LINK
@@ -93,7 +92,7 @@ import com.movtery.zalithlauncher.ui.vulkan_checker.VulkanChecker
 import com.movtery.zalithlauncher.upgrade.TooFrequentOperationException
 import com.movtery.zalithlauncher.utils.compareLangTag
 import com.movtery.zalithlauncher.utils.copyText
-import com.movtery.zalithlauncher.utils.device.VulkanChecker
+import com.movtery.zalithlauncher.utils.device.VulkanChecker as VulkanCapabilityChecker
 import com.movtery.zalithlauncher.utils.festival.getTodayFestivals
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.utils.isChinese
@@ -198,6 +197,7 @@ class MainActivity : BaseAppCompatActivity() {
     private var fmEventRegistrar: FileManagerEventRegistrar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        sInstance = this
         super.onCreate(savedInstanceState)
         //处理外部导入
         val isImporting = handleImportIfNeeded(intent)
@@ -584,9 +584,9 @@ class MainActivity : BaseAppCompatActivity() {
         withContext(Dispatchers.Main) {
             val result = if (useTurnip) {
                 val tempDir = File(PathManager.DIR_CACHE, "vulkan_temp")
-                VulkanChecker.checkCapabilities(null, driver.path, tempDir.absolutePath)
+                VulkanCapabilityChecker.checkCapabilities(null, driver.path, tempDir.absolutePath)
             } else {
-                VulkanChecker.checkCapabilities(null, null, null)
+                VulkanCapabilityChecker.checkCapabilities(null, null, null)
             }
             vulkanCheckerViewModel.changeOperation(VCOperation.Result(result, useTurnip))
         }
@@ -918,51 +918,62 @@ class MainActivity : BaseAppCompatActivity() {
         }
         return super.dispatchKeyEvent(event)
     }
+
+      companion object {
+          private var sInstance: MainActivity? = null
+
+          /**
+           * ZL1 Backport: toggle the software keyboard state.
+           */
+          @JvmStatic
+          fun switchKeyboardState() {
+              sInstance?.let { activity ->
+                  activity.runOnUiThread {
+                      val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                              as android.view.inputmethod.InputMethodManager
+                      imm.toggleSoftInput(android.view.inputmethod.InputMethodManager.SHOW_FORCED, 0)
+                  }
+              }
+          }
+
+          /**
+           * ZL1 Backport: toggle the virtual mouse.
+           */
+          @JvmStatic
+          fun toggleMouse(context: android.content.Context) {
+              // No-op stub: ZL2 handles mouse toggle differently.
+          }
+      }
+  
 }
 
+/**
+ * Shows a dismissible notice fetched from the player notice URL.
+ * Uses [PlayerNoticeManager] to fetch the content, check if it has been
+ * dismissed before, and persist the dismissal state.
+ */
 @Composable
 private fun PlayerNoticeDialog() {
-    var content by remember { mutableStateOf("") }
-    var isDismissed by remember { mutableStateOf(true) }
-
-    suspend fun fetch() {
-        val notice = PlayerNoticeManager.fetchNotice()
-        if (notice.isNotEmpty()) {
-            if (PlayerNoticeManager.isDismissed(notice)) {
-                if (content != notice) {
-                    isDismissed = false
-                }
-                content = notice
-            } else {
-                content = notice
-                isDismissed = false
-            }
-        }
-    }
+    var noticeContent by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        fetch()
-        while (true) {
-            delay(10_000)
-            fetch()
+        val content = PlayerNoticeManager.fetchNotice()
+        if (content.isNotEmpty() && !PlayerNoticeManager.isDismissed(content)) {
+            noticeContent = content
+            showDialog = true
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            fetch()
-        }
-    }
-
-    if (content.isNotEmpty() && !isDismissed) {
+    if (showDialog && noticeContent.isNotEmpty()) {
         SimpleAlertDialog(
-            title = stringResource(R.string.generic_info),
-            text = content,
-            onDismiss = {
-                PlayerNoticeManager.dismiss(content)
-                isDismissed = true
-            }
+            title = stringResource(R.string.generic_tip),
+            text = noticeContent,
+            onConfirm = {
+                PlayerNoticeManager.dismiss(noticeContent)
+                showDialog = false
+            },
+            onDismiss = { showDialog = false }
         )
     }
 }

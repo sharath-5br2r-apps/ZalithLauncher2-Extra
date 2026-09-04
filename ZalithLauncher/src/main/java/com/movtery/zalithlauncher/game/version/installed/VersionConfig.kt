@@ -175,6 +175,9 @@ class VersionConfig(
             it.write(json)
         }
         Logger.info(TAG, "Saved version configuration: $this")
+        // Notify listeners (e.g. VersionProfileManager) that this config was saved,
+        // so the active profile can be kept in sync with user changes automatically.
+        saveListeners.forEach { it(versionPath) }
     }
 
     fun getVersionPath() = versionPath
@@ -217,6 +220,23 @@ class VersionConfig(
     }
 
     companion object CREATOR : Parcelable.Creator<VersionConfig> {
+        // Listeners notified after every successful saveWithThrowable() call.
+        // Used by VersionProfileManager to auto-capture the active profile when
+        // the user changes any Configuration preference, without requiring a
+        // manual save action or tight coupling from the Configuration screen.
+        private val saveListeners = mutableListOf<(File) -> Unit>()
+
+        /**
+         * Registers a callback invoked with the saved config's versionPath
+         * immediately after a successful [saveWithThrowable] call.
+         *
+         * The callback is not invoked when a save fails with an exception.
+         */
+        @JvmStatic
+        fun addOnSaveListener(listener: (File) -> Unit) {
+            saveListeners.add(listener)
+        }
+
         override fun createFromParcel(parcel: Parcel): VersionConfig {
             val versionPath = File(parcel.readString().orEmpty())
             val isolationType = SettingState.entries.getOrNull(parcel.readInt()) ?: SettingState.FOLLOW_GLOBAL

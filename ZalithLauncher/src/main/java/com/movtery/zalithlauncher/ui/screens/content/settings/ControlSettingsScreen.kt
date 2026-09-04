@@ -19,6 +19,15 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.awaitEachGesture
+  import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -29,7 +38,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +79,6 @@ import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.TitleAndSummary
 import com.movtery.zalithlauncher.ui.components.TooltipIconButton
 import com.movtery.zalithlauncher.ui.components.infiniteShimmer
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.control.gyroscope.isGyroscopeAvailable
 import com.movtery.zalithlauncher.ui.control.mouse.CursorHotspot
 import com.movtery.zalithlauncher.ui.control.mouse.MouseHotspotEditorDialog
@@ -102,7 +112,175 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 
+
 @Composable
+    private fun DefaultControlSystemCard(modifier: Modifier = Modifier) {
+        var controlType by remember { mutableStateOf(AllSettings.controlType.getValue()) }
+        var expanded by remember { mutableStateOf(false) }
+        val dragThreshold = 60f
+
+        Column(modifier = modifier) {
+            // ── Always-visible compact chip selector (swipe down to expand) ─────
+            SettingsCard(
+                position = CardPosition.Single,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        val slop = viewConfiguration.touchSlop
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            var startY = down.position.y
+                            var active = false
+                            var totalDy = 0f
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                val dy = change.position.y - startY
+                                if (change.pressed) {
+                                    if (!active && kotlin.math.abs(dy) > slop) active = true
+                                    if (active) { totalDy = dy; change.consume() }
+                                } else {
+                                    if (active) {
+                                        if (totalDy > dragThreshold) expanded = true
+                                        else if (totalDy < -dragThreshold) expanded = false
+                                    }
+                                    break
+                                }
+                            }
+                        }
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_videogame_asset_outlined),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_control_default_system_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = controlType == "zalith2",
+                        onClick = {
+                            controlType = "zalith2"
+                            AllSettings.controlType.save("zalith2")
+                        },
+                        label = { Text(stringResource(R.string.control_manage_tab_zalith2)) }
+                    )
+                    FilterChip(
+                        selected = controlType == "legacy",
+                        onClick = {
+                            controlType = "legacy"
+                            AllSettings.controlType.save("legacy")
+                        },
+                        label = { Text(stringResource(R.string.control_manage_tab_legacy)) }
+                    )
+                }
+            }
+
+            // ── Collapsible detailed panel (swipe up on panel to collapse) ────
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(animationSpec = tween(300)),
+                exit  = shrinkVertically(animationSpec = tween(300))
+            ) {
+                SettingsCard(
+                    position = CardPosition.Single,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            val slop = viewConfiguration.touchSlop
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                var startY = down.position.y
+                                var active = false
+                                var totalDy = 0f
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    val dy = change.position.y - startY
+                                    if (change.pressed) {
+                                        if (!active && kotlin.math.abs(dy) > slop) active = true
+                                        if (active) { totalDy = dy; change.consume() }
+                                    } else {
+                                        if (active && totalDy < -dragThreshold) expanded = false
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        TitleAndSummary(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            title = stringResource(R.string.settings_control_default_system_title),
+                            summary = stringResource(R.string.settings_control_default_system_summary)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    controlType = "zalith2"
+                                    AllSettings.controlType.save("zalith2")
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = controlType == "zalith2",
+                                onClick = {
+                                    controlType = "zalith2"
+                                    AllSettings.controlType.save("zalith2")
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_control_default_system_zalith2),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    controlType = "legacy"
+                                    AllSettings.controlType.save("legacy")
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = controlType == "legacy",
+                                onClick = {
+                                    controlType = "legacy"
+                                    AllSettings.controlType.save("legacy")
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_control_default_system_legacy),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+  @Composable
 fun ControlSettingsScreen(
     key: NestedNavKey.Settings,
     settingsScreenKey: TitledNavKey?,
@@ -122,6 +300,13 @@ fun ControlSettingsScreen(
             isVisible = isVisible
         ) { scope ->
             AnimatedItem(scope) { yOffset ->
+                  DefaultControlSystemCard(
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                  )
+              }
+              AnimatedItem(scope) { yOffset ->
                 SettingsCardColumn(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -19,8 +19,12 @@
 package com.movtery.zalithlauncher.game.recorder
 
 enum class RecordingState {
+    /** No recording in progress — the floating ball shows its normal content. */
     IDLE,
+    /** Actively capturing and encoding frames. */
     RECORDING,
+    /** User pressed Pause; encoding is suspended, ball shows Resume/Stop controls. */
     PAUSED,
+    /** Stopping and finalising the output file; brief transient state. */
     STOPPING
 }

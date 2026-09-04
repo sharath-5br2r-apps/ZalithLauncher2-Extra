@@ -5,6 +5,7 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import android.opengl.GLSurfaceView
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -45,12 +47,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 
@@ -67,6 +72,21 @@ fun RendererBenchmarkOverlay(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Configure the dialog window to draw edge-to-edge so the dark scrim extends
+    // behind the notch/status-bar area and looks even on all sides.
+    val dialogView = LocalView.current
+    SideEffect {
+        val dialogWindow = (dialogView.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
+        dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        dialogWindow.setDimAmount(0f)
+        dialogWindow.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        )
+    }
+
     var phase by remember { mutableStateOf(BenchmarkPhase.SELECTING) }
     val selected = remember { mutableStateListOf<RendererInterface>().also { it.addAll(availableRenderers) } }
     val results = remember { mutableStateListOf<RendererBenchmarkResult>() }

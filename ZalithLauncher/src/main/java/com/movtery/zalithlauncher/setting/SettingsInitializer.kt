@@ -21,6 +21,8 @@ package com.movtery.zalithlauncher.setting
 import android.content.Context
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.platform.bytesToMB
+import com.movtery.zalithlauncher.utils.platform.getFreeMemory
+import com.movtery.zalithlauncher.utils.platform.getMaxMemoryForSettings
 import com.movtery.zalithlauncher.utils.platform.getTotalMemory
 import com.movtery.zalithlauncher.utils.string.splitPreservingQuotes
 
@@ -65,4 +67,56 @@ fun findBestRAMAllocation(context: Context): Int {
         deviceRam < 6144 -> 1536
         else -> 2048 //Default RAM allocation for 64 bits
     }
+}
+
+/**
+ * Computes a **dynamic** RAM allocation based on the device's *current* available memory
+ * rather than its total memory.  Called at every launch and periodically while the
+ * launcher settings UI is open so the displayed value always reflects real-time conditions.
+ *
+ * Algorithm:
+ *  1. Read current free memory from ActivityManager (not total).
+ *  2. Subtract a safety headroom so Android and background services still have room.
+ *  3. Round down to the nearest 128 MB step to prevent micro-fluctuations (hysteresis).
+ *  4. Clamp to [256 MB, getMaxMemoryForSettings()] to stay within safe bounds.
+ *
+ * @param context Context needed to query system memory.
+ * @return The dynamically computed allocation in megabytes.
+ */
+fun computeDynamicRAMAllocation(context: Context): Int {
+    if (Architecture.is32BitsDevice) return 696
+
+    val freeMemMb = getFreeMemory(context).bytesToMB(0, roundDown = true).toLong()
+    // Reserve headroom for Android and background services.
+    // Smaller headroom when memory is already tight (< 1 GB free).
+    val headroom = if (freeMemMb < 1024L) 512L else 768L
+    val raw = (freeMemMb - headroom).coerceAtLeast(256L)
+    // Round down to nearest 128 MB to dampen small fluctuations
+    val stepped = (raw / 128L) * 128L
+    val maxAllowed = getMaxMemoryForSettings(context).toLong()
+    return stepped.coerceIn(256L, maxAllowed).toInt()
+}
+
+/**
+ * Computes a **maximum** RAM allocation using all currently available free memory
+ * without subtracting any system headroom.  Suitable for users who want to give
+ * Minecraft as much RAM as the device can spare at that moment.
+ *
+ * Algorithm:
+ *  1. Read current free memory from ActivityManager (not total).
+ *  2. Round down to the nearest 128 MB step (hysteresis, same as dynamic mode).
+ *  3. Clamp to [256 MB, getMaxMemoryForSettings()] — still respects the upper cap
+ *     so the device does not become completely starved.
+ *
+ * @param context Context needed to query system memory.
+ * @return The maximum available allocation in megabytes.
+ */
+fun computeMaximumRAMAllocation(context: Context): Int {
+    if (Architecture.is32BitsDevice) return 696
+
+    val freeMemMb = getFreeMemory(context).bytesToMB(0, roundDown = true).toLong()
+    // No headroom subtracted — give Minecraft all available free RAM
+    val stepped = (freeMemMb / 128L) * 128L
+    val maxAllowed = getMaxMemoryForSettings(context).toLong()
+    return stepped.coerceIn(256L, maxAllowed).toInt()
 }

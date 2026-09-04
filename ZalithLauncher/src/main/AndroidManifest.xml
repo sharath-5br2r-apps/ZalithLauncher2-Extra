@@ -107,7 +107,13 @@
                 <data android:mimeType="application/json"/>
             </intent-filter>
         </activity-alias>
-
+        
+        <activity
+            android:name=".ui.activities.VersionShortcutActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.SplashScreen"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation"
+            android:screenOrientation="sensorLandscape" />
         <activity
             android:name=".ui.activities.MainActivity"
             android:launchMode="singleTop"
@@ -124,6 +130,9 @@
             android:launchMode="standard"
             android:screenOrientation="sensorLandscape" />
         <activity android:name=".ui.activities.ErrorActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation"
+            android:screenOrientation="sensorLandscape" />
+        <activity android:name=".ui.activities.CrashAnalyzerActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation"
             android:screenOrientation="sensorLandscape" />
         <activity android:name=".ui.activities.FatalErrorActivity"
@@ -160,6 +169,13 @@
         </service>
 
         <service
+            android:name=".game.recorder.MediaProjectionForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":game"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
             android:name=".game.launch.GameService"
             android:enabled="true"
             android:foregroundServiceType="specialUse"
@@ -180,12 +196,6 @@
                 <action android:name="android.net.VpnService" />
             </intent-filter>
         </service>
-
-        <service
-            android:name=".game.recorder.MediaProjectionForegroundService"
-            android:enabled="true"
-            android:foregroundServiceType="mediaProjection"
-            android:exported="false" />
 
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
@@ -217,7 +227,6 @@
         </provider>
     </application>
     <queries>
-        <package android:name="net.kdt.pojavlaunch.ffmpeg"/>
         <intent>
             <action android:name="android.intent.action.MAIN" />
         </intent>

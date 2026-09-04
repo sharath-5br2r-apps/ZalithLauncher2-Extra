@@ -37,6 +37,7 @@ import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.loadAllSettings
 import com.movtery.zalithlauncher.ui.activities.showFatalError
 import com.movtery.zalithlauncher.ui.activities.showLauncherCrash
@@ -85,6 +86,7 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
 
             MMKV.initialize(this)
             loadAllSettings(this)
+            migrateAutoSelectSettings()
 
             Logger.initialize(this)
 
@@ -134,6 +136,22 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(true)
             .build()
+    }
+
+    /**
+     * One-time migration: the auto-select sub-settings previously controlled auto-scrolling in
+     * the content list. They have been repurposed to control game-version auto-selection. Reset
+     * them to their default enabled state so users who disabled them to stop auto-scrolling are
+     * not inadvertently left with game-version auto-selection turned off.
+     */
+    private fun migrateAutoSelectSettings() {
+        if (AllSettings.autoSelectGameVersionMigrationDone.getValue()) return
+        AllSettings.autoSelectMods.save(true)
+        AllSettings.autoSelectResourcePacks.save(true)
+        AllSettings.autoSelectShaderPacks.save(true)
+        AllSettings.autoSelectSaves.save(true)
+        AllSettings.autoSelectModpacks.save(true)
+        AllSettings.autoSelectGameVersionMigrationDone.save(true)
     }
 
     private fun initializeData() {

@@ -37,9 +37,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -508,6 +511,35 @@ fun ProjectUrlsContent(
             iconSize = 18.dp,
             painter = painterResource(R.drawable.ic_link),
             text = "MC 百科" //品牌名不需要翻译，硬编码
+        )
+    }
+}
+
+/**
+ * "显示截图"按钮，点击后才开始加载截图，避免自动消耗移动数据流量
+ * 使用醒目的圆形（药丸状）填充按钮，使其在列表中更突出
+ */
+@Composable
+fun ShowScreenshotsButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilledTonalButton(
+        modifier = modifier.wrapContentWidth(Alignment.CenterHorizontally),
+        onClick = onClick,
+        shape = CircleShape,
+        colors = ButtonDefaults.filledTonalButtonColors(),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            modifier = Modifier.size(20.dp),
+            painter = painterResource(R.drawable.ic_photo_library_outlined),
+            contentDescription = stringResource(R.string.download_assets_show_screenshots)
+        )
+        Text(
+            modifier = Modifier.padding(start = 8.dp),
+            text = stringResource(R.string.download_assets_show_screenshots),
+            style = MaterialTheme.typography.labelLarge
         )
     }
 }

@@ -22,6 +22,7 @@ import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.game.launch.LogName
 import com.movtery.zalithlauncher.game.path.getVersionsHome
 import com.movtery.zalithlauncher.game.version.installed.utils.parseJsonToVersionInfo
+import com.movtery.zalithlauncher.game.version.profile.VersionProfileManager
 import com.movtery.zalithlauncher.utils.logging.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -197,7 +198,15 @@ object VersionsManager {
             Logger.debug(TAG, "The current version is: ${version?.getVersionName()}")
         }
 
+        val previous = _currentVersion.value
+        val versionChanged = previous?.getVersionName() != version?.getVersionName()
+        if (versionChanged) {
+            previous?.let { VersionProfileManager.captureCurrentState(it) }
+        }
         _currentVersion.update { version }
+        if (versionChanged) {
+            VersionProfileManager.activate(version)
+        }
     }
 
     private fun List<Version>.getVersion(name: String?): Version? {

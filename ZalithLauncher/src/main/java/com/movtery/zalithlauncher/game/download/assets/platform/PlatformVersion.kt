@@ -108,6 +108,11 @@ interface PlatformVersion {
     class PlatformDependency(
         val platform: Platform,
         val projectId: String,
-        val type: PlatformDependencyType
+        val type: PlatformDependencyType,
+        /**
+         * Exact dependency file/version identifier when the platform provides one.
+         * Modrinth supplies this for dependencies pinned to a specific version.
+         */
+        val versionId: String? = null
     )
 }

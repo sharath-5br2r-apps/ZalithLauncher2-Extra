@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -50,7 +51,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +66,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.download.assets.planDependencyDownloads
 import com.movtery.zalithlauncher.ui.components.SimpleTaskDialog
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformDependencyType
@@ -79,6 +83,7 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
+import java.io.File
 
 /**
  * 操作状态：下载单个资源文件
@@ -97,11 +102,20 @@ sealed interface DownloadSingleOperation {
         val version: PlatformVersion,
         val dependencyProjects: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>
     ) : DownloadSingleOperation
+    /** 检测到重复文件，等待用户选择重命名/覆盖/取消 */
+    data class DuplicateConflict(
+        val classes: PlatformClasses,
+        val version: PlatformVersion,
+        val versions: List<Version>,
+        val fileName: String,
+        val targetFolders: List<File>
+    ) : DownloadSingleOperation
     /** 安装 */
     data class Install(
         val classes: PlatformClasses,
         val version: PlatformVersion,
-        val versions: List<Version>
+        val versions: List<Version>,
+        val customFileName: String? = null
     ) : DownloadSingleOperation
 
     /** 带依赖安装 */
@@ -117,10 +131,11 @@ sealed interface DownloadSingleOperation {
 fun DownloadSingleOperation(
     operation: DownloadSingleOperation,
     changeOperation: (DownloadSingleOperation) -> Unit,
-    doInstall: (PlatformClasses, PlatformVersion, List<Version>) -> Unit,
+    doInstall: (PlatformClasses, PlatformVersion, List<Version>, String?) -> Unit,
     onDependencyClicked: (PlatformVersion.PlatformDependency, PlatformClasses) -> Unit = { _, _ -> },
-    onDownloadAllDependencies: (List<PlatformVersion.PlatformDependency>, List<Version>, PlatformClasses) -> Unit = { _, _, _ -> },
-    onInstallWithDependencies: suspend (PlatformVersion, List<PlatformVersion.PlatformDependency>, List<Version>, PlatformClasses) -> Unit = { _, _, _, _ -> }
+    onDownloadAllDependencies: ((List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>, List<Version>, PlatformClasses) -> Unit)? = null,
+    /** 一键安装所选模组，并自动解析、下载、安装其所有必需前置项目 */
+    onInstallWithDependencies: ((PlatformClasses, PlatformVersion, List<Version>, List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>) -> Unit)? = null
 ) {
     when (operation) {
         DownloadSingleOperation.None -> {}
@@ -155,31 +170,67 @@ fun DownloadSingleOperation(
                     changeOperation(DownloadSingleOperation.None)
                 },
                 onInstall = { versions ->
-                    changeOperation(DownloadSingleOperation.Install(classes, operation.version, versions))
+                    val fileName = operation.version.platformFileName()
+                    val targetFolders = versions.map { File(it.getGameDir(), classes.versionFolder.folderName) }
+                    val conflict = classes.supportsDuplicateFileCheck() &&
+                        findConflictingFile(fileName, targetFolders) != null
+
+                    if (conflict) {
+                        changeOperation(
+                            DownloadSingleOperation.DuplicateConflict(
+                                classes = classes,
+                                version = operation.version,
+                                versions = versions,
+                                fileName = fileName,
+                                targetFolders = targetFolders
+                            )
+                        )
+                    } else {
+                        changeOperation(DownloadSingleOperation.Install(classes, operation.version, versions))
+                    }
                 },
                 onDependencyClicked = { dependency, classes ->
                     changeOperation(DownloadSingleOperation.None)
                     onDependencyClicked(dependency, classes)
                 },
-                onDownloadAllDependencies = { deps, versions, _ ->
-                    changeOperation(DownloadSingleOperation.None)
-                    onDownloadAllDependencies(deps, versions, classes)
+                onDownloadAllDependencies = onDownloadAllDependencies?.let { callback ->
+                    { deps, versions, cls ->
+                        changeOperation(DownloadSingleOperation.None)
+                        callback(deps, versions, cls)
+                    }
                 },
-                onInstallWithDependencies = { deps, versions, _ ->
+                onInstallWithDependencies = onInstallWithDependencies?.let { callback ->
+                    { versions, requiredDeps ->
+                        changeOperation(DownloadSingleOperation.None)
+                        callback(classes, operation.version, versions, requiredDeps)
+                    }
+                }
+            )
+        }
+        is DownloadSingleOperation.DuplicateConflict -> {
+            DuplicateFileConflictDialog(
+                originalFileName = operation.fileName,
+                targetFolders = operation.targetFolders,
+                onCancel = {
+                    changeOperation(DownloadSingleOperation.None)
+                },
+                onOverwrite = {
+                    //覆盖：直接使用原始文件名继续安装，安装流程本身已支持覆盖已存在的目标文件
                     changeOperation(
-                        DownloadSingleOperation.InstallWithDependencies(
-                            classes = classes,
-                            version = operation.version,
-                            versions = versions,
-                            dependencies = deps
-                        )
+                        DownloadSingleOperation.Install(operation.classes, operation.version, operation.versions)
+                    )
+                },
+                onConfirm = { newFileName ->
+                    //使用用户重命名后、且已确认不冲突的文件名继续安装
+                    changeOperation(
+                        DownloadSingleOperation.Install(operation.classes, operation.version, operation.versions, newFileName)
                     )
                 }
             )
         }
         is DownloadSingleOperation.Install -> {
             LaunchedEffect(Unit) {
-                doInstall(operation.classes, operation.version, operation.versions)
+                doInstall(operation.classes, operation.version, operation.versions, operation.customFileName)
                 changeOperation(DownloadSingleOperation.None)
             }
         }
@@ -187,11 +238,11 @@ fun DownloadSingleOperation(
             SimpleTaskDialog(
                 title = stringResource(R.string.download_assets_install_with_deps),
                 task = {
-                    onInstallWithDependencies(
+                    onInstallWithDependencies?.invoke(
+                        operation.classes,
                         operation.version,
-                        operation.dependencies,
                         operation.versions,
-                        operation.classes
+                        emptyList()
                     )
                 },
                 onDismiss = {
@@ -219,8 +270,8 @@ private fun DownloadDialog(
     onDismiss: () -> Unit,
     onInstall: (List<Version>) -> Unit,
     onDependencyClicked: (PlatformVersion.PlatformDependency, PlatformClasses) -> Unit,
-    onDownloadAllDependencies: (List<PlatformVersion.PlatformDependency>, List<Version>, PlatformClasses) -> Unit = { _, _, _ -> },
-    onInstallWithDependencies: (List<PlatformVersion.PlatformDependency>, List<Version>, PlatformClasses) -> Unit = { _, _, _ -> }
+    onDownloadAllDependencies: ((List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>, List<Version>, PlatformClasses) -> Unit)? = null,
+    onInstallWithDependencies: ((List<Version>, List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>) -> Unit)? = null
 ) {
     val versions by rememberValidVersions()
     val version by VersionsManager.currentVersion.collectAsStateWithLifecycle()
@@ -245,6 +296,20 @@ private fun DownloadDialog(
             dependencyProjects.filter { it.first.type == PlatformDependencyType.OPTIONAL }
         }
         val hasDeps = dependencies.isNotEmpty() || optionals.isNotEmpty()
+
+        // Scan the selected instances to count already-installed required dependencies.
+        // Resets and re-runs whenever the selected versions or required deps change.
+        var alreadyInstalledCount by remember { mutableStateOf<Int?>(null) }
+        LaunchedEffect(selectedVersions.toList(), dependencies) {
+            alreadyInstalledCount = null
+            if (dependencies.isNotEmpty() && selectedVersions.isNotEmpty()) {
+                val plan = planDependencyDownloads(
+                    dependencies = dependencies,
+                    gameVersions = selectedVersions.toList()
+                )
+                alreadyInstalledCount = plan.skippedDependencyNames.size
+            }
+        }
 
         Dialog(
             onDismissRequest = onDismiss,
@@ -353,6 +418,22 @@ private fun DownloadDialog(
                             }
                         }
 
+                        // Show "X of Y already installed" summary above action buttons
+                        // when the background scan has completed and found installed deps.
+                        alreadyInstalledCount?.let { count ->
+                            if (count > 0 && dependencies.isNotEmpty()) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.download_assets_deps_already_installed,
+                                        count,
+                                        dependencies.size
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -367,10 +448,9 @@ private fun DownloadDialog(
                                 FilledTonalButton(
                                     onClick = {
                                         if (selectedVersions.isNotEmpty()) {
-                                            onInstallWithDependencies(
-                                                dependencies.map { it.first },
+                                            onInstallWithDependencies?.invoke(
                                                 selectedVersions.toList(),
-                                                classes
+                                                dependencies
                                             )
                                         }
                                     }

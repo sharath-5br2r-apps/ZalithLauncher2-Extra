@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <!-- Camera body — rounded rectangle (corner radius 70) -->
+    <path
+        android:fillColor="#1f1f1f"
+        android:pathData="M318,318 H552 Q622,318 622,388 V572 Q622,642 552,642 H318 Q248,642 248,572 V388 Q248,318 318,318 Z" />
+
+    <!--
+        Viewfinder — right-pointing triangle with rounded left corners.
+
+        Vertices:  TL=(646,370)  R=(728,480)  BL=(646,590)
+        Hypotenuse length ≈ 137 px.
+        Corner radius = 18 px on TL and BL; right tip is sharp.
+
+        Path starts 18 px below TL on the left edge, rounds TL corner
+        (control at TL, landing 18 px along the hyp), draws straight
+        lines to the tip and back, rounds BL corner symmetrically, then
+        Z closes with a clean vertical line up the left edge.
+    -->
+    <path
+        android:fillColor="#1f1f1f"
+        android:pathData="M646,388 Q646,370 657,385 L728,480 L657,575 Q646,590 646,572 Z" />
+
+</vector>

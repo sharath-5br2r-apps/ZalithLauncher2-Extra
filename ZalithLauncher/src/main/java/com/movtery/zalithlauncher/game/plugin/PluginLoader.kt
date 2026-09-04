@@ -73,7 +73,7 @@ object PluginLoader {
                 Logger.error("PluginLoader", "An exception was encountered while importing the software plugin ${applicationInfo.packageName}", e)
             }
         }
-        FFmpegPluginManager.loadPlugin(context) { apkPluginList.add(it) }
+        FFmpegPluginManager.loadPlugin()
 
         // 加载旧架构渲染器插件
         RendererPluginManager.getRendererList().filter { plugin ->

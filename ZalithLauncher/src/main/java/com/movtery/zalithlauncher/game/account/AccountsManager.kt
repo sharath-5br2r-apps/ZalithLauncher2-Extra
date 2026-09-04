@@ -101,7 +101,7 @@ object AccountsManager {
         _refreshWardrobe.update { !it }
     }
 
-    private suspend fun suspendReloadAccounts() {
+    suspend fun suspendReloadAccounts() {
         val loadedAccounts = accountDao.getAllAccounts()
         _accounts.clear()
         _accounts.addAll(loadedAccounts.sortedWith(
@@ -223,12 +223,20 @@ object AccountsManager {
         return _accounts.find { it.uniqueUUID == currentId } ?: _accounts.firstOrNull()
     }
 
+    // Listeners notified whenever the active account changes (e.g. for profile auto-sync).
+    private val accountChangedListeners = CopyOnWriteArrayList<(Account) -> Unit>()
+
+    fun addOnAccountChangedListener(listener: (Account) -> Unit) {
+        accountChangedListeners.add(listener)
+    }
+
     /**
      * Sets and persists the current active account
      */
     fun setCurrentAccount(account: Account) {
         AllSettings.currentAccount.save(account.uniqueUUID)
         refreshCurrentAccountState()
+        accountChangedListeners.forEach { it(account) }
     }
 
     /**
@@ -311,12 +319,17 @@ object AccountsManager {
         baseUrl.isNotEmpty() && _authServers.any { it.baseUrl == baseUrl }
 
     /**
-     * Reorders an account from one position to another
+     * Reorders an account from one position to another.
+     * Uses a synchronized snapshot to prevent concurrent-access IndexOutOfBoundsException.
      */
     fun reorderAccount(fromIndex: Int, toIndex: Int) {
         if (fromIndex == toIndex) return
-        val item = _accounts.removeAt(fromIndex)
-        _accounts.add(toIndex, item)
+        synchronized(_accounts) {
+            val size = _accounts.size
+            if (fromIndex < 0 || fromIndex >= size || toIndex < 0 || toIndex >= size) return
+            val item = _accounts.removeAt(fromIndex)
+            _accounts.add(toIndex, item)
+        }
         _accountsFlow.update { _accounts.toList() }
     }
 }

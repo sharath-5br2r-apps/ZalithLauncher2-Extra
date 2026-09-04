@@ -125,6 +125,10 @@ sealed interface NormalNavKey : TitledNavKey {
         @Serializable data object AboutInfo : Settings {
             @Contextual override val title: AndroidStringText = androidText(R.string.settings_tab_info_about)
         }
+        /** Quick Access 面板自定义屏幕 */
+        @Serializable data object QuickAccessCustomization : Settings {
+            @Contextual override val title: AndroidStringText = androidText(R.string.settings_launcher_quick_access_title)
+        }
     }
 
     /** 版本详细设置嵌套子屏幕 */

@@ -61,6 +61,7 @@ import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.download.modpack.install.ModPackInstaller
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.notification.NotificationManager
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.NotificationCheck
@@ -325,6 +326,7 @@ fun DownloadModPackScreen(
                         currentKey = downloadModPackScreenKey,
                         key = assetsKey,
                         eventViewModel = eventViewModel,
+                        autoSelect = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectModpacks.getValue(),
                         onItemClicked = { _, version, iconUrl, _ ->
                             if (viewModel.installOperation !is ModPackInstallOperation.None) {
                                 //不是待安装状态，拒绝此次安装

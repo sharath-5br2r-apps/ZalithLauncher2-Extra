@@ -97,6 +97,7 @@ import com.movtery.zalithlauncher.utils.classes.Quadruple
 import com.movtery.zalithlauncher.utils.formatDate
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.network.toLocal
+import com.movtery.zalithlauncher.utils.file.formatFileSize
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import io.ktor.client.plugins.HttpRequestTimeoutException
@@ -132,7 +133,10 @@ private data class VersionFilter(
     val aprilFools: Boolean = false,
     val old: Boolean = false,
     val id: String = "",
-)
+) {
+    /** Number of version-type categories currently active. */
+    val activeCount: Int get() = listOf(release, snapshot, aprilFools, old).count { it }
+}
 
 private class VersionsViewModel : ViewModel() {
     var versionState by mutableStateOf<VersionState>(VersionState.Loading)
@@ -328,28 +332,32 @@ private fun VersionHeader(
                     VersionTypeItem(
                         selected = versionFilter.release,
                         onClick = {
-                            onVersionFilterChange(versionFilter.copy(release = versionFilter.release.not()))
+                            if (!versionFilter.release || versionFilter.activeCount > 1)
+                                onVersionFilterChange(versionFilter.copy(release = versionFilter.release.not()))
                         },
                         text = stringResource(R.string.download_game_type_release)
                     )
                     VersionTypeItem(
                         selected = versionFilter.snapshot,
                         onClick = {
-                            onVersionFilterChange(versionFilter.copy(snapshot = versionFilter.snapshot.not()))
+                            if (!versionFilter.snapshot || versionFilter.activeCount > 1)
+                                onVersionFilterChange(versionFilter.copy(snapshot = versionFilter.snapshot.not()))
                         },
                         text = stringResource(R.string.download_game_type_snapshot)
                     )
                     VersionTypeItem(
                         selected = versionFilter.aprilFools,
                         onClick = {
-                            onVersionFilterChange(versionFilter.copy(aprilFools = versionFilter.aprilFools.not()))
+                            if (!versionFilter.aprilFools || versionFilter.activeCount > 1)
+                                onVersionFilterChange(versionFilter.copy(aprilFools = versionFilter.aprilFools.not()))
                         },
                         text = stringResource(R.string.download_game_type_april_fools)
                     )
                     VersionTypeItem(
                         selected = versionFilter.old,
                         onClick = {
-                            onVersionFilterChange(versionFilter.copy(old = versionFilter.old.not()))
+                            if (!versionFilter.old || versionFilter.activeCount > 1)
+                                onVersionFilterChange(versionFilter.copy(old = versionFilter.old.not()))
                         },
                         text = stringResource(R.string.download_game_type_old)
                     )
@@ -462,6 +470,12 @@ private fun VersionItemLayout(
         scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
     }
 
+    var downloadSizeText by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(version.version.id) {
+        val bytes = MinecraftVersions.getVersionDownloadSize(version.version.id, version.version.url)
+        bytes?.let { downloadSizeText = formatFileSize(it) }
+    }
+
     val (icon, versionType, wikiUrl, summary) = getVersionComponents(version)
 
     Surface(
@@ -513,14 +527,26 @@ private fun VersionItemLayout(
                     )
                 }
 
-                Text(
-                    modifier = Modifier.alpha(0.7f),
-                    text = formatDate(
-                        input = version.version.releaseTime,
-                        pattern = stringResource(R.string.date_format)
-                    ),
-                    style = MaterialTheme.typography.labelMedium
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        modifier = Modifier.alpha(0.7f),
+                        text = formatDate(
+                            input = version.version.releaseTime,
+                            pattern = stringResource(R.string.date_format)
+                        ),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    downloadSizeText?.let { sizeStr ->
+                        Text(
+                            modifier = Modifier.alpha(0.7f),
+                            text = sizeStr,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
             }
 
             wikiUrl?.let { url ->

@@ -1,0 +1,23 @@
+- [Zeryth/Zalith Launcher CI builds](zeryth-launcher-ci.md) — no local Android SDK/JDK in this repl; Release APKs are only built via GitHub Actions push_ci → build.yml.
+- [MobileGlues bundled library update](mobileglues-update.md) — V1.3.5 added libmobileglues_info_getter.so; Gradle task now version-tracks via .mobileglues_version marker.
+- [RendererPlugin interface refactor](renderer-plugin-refactor.md) — upstream syncs can auto-merge cleanly yet still break unrelated call sites when a class's API shape changes; grep repo-wide, don't trust "no conflict markers".
+- [Game Version selector Stable/Snapshot tabs](game-version-stable-snapshot-tabs.md) — real module is top-level `ZalithLauncher/` per settings.gradle.kts; a dead duplicate tree let 5+ "fix" commits pass CI without ever shipping.
+- [Cross-branch composable porting](cross-branch-composable-porting.md) — when porting a screen from another branch, diff imports symbol-by-symbol and check for repo-native mojibake in source comments; both cause CI-only failures invisible to static grep.
+- [Branch freshness before cross-branch ports](branch-freshness-check.md) — always diff + check last-commit dates before "replace X with the other branch's version"; the named source branch can be the stale one.
+- [Network-aware manual-load toggles](network-aware-manual-load.md) — reuse the existing `isUsingMobileData(context)` util as the *initial value* of a manual-show state flag instead of adding new network logic.
+- [Selective cross-branch porting after freshness check](selective-cross-branch-porting.md) — when a "replace with branch B" request would delete branch A's superset features, port only branch B's genuinely new logic into branch A's structure instead of a full swap.
+- [ViewModel snapshot vs reactive StateFlow fields](viewmodel-snapshot-vs-reactive.md) — a `val x: T = someFlow.value` field only reads the flow once at construction; watch for this when a "live update" requirement is involved.
+- [Quick Access panel customization pattern](quick-access-customization.md) — DashboardTabBar callbacks thread through ContentMenu; new shortcut actions require adding params to both composables and a new callback in LauncherScreen.
+- [Screen Recorder & Player fullscreen/sync fixes](recorder-player-fullscreen-sync.md) — full-screen exit needs legacy systemUiVisibility restore (not ctrl.show); audio/video sync needs a shared recordingStartNs anchor for both streams.
+- [Screen Recorder codec priming](recorder-codec-priming.md) — Android 12+ surface encoders need a seeding black frame before FORMAT_CHANGED fires; priming must be non-fatal (don't cleanup on timeout, let encode-job fallbacks register tracks).
+- [Recorder frozen-first-frame fix](recorder-frozen-first-frame.md) — drain all residual priming output before enabling PixelCopy capture; start encode jobs before isCapturing=true.
+- [Microphone mixing in GameRecorder](mic-mixing-recorder.md) — mix mic PCM in-place into internal-audio buffer before AAC encoding; never add a second muxer track.
+- [PR #86 sync decisions](pr86_sync.md) — full conflict resolution log for star1xr/main → Zeryth-Main; recorder AA files kept Zeryth over upstream stubs.
+- [Crash Analyzer Architecture](crash_analyzer_architecture.md) — full package map, entry flow, intent extras, signature schema; read before any crash analyzer work.
+- [Crash Analyzer Status](crash_analyzer_status.md) — what is complete, what remains (exports, AI, history UI, GPU compat DB), and known limitations.
+- [Crash Analyzer Signature DB](crash_analyzer_signatures.md) — JSON schema, pattern types/fields, all 14 built-in signatures; extend DB only, no code change needed.
+- [Smart Dependency Detection](smart-dep-detection.md) — DependencyInstallPlanner.kt is authoritative; 4-tier matching; planDependencyDownloads only for MOD folder.
+- [Version Profile System](version-profile-system.md) — per-instance profiles store mod/resource/shader/account state; integrate via VersionsManager currentVersion change hook + LauncherScreen right panel icon.
+- [Custom JVM argument sanitization](custom-jvm-argument-sanitization.md) — user JVM text can inject orphan tokens as Java's main class; sanitize at the shared launch boundary while preserving value-bearing options.
+- [GitHub push authentication](github-push-auth.md) — stored GitHub tokens may need Basic auth with the x-access-token username for git push, even when Bearer API auth works.
+- [Multi-process StateFlow pitfall](multiprocess-stateflow-pitfall.md) — companion-object StateFlow/singletons are per-JVM; never use them as IPC signals between android:process boundaries.

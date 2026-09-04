@@ -26,8 +26,6 @@ import com.movtery.zalithlauncher.utils.logging.Logger
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.FileInputStream
-import java.io.IOException
-import java.io.InputStream
 
 private const val TAG = "UnpackSingleTask"
 
@@ -39,14 +37,20 @@ abstract class UnpackSingleTask(
 ) : AbstractUnpackTask() {
     private lateinit var am: AssetManager
     private lateinit var versionFile: File
-    private lateinit var input: InputStream
+    /**
+     * The bundled version string read once from assets during [init].
+     * Storing the value rather than an [InputStream] ensures that
+     * [checkState] can be called any number of times in the same process
+     * lifetime without the stream becoming exhausted.
+     */
+    private lateinit var bundledVersion: String
     private var isCheckFailed: Boolean = false
 
     init {
         runCatching {
             am = context.assets
             versionFile = File("$rootDir/$fileDirName/version")
-            input = am.open("$assetsDirName/version")
+            bundledVersion = am.open("$assetsDirName/version").use { it.readString() }
         }.onFailure { e ->
             Logger.warning(TAG, "Failed to init asset version. assetsPath=$assetsDirName/version", e)
             isCheckFailed = true
@@ -64,10 +68,8 @@ abstract class UnpackSingleTask(
             InstallableItem.State.NOT_STARTED
         } else {
             runCatching {
-                val fis = FileInputStream(versionFile)
-                val release1 = input.readString()
-                val release2 = fis.readString()
-                if (release1 != release2) {
+                val installedVersion = FileInputStream(versionFile).readString()
+                if (bundledVersion != installedVersion) {
                     requestEmptyParentDir(versionFile)
                     InstallableItem.State.PENDING
                 } else {

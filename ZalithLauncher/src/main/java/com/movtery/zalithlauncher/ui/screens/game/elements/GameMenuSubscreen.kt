@@ -20,15 +20,18 @@ package com.movtery.zalithlauncher.ui.screens.game.elements
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -57,6 +60,7 @@ import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
+import com.movtery.zalithlauncher.setting.enums.MemoryDisplayMode
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
 import com.movtery.zalithlauncher.setting.unit.floatRange
 import com.movtery.zalithlauncher.ui.AndroidStringText
@@ -74,6 +78,7 @@ import com.movtery.zalithlauncher.ui.control.gyroscope.isGyroscopeAvailable
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.cardTitleColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
+import androidx.compose.ui.text.style.TextAlign
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
 import kotlin.math.roundToInt
 
@@ -101,12 +106,13 @@ fun GameMenuSubscreen(
     closeScreen: () -> Unit,
     onForceClose: () -> Unit,
     onSwitchLog: () -> Unit,
-    onOpenPerformanceFps: () -> Unit,
-    onOpenPerformanceRam: () -> Unit,
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
     onInputMethod: () -> Unit,
+    isLegacyMode: Boolean = false,
+    mouseCursorEnabled: Boolean = false,
+    onToggleMouseCursor: () -> Unit = {},
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
     onEditLayout: () -> Unit,
@@ -162,6 +168,9 @@ fun GameMenuSubscreen(
                                 modifier = Modifier.fillMaxSize(),
                                 closeScreen = closeScreen,
                                 onInputMethod = onInputMethod,
+                                isLegacyMode = isLegacyMode,
+                                mouseCursorEnabled = mouseCursorEnabled,
+                                onToggleMouseCursor = onToggleMouseCursor,
                                 onSendKeycode = onSendKeycode,
                                 onReplacementControl = onReplacementControl,
                                 onEditLayout = onEditLayout
@@ -190,8 +199,6 @@ fun GameMenuSubscreen(
                 modifier = Modifier.weight(1f),
                 onForceClose = onForceClose,
                 onSwitchLog = onSwitchLog,
-                onOpenPerformanceFps = onOpenPerformanceFps,
-                onOpenPerformanceRam = onOpenPerformanceRam,
                 enableTerracotta = enableTerracotta,
                 onOpenTerracottaMenu = onOpenTerracottaMenu,
                 onRefreshWindowSize = onRefreshWindowSize,
@@ -206,8 +213,6 @@ fun GameMenuSubscreen(
 private fun GameActionContent(
     onForceClose: () -> Unit,
     onSwitchLog: () -> Unit,
-    onOpenPerformanceFps: () -> Unit,
-    onOpenPerformanceRam: () -> Unit,
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
@@ -351,6 +356,45 @@ private fun GameActionContent(
                 enabled = AllSettings.showMenuBall.state
             )
         }
+        //内存显示模式选择（仅在内存显示开启时展示）
+        item {
+            AnimatedVisibility(
+                visible = AllSettings.showMemory.state && AllSettings.showMenuBall.state
+            ) {
+                val selectedMode = AllSettings.memoryDisplayMode.state
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        modifier = Modifier.weight(1f),
+                        selected = selectedMode == MemoryDisplayMode.Allocated,
+                        onClick = { AllSettings.memoryDisplayMode.save(MemoryDisplayMode.Allocated) },
+                        label = {
+                            Text(
+                                modifier = Modifier.fillMaxWidth(),
+                                text = stringResource(R.string.game_menu_option_memory_mode_allocated),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    )
+                    FilterChip(
+                        modifier = Modifier.weight(1f),
+                        selected = selectedMode == MemoryDisplayMode.System,
+                        onClick = { AllSettings.memoryDisplayMode.save(MemoryDisplayMode.System) },
+                        label = {
+                            Text(
+                                modifier = Modifier.fillMaxWidth(),
+                                text = stringResource(R.string.game_menu_option_memory_mode_system),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    )
+                }
+            }
+        }
         //游戏窗口分辨率
         item {
             MenuSliderLayout(
@@ -381,6 +425,9 @@ private fun ControlOverview(
     contentColor: Color = onCardColor(),
     closeScreen: () -> Unit,
     onInputMethod: () -> Unit,
+    isLegacyMode: Boolean = false,
+    mouseCursorEnabled: Boolean = false,
+    onToggleMouseCursor: () -> Unit = {},
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
     onEditLayout: () -> Unit
@@ -421,10 +468,27 @@ private fun ControlOverview(
             )
         }
 
+        //切换虚拟鼠标光标（仅Legacy模式）
+        if (isLegacyMode) {
+            item {
+                MenuTextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = stringResource(
+                        if (mouseCursorEnabled) R.string.game_menu_option_mouse_cursor_off
+                        else R.string.game_menu_option_mouse_cursor_on
+                    ),
+                    onClick = {
+                        onToggleMouseCursor()
+                    },
+                    color = color,
+                    contentColor = contentColor,
+                )
+            }
+        }
+
         item {
             Spacer(modifier = Modifier.height(8.dp))
         }
-
         //发送键值
         item {
             MenuTextButton(

@@ -48,6 +48,7 @@ fun SearchSavesScreen(
             CurseForgeSavesCategory.entries.find { it.describe() == string }
         },
         filterPersistenceKey = AllSettings.searchSavesFilter.key,
+        autoSelectEnabled = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectSaves.getValue(),
         swapToDownload = swapToDownload
     )
 }

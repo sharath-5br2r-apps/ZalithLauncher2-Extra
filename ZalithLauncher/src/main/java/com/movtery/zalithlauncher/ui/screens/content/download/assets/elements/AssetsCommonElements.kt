@@ -174,13 +174,15 @@ private fun BasicIdentifier(
 /**
  * 资源封面网络图标
  * @param iconUrl 图标链接
+ * @param fallbackContent 当网络图标加载失败时显示的备用内容，为 null 时显示默认错误图标
  */
 @Composable
 fun AssetsIcon(
     modifier: Modifier = Modifier,
     size: Dp,
     iconUrl: String? = null,
-    colorFilter: ColorFilter? = null
+    colorFilter: ColorFilter? = null,
+    fallbackContent: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -207,7 +209,7 @@ fun AssetsIcon(
     val painter = rememberAsyncImagePainter(
         model = imageRequest,
         placeholder = null,
-        error = painterResource(R.drawable.ic_unknown_icon)
+        error = if (fallbackContent == null) painterResource(R.drawable.ic_unknown_icon) else null
     )
 
     val state by painter.state.collectAsStateWithLifecycle()
@@ -222,7 +224,6 @@ fun AssetsIcon(
                 modifier = sizeModifier
             )
         }
-        is AsyncImagePainter.State.Error,
         is AsyncImagePainter.State.Success -> {
             Image(
                 painter = painter,
@@ -232,6 +233,20 @@ fun AssetsIcon(
                 modifier = sizeModifier,
                 colorFilter = colorFilter
             )
+        }
+        is AsyncImagePainter.State.Error -> {
+            if (fallbackContent != null) {
+                fallbackContent()
+            } else {
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    alignment = Alignment.Center,
+                    contentScale = ContentScale.Fit,
+                    modifier = sizeModifier,
+                    colorFilter = colorFilter
+                )
+            }
         }
     }
 }

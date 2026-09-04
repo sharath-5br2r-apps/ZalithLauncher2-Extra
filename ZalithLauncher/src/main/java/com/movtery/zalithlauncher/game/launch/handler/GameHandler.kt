@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.IntSize
 import com.movtery.inputmap.keycodes.LwjglGlfwKeycode
 import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.game.control.ControlManager
+import com.movtery.zalithlauncher.game.control.legacy.LegacyControlManager
 import com.movtery.zalithlauncher.game.input.EfficientAndroidLWJGLKeycode
 import com.movtery.zalithlauncher.game.input.LWJGLCharSender
 import com.movtery.zalithlauncher.game.launch.GameLauncher
@@ -48,14 +49,27 @@ import com.movtery.zalithlauncher.ui.control.input.TextInputMode
 import com.movtery.zalithlauncher.ui.screens.game.GameScreen
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogState
 import com.movtery.zalithlauncher.ui.screens.game.elements.mutableStateOfLog
+import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.libsdl.app.SDLActivity
 import org.lwjgl.glfw.CallbackBridge
+
+private const val TAG = "GameHandler"
+
+/** options.txt key for Minecraft's music volume */
+private const val MUSIC_VOLUME_KEY = "soundCategory_music"
+
+/** Value used to mute music while the launcher is backgrounded */
+private const val MUSIC_MUTED_VALUE = "0.0"
 
 class GameHandler(
     val activity: Activity,
@@ -80,6 +94,20 @@ class GameHandler(
 
     private var isGameRendering = false
     private var showGameInfo by mutableStateOf(true)
+
+    /**
+     * Stores the user's original soundCategory_music value for the current session.
+     * Set in onPause() and cleared after restoration in onResume().
+     * Never written to disk — only held in memory for the current lifecycle transition.
+     */
+    private var savedMusicVolume: String? = null
+
+    /**
+     * Dedicated coroutine scope for async music mute/restore file I/O.
+     * Uses Dispatchers.IO to avoid blocking the Android UI thread.
+     * SupervisorJob ensures a failure here does not cancel unrelated launcher coroutines.
+     */
+    private val musicMuteScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
      * 日志展示状态
@@ -137,11 +165,76 @@ class GameHandler(
     }
 
     override fun onPause() {
+        // The MediaProjection consent dialog is part of the recording start flow, not
+        // the user genuinely leaving the game.  Suppress music muting so that the
+        // game audio is not interrupted (and no F3+T restore fires on resume).
+        // savedMusicVolume stays null, so onResume() naturally skips the restore.
+        if (GameRecorder.isConsentPending) return
+
+        // Mute Minecraft's ambient background music when the launcher is backgrounded.
+        // Integrates into the same lifecycle hook used for automatic game pausing.
+        // All file I/O runs on Dispatchers.IO to avoid blocking the Android UI thread.
+        musicMuteScope.launch {
+            try {
+                // Read soundCategory_music from the active instance's options.txt via MCOptions.
+                // MCOptions resolves the path using the active Version's game directory —
+                // no path is hardcoded here.
+                val currentVolume = MCOptions.get(MUSIC_VOLUME_KEY)
+
+                // Only proceed if a valid, non-zero volume is present to preserve
+                if (!currentVolume.isNullOrEmpty() && currentVolume != MUSIC_MUTED_VALUE) {
+                    // Store the user's original music volume for this session
+                    savedMusicVolume = currentVolume
+
+                    // Replace soundCategory_music with 0.0 — all other options.txt
+                    // entries are left completely untouched by MCOptions.save()
+                    MCOptions.set(MUSIC_VOLUME_KEY, MUSIC_MUTED_VALUE)
+                    MCOptions.save()
+
+                    // Trigger Minecraft to reload the updated configuration using the
+                    // existing native input wrapper (CallbackBridge), so the muted
+                    // volume takes effect in the running game immediately
+                    triggerConfigReload()
+                }
+            } catch (e: Exception) {
+                // Gracefully handle missing options.txt, corrupted config, parse errors,
+                // and permission failures. The launcher continues functioning normally
+                // even if music muting fails.
+                Logger.warning(TAG, "Failed to mute background music on pause", e)
+            }
+        }
     }
 
     override fun onResume() {
+        // Refresh controls as part of the existing resume flow
         refreshControls()
         eventViewModel.sendEvent(EventViewModel.Event.Game.OnResume)
+
+        // Restore the user's original music volume after returning from background.
+        // Only runs if a volume was saved during the corresponding onPause().
+        val volumeToRestore = savedMusicVolume ?: return
+        musicMuteScope.launch {
+            try {
+                // Write the previously saved music volume back into options.txt.
+                // Preserves the user's original preference — no permanent modification.
+                MCOptions.set(MUSIC_VOLUME_KEY, volumeToRestore)
+                MCOptions.save()
+                savedMusicVolume = null
+
+                // Brief delay to allow the game to fully resume its rendering loop
+                // before injecting the configuration reload key sequence
+                delay(300L)
+
+                // Trigger Minecraft to reload the updated configuration using the
+                // existing native input wrapper, restoring the original music volume
+                // at runtime via the same mechanism used during onPause()
+                triggerConfigReload()
+            } catch (e: Exception) {
+                // Gracefully handle any I/O or parsing failure during volume restoration.
+                // The launcher continues normally even if the restore fails.
+                Logger.warning(TAG, "Failed to restore music volume on resume", e)
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -237,7 +330,6 @@ class GameHandler(
             version = version,
             gameHandler = this,
             showGameInfo = showGameInfo,
-            onInfoBoxClose = { showGameInfo = false },
             logState = logState,
             onLogStateChange = { logState = it },
             textInputMode = textInputMode,
@@ -249,8 +341,33 @@ class GameHandler(
         )
     }
 
+    /**
+     * Triggers Minecraft to reload its options configuration using the existing
+     * native input wrapper (CallbackBridge). Dispatches the F3+T key sequence via
+     * the same JNI bridge used throughout the launcher for all in-game input.
+     *
+     * F3+T is Minecraft's standard mechanism to reload resources and re-read
+     * options.txt, which causes the SoundManager to immediately apply the updated
+     * soundCategory_music value at runtime.
+     *
+     * Reuses the existing CallbackBridge.sendKeyPress() rather than duplicating
+     * any native input logic. This is the same entry point used by all other
+     * launcher-side key injection (chat open, controls, etc.).
+     *
+     * Based on the PojavLauncher-style activity architecture where the JNI bridge
+     * is the single interface between the Android side and the running LWJGL/GLFW game.
+     */
+    private fun triggerConfigReload() {
+        // Hold F3, tap T, then release both — the standard Minecraft reload sequence
+        CallbackBridge.sendKeyPress(LwjglGlfwKeycode.GLFW_KEY_F3.toInt(), 0, true)
+        CallbackBridge.sendKeyPress(LwjglGlfwKeycode.GLFW_KEY_T.toInt(), 0, true)
+        CallbackBridge.sendKeyPress(LwjglGlfwKeycode.GLFW_KEY_T.toInt(), 0, false)
+        CallbackBridge.sendKeyPress(LwjglGlfwKeycode.GLFW_KEY_F3.toInt(), 0, false)
+    }
+
     private fun refreshControls() {
         ControlManager.refresh()
+        LegacyControlManager.refresh()
     }
 
     init {

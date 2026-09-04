@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.game.version.saves
 
 import com.github.steveice10.opennbt.NBTIO
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag
+import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.version.installed.utils.isBiggerOrEqualVer
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.nbt.asBooleanNotNull
@@ -30,6 +31,8 @@ import com.movtery.zalithlauncher.utils.nbt.asString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 private const val TAG = "SaveUtils"
 
@@ -132,5 +135,72 @@ suspend fun parseLevelDatFile(
 //            saveSize = fileSize,
             isValid = false
         )
+    }
+}
+// ----------------------
+// Download source tracking
+// ----------------------
+
+private const val DOWNLOAD_SOURCE_FILE = ".zl_save_source"
+
+/**
+ * 读取存档的下载来源信息（安装时由启动器写入）。
+ * 返回 (Platform, projectId) 或 null（表示本地创建或无记录）。
+ */
+fun readSaveDownloadSource(saveFolder: File): Pair<Platform, String>? {
+    val file = File(saveFolder, DOWNLOAD_SOURCE_FILE)
+    if (!file.exists() || !file.isFile) return null
+    return runCatching {
+        val lines = file.readLines()
+        if (lines.size >= 2) {
+            val platform = Platform.valueOf(lines[0].trim())
+            val projectId = lines[1].trim()
+            if (projectId.isNotEmpty()) platform to projectId else null
+        } else null
+    }.onFailure {
+        Logger.warning(TAG, "Failed to read save download source for ${saveFolder.name}", it)
+    }.getOrNull()
+}
+
+// ----------------------
+// World enable / disable
+// ----------------------
+
+/** 禁用存档的存放文件夹名称（位于游戏目录下，与 saves 同级） */
+const val DISABLED_SAVES_FOLDER = "disabled_saves"
+
+/**
+ * 启用存档：将存档文件夹从 disabled_saves 移回 saves 目录。
+ * 成功返回移动后的新文件夹，失败返回 null。
+ */
+fun SaveData.enableWorld(): File? {
+    // saveFile.parentFile = disabled_saves/, parentFile.parentFile = gameDir/
+    val savesDir = File(saveFile.parentFile.parentFile, "saves")
+    val target = File(savesDir, saveFile.name)
+    savesDir.mkdirs()
+    return try {
+        Files.move(saveFile.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        target
+    } catch (e: Exception) {
+        Logger.warning(TAG, "Failed to enable world ${saveFile.name}", e)
+        null
+    }
+}
+
+/**
+ * 禁用存档：将存档文件夹从 saves 移动到 disabled_saves 目录。
+ * 成功返回移动后的新文件夹，失败返回 null。
+ */
+fun SaveData.disableWorld(): File? {
+    // saveFile.parentFile = saves/, parentFile.parentFile = gameDir/
+    val disabledDir = File(saveFile.parentFile.parentFile, DISABLED_SAVES_FOLDER)
+    val target = File(disabledDir, saveFile.name)
+    disabledDir.mkdirs()
+    return try {
+        Files.move(saveFile.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        target
+    } catch (e: Exception) {
+        Logger.warning(TAG, "Failed to disable world ${saveFile.name}", e)
+        null
     }
 }

@@ -188,7 +188,9 @@ class RemoteMod(
                     loaders = loaders.mapNotNull { loaderName ->
                         ModrinthModLoaderCategory.entries.find { it.facetValue() == loaderName }
                     }.toTypedArray(),
-                    datePublished = datePublished
+                    datePublished = datePublished,
+                    gameVersions = gameVersions,
+                    version = versionNumber
                 )
             }
             is CurseForgeFile -> {
@@ -201,7 +203,9 @@ class RemoteMod(
                             it.getDisplayName().equals(loaderName, true)
                         }
                     }.toTypedArray(),
-                    datePublished = fileDate
+                    datePublished = fileDate,
+                    gameVersions = platformGameVersion(),
+                    version = displayName
                 )
             }
             else -> error("Unknown version type: $this")

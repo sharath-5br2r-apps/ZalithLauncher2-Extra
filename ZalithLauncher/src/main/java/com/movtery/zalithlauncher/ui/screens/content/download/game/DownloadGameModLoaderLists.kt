@@ -18,15 +18,28 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.download.game
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.addons.modloader.AddonVersion
@@ -376,11 +389,24 @@ fun ForgeList(
     val optifineVersion by currentAddon.optifineVersion
     val incompatibleSet by currentAddon.incompatibleWithForge
 
-    val items = addonList.forgeList?.filter { version ->
-        //选择 OptiFine 之后，根据 OptiFine 需求的 Forge 版本进行过滤
-        optifineVersion?.let { ofv ->
-            isOptiFineCompatibleWithForge(ofv, version)
-        } ?: true
+    // Track whether the user has opted to bypass OptiFine compatibility filtering
+    var showAllForgeVersions by remember { mutableStateOf(false) }
+
+    // Reset to filtered mode whenever the OptiFine selection changes
+    LaunchedEffect(optifineVersion) {
+        showAllForgeVersions = false
+    }
+
+    val items = remember(addonList.forgeList, optifineVersion, showAllForgeVersions) {
+        val ofv = optifineVersion
+        addonList.forgeList?.let { list ->
+            if (showAllForgeVersions || ofv == null) {
+                list
+            } else {
+                //选择 OptiFine 之后，根据 OptiFine 需求的 Forge 版本进行过滤
+                list.filter { isOptiFineCompatibleWithForge(ofv, it) }
+            }
+        }
     }
 
     AddonListLayout(
@@ -397,12 +423,53 @@ fun ForgeList(
         triggerCheckIncompatible = arrayOf(currentAddon.optifineState),
         error = error ?: checkForgeCompatibilityError(addonList.forgeList),
         getItemText = { it.versionName },
-        summary = { ForgeVersionSummary(it) },
+        summary = { forgeVer ->
+            val ofv = optifineVersion
+            if (showAllForgeVersions && ofv != null) {
+                // In full-list mode: show the standard summary plus a compatible badge
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    ForgeVersionSummary(forgeVer)
+                    if (isOptiFineCompatibleWithForge(ofv, forgeVer)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(14.dp),
+                                painter = painterResource(R.drawable.ic_check),
+                                contentDescription = null
+                            )
+                            Text(
+                                text = stringResource(R.string.download_game_addon_compatible_forge),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            } else {
+                ForgeVersionSummary(forgeVer)
+            }
+        },
         onValueChange = { version0 ->
             version = version0
             onValueChanged()
         },
-        onReload = onReload
+        onReload = onReload,
+        // "Show All Forge Versions" action shown at the bottom of the filtered list
+        bottomContent = {
+            if (optifineVersion != null && !showAllForgeVersions) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(onClick = { showAllForgeVersions = true }) {
+                        Text(stringResource(R.string.download_game_addon_show_all_forge_versions))
+                    }
+                }
+            }
+        }
     )
 }
 

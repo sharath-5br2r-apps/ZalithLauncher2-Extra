@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <!--
+      Material Symbols – photo_camera
+      Solid style (960 viewport), consistent with other filled icons in the project.
+    -->
+    <path
+        android:fillColor="#1f1f1f"
+        android:pathData="M480,580q58,0 99,-41t41,-99q0,-58 -41,-99t-99,-41q-58,0 -99,41t-41,99q0,58 41,99t99,41ZM80,800q-33,0 -56.5,-23.5T0,720V280q0,-33 23.5,-56.5T80,200h133l68,-80h318l68,80h133q33,0 56.5,23.5T880,280v440q0,33 -23.5,56.5T800,800L80,800ZM480,660q-91,0 -155.5,-64.5T260,440q0,-91 64.5,-155.5T480,220q91,0 155.5,64.5T700,440q0,91 -64.5,155.5T480,660Z" />
+
+</vector>

@@ -37,18 +37,33 @@ import kotlinx.coroutines.withContext
 
 private const val TAG = "RemoteShaderPack"
 
+/**
+ * 光影包，包含本地信息以及从平台上获取到的远端项目信息（用于展示光影包图标）
+ */
 class RemoteShaderPack(
     val info: ShaderPackInfo
 ) {
+    /**
+     * 是否正在加载项目信息
+     */
     var isLoading by mutableStateOf(false)
         private set
 
+    /**
+     * 项目信息（若在远端平台匹配到该光影包，则不为空）
+     */
     var projectInfo: ShaderProjectInfo? by mutableStateOf(null)
         private set
 
+    /**
+     * 是否已经加载过
+     */
     var isLoaded: Boolean = false
         private set
 
+    /**
+     * @param loadFromCache 是否从缓存中加载
+     */
     suspend fun load(loadFromCache: Boolean) {
         if (loadFromCache && isLoaded) return
 
@@ -65,8 +80,10 @@ class RemoteShaderPack(
                 val projectCache = shaderProjectCache()
 
                 runCatching {
+                    //获取文件 sha1，作为缓存的键
                     val sha1 = calculateFileSha1(file)
 
+                    //从缓存加载项目信息
                     val cachedProject = if (loadFromCache) {
                         projectCache.decodeParcelable(sha1, ShaderProjectInfo::class.java)
                     } else null
@@ -109,6 +126,7 @@ class RemoteShaderPack(
         }
     }
 
+    /** 从平台版本信息中提取项目 ID 与所属平台 */
     private fun toProjectRef(version: com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion): Pair<String, Platform>? {
         return when (version) {
             is ModrinthVersion -> version.projectId to Platform.MODRINTH

@@ -19,6 +19,11 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +42,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,8 +51,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.scrollbar
+import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,6 +70,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -117,7 +128,6 @@ import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.SingleLineTextCheck
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -139,7 +149,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
-import java.util.Locale
+import androidx.compose.animation.AnimatedVisibility
+  import androidx.compose.animation.core.animateFloatAsState
+  import androidx.compose.animation.expandVertically
+  import androidx.compose.animation.fadeIn
+  import androidx.compose.animation.fadeOut
+  import androidx.compose.animation.shrinkVertically
+  import androidx.compose.foundation.gestures.detectVerticalDragGestures
+  import androidx.compose.foundation.shape.RoundedCornerShape
+  import androidx.compose.ui.input.pointer.pointerInput
+  import java.util.Locale
 
 private sealed interface ControlOperation {
     data object None : ControlOperation
@@ -157,6 +176,8 @@ private sealed interface ControlOperation {
     data class EditDescription(val data: ControlData) : ControlOperation
     /** 编辑版本名称 */
     data class EditVersion(val data: ControlData) : ControlOperation
+    /** 恢复内置布局为出厂默认值 */
+    data class RestoreBuiltIn(val data: ControlData) : ControlOperation
 }
 
 private enum class EditTextType(val length: Int, val titleRes: Int, val allowEmpty: Boolean) {
@@ -213,6 +234,195 @@ private fun rememberControlViewModel() = viewModel(
     ControlViewModel()
 }
 
+
+@Composable
+private fun ControlTypeTabRow(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tabs = listOf(
+        Pair(stringResource(R.string.control_manage_tab_zalith2), R.drawable.ic_dashboard_outlined),
+        Pair(stringResource(R.string.control_manage_tab_legacy), R.drawable.ic_article_outlined)
+    )
+    BoxWithConstraints(
+        modifier = modifier
+            .height(52.dp)
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp)
+    ) {
+        val tabWidth = maxWidth / tabs.size
+        val indicatorOffset by animateDpAsState(
+            targetValue = tabWidth * selectedTab,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "tab_indicator"
+        )
+        Box(
+            modifier = Modifier
+                .offset(x = indicatorOffset)
+                .width(tabWidth)
+                .fillMaxHeight()
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        )
+        Row(modifier = Modifier.fillMaxSize()) {
+            tabs.forEachIndexed { index, tabEntry ->
+                val (label, iconRes) = tabEntry
+                val isSelected = selectedTab == index
+                val contentColor = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onTabSelected(index) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(iconRes),
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = contentColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollapsibleControlTypeSelector(
+    currentType: String,
+    onTypeChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures { _, dragAmount ->
+                        if (dragAmount > 8f) expanded = true
+                        else if (dragAmount < -8f) expanded = false
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier.size(width = 40.dp, height = 4.dp),
+                shape = RoundedCornerShape(2.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+            ) {}
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(),
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeOut()
+        ) {
+            ControlTypeSelector(currentType = currentType, onTypeChange = onTypeChange)
+        }
+    }
+}
+
+@Composable
+private fun ControlTypeSelector(
+    currentType: String,
+    onTypeChange: (String) -> Unit
+) {
+    var type by remember { mutableStateOf(currentType) }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_control_default_system_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = stringResource(R.string.settings_control_default_system_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    modifier = Modifier.weight(1f),
+                    selected = type == "zalith2",
+                    onClick = {
+                        type = "zalith2"
+                        onTypeChange("zalith2")
+                    },
+                    label = {
+                        Text(
+                            text = stringResource(R.string.control_manage_tab_zalith2),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                )
+                FilterChip(
+                    modifier = Modifier.weight(1f),
+                    selected = type == "legacy",
+                    onClick = {
+                        type = "legacy"
+                        onTypeChange("legacy")
+                    },
+                    label = {
+                        Text(
+                            text = stringResource(R.string.control_manage_tab_legacy),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun ControlManageScreen(
     key: NestedNavKey.Settings,
@@ -258,6 +468,9 @@ fun ControlManageScreen(
                     message = androidText(e.getMessageOrToString())
                 )
             }
+        },
+        onRestore = { data ->
+            ControlManager.restoreBuiltInLayout(context)
         }
     )
 
@@ -267,68 +480,103 @@ fun ControlManageScreen(
     ) { isVisible ->
         val selectedLayout by ControlManager.selectedLayout.collectAsStateWithLifecycle()
         val isRefreshing by ControlManager.isRefreshing.collectAsStateWithLifecycle()
+        var selectedTab by remember { mutableIntStateOf(if (AllSettings.controlType.getValue() == "legacy") 1 else 0) }
 
-        AnimatedRow(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(all = 12.dp),
-            isVisible = isVisible
-        ) { scope ->
-            AnimatedItem(scope) { xOffset ->
-                ControlLayoutList(
-                    modifier = Modifier
-                        .weight(0.5f)
-                        .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
-                    dataList = dataList,
-                    locale = locale,
-                    isLoading = isRefreshing,
-                    onRefresh = {
-                        ControlManager.refresh()
-                    },
-                    onCreate = {
-                        viewModel.operation = ControlOperation.CreateNew
-                    },
-                    onCopy = { data ->
-                        viewModel.copyNew(data.controlLayout) { e ->
-                            submitError(
-                                ErrorViewModel.ThrowableMessage(
-                                    title = androidText(R.string.control_manage_failed_to_save),
-                                    message = androidText(e.getMessageOrToString())
-                                )
+                .padding(all = 12.dp)
+        ) {
+            ControlTypeTabRow(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            CollapsibleControlTypeSelector(
+                currentType = AllSettings.controlType.getValue(),
+                onTypeChange = { type ->
+                    AllSettings.controlType.save(type)
+                    selectedTab = if (type == "legacy") 1 else 0
+                }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (selectedTab) {
+                    0 -> AnimatedRow(
+                        modifier = Modifier.fillMaxSize(),
+                        isVisible = isVisible
+                    ) { scope ->
+                        AnimatedItem(scope) { xOffset ->
+                            ControlLayoutList(
+                                modifier = Modifier
+                                    .weight(0.5f)
+                                    .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
+                                dataList = dataList,
+                                locale = locale,
+                                isLoading = isRefreshing,
+                                onRefresh = {
+                                    ControlManager.refresh()
+                                },
+                                onCreate = {
+                                    viewModel.operation = ControlOperation.CreateNew
+                                },
+                                onCopy = { data ->
+                                    viewModel.copyNew(data.controlLayout) { e ->
+                                        submitError(
+                                            ErrorViewModel.ThrowableMessage(
+                                                title = androidText(R.string.control_manage_failed_to_save),
+                                                message = androidText(e.getMessageOrToString())
+                                            )
+                                        )
+                                    }
+                                },
+                                onDelete = { data ->
+                                    viewModel.operation = ControlOperation.Delete(data)
+                                },
+                                onRestore = { data ->
+                                    viewModel.operation = ControlOperation.RestoreBuiltIn(data)
+                                },
+                                eventViewModel = eventViewModel,
                             )
                         }
-                    },
-                    onDelete = { data ->
-                        viewModel.operation = ControlOperation.Delete(data)
-                    },
-                    eventViewModel = eventViewModel,
-                )
-            }
 
-            AnimatedItem(scope) { xOffset ->
-                ControlLayoutInfo(
-                    modifier = Modifier
-                        .weight(0.5f)
-                        .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
-                    isLoading = isRefreshing,
-                    data = selectedLayout,
-                    locale = locale,
-                    onShareLayout = { data ->
-                        shareFile(context, data.file)
-                    },
-                    onEditLayout = { data ->
-                        startEditorActivity(context, data.file)
-                    },
-                    onEditText = { data, string, type ->
-                        viewModel.operation = ControlOperation.EditText(data, string, type)
-                    },
-                    onEditDescription = { data ->
-                        viewModel.operation = ControlOperation.EditDescription(data)
-                    },
-                    onEditVersion = { data ->
-                        viewModel.operation = ControlOperation.EditVersion(data)
+                        AnimatedItem(scope) { xOffset ->
+                            ControlLayoutInfo(
+                                modifier = Modifier
+                                    .weight(0.5f)
+                                    .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
+                                isLoading = isRefreshing,
+                                data = selectedLayout,
+                                locale = locale,
+                                onShareLayout = { data ->
+                                    shareFile(context, data.file)
+                                },
+                                onEditLayout = { data ->
+                                    startEditorActivity(context, data.file)
+                                },
+                                onEditText = { data, string, type ->
+                                    viewModel.operation = ControlOperation.EditText(data, string, type)
+                                },
+                                onEditDescription = { data ->
+                                    viewModel.operation = ControlOperation.EditDescription(data)
+                                },
+                                onEditVersion = { data ->
+                                    viewModel.operation = ControlOperation.EditVersion(data)
+                                }
+                            )
+                        }
                     }
-                )
+                    1 -> LegacyControlManageContent(
+                        modifier = Modifier.fillMaxSize(),
+                        isVisible = isVisible,
+                        submitError = submitError
+                    )
+                }
             }
         }
     }
@@ -343,7 +591,8 @@ private fun ControlOperation(
     changeOperation: (ControlOperation) -> Unit,
     onCreate: (name: String, author: String, versionName: String) -> Unit,
     onDelete: (ControlData) -> Unit,
-    onSave: (ControlData) -> Unit
+    onSave: (ControlData) -> Unit,
+    onRestore: (ControlData) -> Unit
 ) {
     when (operation) {
         is ControlOperation.None -> {}
@@ -432,6 +681,20 @@ private fun ControlOperation(
                 }
             )
         }
+        is ControlOperation.RestoreBuiltIn -> {
+            SimpleAlertDialog(
+                title = stringResource(R.string.generic_warning),
+                text = stringResource(R.string.control_manage_builtin_restore_message),
+                confirmText = stringResource(R.string.control_manage_builtin_restore_confirm),
+                onConfirm = {
+                    onRestore(operation.data)
+                    changeOperation(ControlOperation.None)
+                },
+                onDismiss = {
+                    changeOperation(ControlOperation.None)
+                }
+            )
+        }
     }
 }
 
@@ -449,6 +712,7 @@ private fun ControlLayoutList(
     onCreate: () -> Unit,
     onCopy: (ControlData) -> Unit,
     onDelete: (ControlData) -> Unit,
+    onRestore: (ControlData) -> Unit,
     eventViewModel: EventViewModel,
 ) {
     BackgroundCard(
@@ -493,7 +757,8 @@ private fun ControlLayoutList(
                             selected = data.file.name == AllSettings.controlLayout.state,
                             onSelected = { ControlManager.selectControl(data) },
                             onCopy = { onCopy(data) },
-                            onDelete = { onDelete(data) }
+                            onDelete = { onDelete(data) },
+                            onRestore = { onRestore(data) }
                         )
                     }
                 }
@@ -571,6 +836,7 @@ private fun ControlLayoutItem(
     onSelected: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
+    onRestore: () -> Unit,
     color: Color = itemColor(),
     contentColor: Color = onItemColor(),
 ) {
@@ -617,6 +883,19 @@ private fun ControlLayoutItem(
                         text = if (data.isSupport) info.name.translate(locale) else data.file.name,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    if (data.isBuiltIn) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                text = stringResource(R.string.legacy_control_manage_builtin_badge),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
                 }
 
                 if (data.isSupport) {
@@ -643,14 +922,27 @@ private fun ControlLayoutItem(
                     contentDescription = stringResource(R.string.generic_copy)
                 )
             }
+            //恢复内置默认值（仅内置布局显示）
+            if (data.isBuiltIn) {
+                IconButton(
+                    onClick = onRestore
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_restart_alt),
+                        contentDescription = stringResource(R.string.control_manage_builtin_restore)
+                    )
+                }
+            }
             //删除
-            IconButton(
-                onClick = onDelete
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_delete_outlined),
-                    contentDescription = stringResource(R.string.generic_delete)
-                )
+            if (!data.isBuiltIn) {
+                IconButton(
+                    onClick = onDelete
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_delete_outlined),
+                        contentDescription = stringResource(R.string.generic_delete)
+                    )
+                }
             }
         }
     }
@@ -699,6 +991,11 @@ private fun ControlLayoutInfo(
             }
         } else {
             val info = data.controlLayout.info
+            // For built-in layouts, edit callbacks are no-ops so fields render as read-only.
+            val editText = onEditText
+            val editDescription = onEditDescription
+            val editVersion = onEditVersion
+
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -711,7 +1008,7 @@ private fun ControlLayoutInfo(
                         title = stringResource(R.string.control_manage_create_new_name),
                         value = if (name.isEmptyOrBlank()) stringResource(R.string.generic_unspecified) else name,
                         onEdit = {
-                            onEditText(data, info.name, EditTextType.NAME)
+                            editText(data, info.name, EditTextType.NAME)
                         }
                     )
                 }
@@ -723,7 +1020,7 @@ private fun ControlLayoutInfo(
                         title = stringResource(R.string.control_manage_create_new_author),
                         value = if (author.isEmptyOrBlank()) stringResource(R.string.generic_unspecified) else author,
                         onEdit = {
-                            onEditText(data, info.author, EditTextType.AUTHOR)
+                            editText(data, info.author, EditTextType.AUTHOR)
                         }
                     )
                 }
@@ -735,7 +1032,7 @@ private fun ControlLayoutInfo(
                         title = stringResource(R.string.control_manage_create_new_version_name),
                         value = if (versionName.isEmptyOrBlank()) stringResource(R.string.generic_unspecified) else versionName,
                         onEdit = {
-                            onEditVersion(data)
+                            editVersion(data)
                         }
                     )
                 }
@@ -748,7 +1045,7 @@ private fun ControlLayoutInfo(
                             title = stringResource(R.string.control_manage_info_description),
                             value = stringResource(R.string.control_manage_info_description_empty),
                             onEdit = {
-                                onEditDescription(data)
+                                editDescription(data)
                             }
                         )
                     }
@@ -758,7 +1055,7 @@ private fun ControlLayoutInfo(
                         ControlInfoItem(
                             modifier = Modifier.fillMaxWidth(),
                             onEdit = {
-                                onEditDescription(data)
+                                editDescription(data)
                             }
                         ) {
                             Column(
