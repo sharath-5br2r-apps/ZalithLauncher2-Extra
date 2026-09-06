@@ -1,0 +1,31 @@
+name: Cleanup
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: clean
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete Older Releases and Workflows
+        uses: ophub/delete-releases-workflows@main
+        with:
+          delete_releases: true
+          delete_tags: false
+          releases_keep_latest: 198
+          delete_workflows: true
+          workflows_keep_day: 90
+          releases_keep_keyword: stable/beta/update
+          gh_token: ${{ secrets.PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}

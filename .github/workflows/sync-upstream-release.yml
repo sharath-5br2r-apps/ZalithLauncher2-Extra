@@ -1,0 +1,450 @@
+name: Sync And Build
+
+permissions: write-all
+
+on:
+  schedule:
+    - cron: '0 1/2 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: 'Upstream release/tag to sync (leave empty for latest upstream tag)'
+        required: false
+        type: string
+        default: ''
+      skip_sync:
+        description: 'Skip git sync (only build and release current main branch)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-upstream-release
+  cancel-in-progress: false
+
+jobs:
+  # ==========================================
+  # 1. CHECK JOB (Determines upstream tag & release metadata)
+  # ==========================================
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      upstream_tag: ${{ steps.latest.outputs.upstream_tag }}
+      should_run: ${{ steps.check.outputs.should_run }}
+      skip_sync: ${{ steps.check.outputs.skip_sync }}
+      release_tag: ${{ steps.check.outputs.release_tag }}
+      release_name: ${{ steps.check.outputs.release_name }}
+
+    steps:
+      - name: Determine upstream release tag
+        id: latest
+        run: |
+          TAG_INPUT="${{ inputs.upstream_tag }}"
+          if [ -n "$TAG_INPUT" ]; then
+            TARGET_TAG="$TAG_INPUT"
+            echo "Using manually specified tag: $TARGET_TAG"
+          else
+            echo "Determining latest upstream release tag..."
+            LATEST_TAG=$(curl -s "https://api.github.com/repos/ZalithLauncher/ZalithLauncher2/releases/latest" | jq -r '.tag_name // empty')
+            if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+              LATEST_TAG=$(curl -s "https://api.github.com/repos/ZalithLauncher/ZalithLauncher2/releases?per_page=1" | jq -r '.[0].tag_name // empty')
+            fi
+            if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+              LATEST_TAG=$(curl -s "https://api.github.com/repos/ZalithLauncher/ZalithLauncher2/tags?per_page=1" | jq -r '.[0].name // empty')
+            fi
+            if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+              echo "Error: No valid upstream tag found!"
+              exit 1
+            fi
+            TARGET_TAG="$LATEST_TAG"
+            echo "Latest upstream tag found: $TARGET_TAG"
+          fi
+          echo "upstream_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Check if already synced & compute release metadata
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.latest.outputs.upstream_tag }}"
+          SYNC_TAG="sync/$TAG"
+          SKIP_SYNC="${{ inputs.skip_sync || 'false' }}"
+          echo "skip_sync=$SKIP_SYNC" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Triggered via workflow_dispatch; forcing run for $TAG"
+          elif git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" \
+              "refs/tags/$SYNC_TAG" >/dev/null 2>&1; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already synced ($SYNC_TAG exists), nothing to do"
+            exit 0
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG is new, running full sync!"
+          fi
+
+          # Derive release tag & release name
+          NORM_TAG="${TAG#v}"
+          BASE_TAG="v$NORM_TAG"
+
+          EXISTING=$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' 2>/dev/null \
+            | grep -E "^${BASE_TAG}(-r[0-9]+)?$" || true)
+
+          TAG_JSON=$(curl -s "https://api.github.com/repos/ZalithLauncher/ZalithLauncher2/releases/tags/$TAG" || true)
+          TAG_TITLE=$(echo "$TAG_JSON" | jq -r '.name // empty')
+
+          TITLE_SUFFIX=""
+          if [ -n "$TAG_TITLE" ] && [ "$TAG_TITLE" != "$TAG" ] && [ "$TAG_TITLE" != "null" ]; then
+            TITLE_SUFFIX=": $TAG_TITLE"
+          fi
+
+          if [ -z "$EXISTING" ]; then
+            echo "release_tag=${BASE_TAG}" >> "$GITHUB_OUTPUT"
+            echo "release_name=Zalith Launcher ${NORM_TAG}${TITLE_SUFFIX} + Extra" >> "$GITHUB_OUTPUT"
+          else
+            MAX_REV=$(echo "$EXISTING" \
+              | sed -E "s/^${BASE_TAG}-r([0-9]+)\$/\1/; s/^${BASE_TAG}\$/1/" \
+              | sort -n | tail -1)
+            NEXT_REV=$((MAX_REV + 1))
+            echo "release_tag=${BASE_TAG}-r$NEXT_REV" >> "$GITHUB_OUTPUT"
+            echo "release_name=Zalith Launcher ${NORM_TAG}${TITLE_SUFFIX} + Extra (Update $NEXT_REV)" >> "$GITHUB_OUTPUT"
+          fi
+
+
+  # ==========================================
+  # 2. SYNC JOB (Fetches & merges upstream tag)
+  # ==========================================
+  sync:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' && needs.check.outputs.skip_sync != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clean existing release-sync branch
+        run: |
+          git branch -D release-sync 2>/dev/null || true
+          git push origin --delete release-sync 2>/dev/null || true
+
+      - name: Fetch upstream tag
+        id: tag_sha
+        run: |
+          # Rename initial local main branch to custom-patches to preserve custom changes
+          git branch -m main custom-patches
+          git remote add upstream https://github.com/ZalithLauncher/ZalithLauncher2.git || true
+          git fetch upstream main:upstream-main --quiet
+          git fetch upstream "refs/tags/${{ needs.check.outputs.upstream_tag }}:refs/tags/upstream-${{ needs.check.outputs.upstream_tag }}" --quiet
+          TAG_COMMIT=$(git rev-parse "refs/tags/upstream-${{ needs.check.outputs.upstream_tag }}^{commit}")
+          echo "tag_commit=$TAG_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Create fresh main branch starting from upstream tag commit
+        run: |
+          git checkout -B main "${{ steps.tag_sha.outputs.tag_commit }}"
+
+      - name: Merge custom patches onto main branch
+        id: merge
+        run: |
+          set +e
+          git merge custom-patches --no-edit -m "Merge custom patches into upstream tag ${{ needs.check.outputs.upstream_tag }}"
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report merge conflict
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          echo "Automatic merge of upstream tag ${{ needs.check.outputs.upstream_tag }} produced conflicts."
+          exit 1
+
+      - name: Update submodules
+        run: git submodule update --init --recursive
+
+      - name: Push main branch
+        run: git push origin main --force
+
+
+  # ==========================================
+  # 3. BUILD JOB - ANDROID APKs
+  # ==========================================
+  build:
+    needs: [check, sync]
+    if: always() && needs.check.outputs.should_run == 'true' && (needs.sync.result == 'success' || needs.sync.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ["all", "arm", "arm64", "x86", "x86_64"]
+
+    env:
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          add-job-summary: "on-failure"
+
+      - name: Decode keystore from secret
+        id: keystore
+        env:
+          KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_P12_BASE64" ]; then
+            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "keystore_path=$RUNNER_TEMP/release.p12" >> "$GITHUB_OUTPUT"
+            echo "Using CI keystore (PKCS12)"
+          else
+            echo "keystore_path=" >> "$GITHUB_OUTPUT"
+            echo "No CI keystore secret found — falling back to bundled debug keystore"
+          fi
+
+      - name: Build APK for ${{ matrix.arch }}
+        env:
+          KEYSTORE_FILE: ${{ steps.keystore.outputs.keystore_path }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS || vars.KEYSTORE_ALIAS }}
+        run: |
+          chmod +x gradlew
+          ./gradlew ZalithLauncher:assembleRelease -Darch=${{ matrix.arch }}
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.p12"
+
+      - name: Locate generated APK
+        id: find_apk
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_dir="ZalithLauncher/build/outputs/apk/release"
+          if [ ! -d "$output_dir" ]; then
+            echo "Expected output directory not found: $output_dir" >&2
+            exit 1
+          fi
+
+          mapfile -t apk_files < <(find "$output_dir" -maxdepth 1 -name "*.apk" -type f | sort)
+
+          if [ "${#apk_files[@]}" -eq 0 ]; then
+            echo "No APK files found in $output_dir" >&2
+            exit 1
+          fi
+
+          apk_path="${apk_files[0]}"
+          echo "apk_path=$apk_path" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$apk_path")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.arch }}
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          if-no-files-found: error
+
+
+  # ==========================================
+  # 4. RELEASE JOB (Creates GitHub Release & build.json)
+  # ==========================================
+  release:
+    needs: [check, build]
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-files
+          pattern: "apk-*"
+          merge-multiple: true
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.check.outputs.upstream_tag }}"
+
+          echo "Built from custom main branch of ZalithLauncher2-Extra, with enhanced features and optimizations." > release_notes.md
+          echo "" >> release_notes.md
+
+          if [ -n "$TAG" ] && [ "$TAG" != "null" ]; then
+              echo "Synced with upstream ZalithLauncher2 [\`${TAG}\`](https://github.com/ZalithLauncher/ZalithLauncher2/releases/tag/${TAG})." >> release_notes.md
+              echo "" >> release_notes.md
+              TAG_JSON=$(curl -s "https://api.github.com/repos/ZalithLauncher/ZalithLauncher2/releases/tags/$TAG" || true)
+              TAG_TITLE=$(echo "$TAG_JSON" | jq -r '.name // empty')
+              TAG_BODY=$(echo "$TAG_JSON" | jq -r '.body // empty')
+
+              if [ -n "$TAG_TITLE" ] && [ "$TAG_TITLE" != "$TAG" ] && [ -n "$TAG_TITLE" ]; then
+                  echo "### Upstream Release: ${TAG_TITLE}" >> release_notes.md
+                  echo "" >> release_notes.md
+              fi
+              if [ -n "$TAG_BODY" ] && [ "$TAG_BODY" != "null" ]; then
+                  echo "#### Upstream Release Notes" >> release_notes.md
+                  echo "${TAG_BODY}" >> release_notes.md
+                  echo "" >> release_notes.md
+              fi
+          fi
+
+          echo "This is an unofficial community build of Zalith Launcher 2 Extra." >> release_notes.md
+
+      - name: Generate build.json
+        run: |
+          set -euo pipefail
+          python3 -c '
+          import os, json, glob, subprocess, zipfile, re
+
+          build_json = {}
+          apks = glob.glob("./release-files/*.apk")
+          changelog = open("release_notes.md").read() if os.path.exists("release_notes.md") else ""
+          applied_patches = [
+              "FSR 1.0 Upscaling (AMD FidelityFX Super Resolution)",
+              "MobileGlues & Turnip Driver support",
+              "Fancy Sidebar with blur & animations",
+              "In-app Driver Downloader WebView",
+              "Export/Import settings, configs, and accounts",
+              "Offline Yggdrasil cape support"
+          ]
+
+          for apk in apks:
+              filename = os.path.basename(apk)
+              name = filename
+              arch = "universal"
+              if "arm64" in filename.lower() or "v8a" in filename.lower():
+                  arch = "arm64-v8a"
+              elif "x86_64" in filename.lower():
+                  arch = "x86_64"
+              elif "x86" in filename.lower():
+                  arch = "x86"
+              elif "v7a" in filename.lower() or "arm32" in filename.lower() or "-arm" in filename.lower():
+                  arch = "armeabi-v7a"
+
+              min_sdk = "21"
+              native_libraries = []
+              densities = []
+
+              # Inspect APK using aapt2/aapt if available, else zipfile
+              try:
+                  aapt = subprocess.run(["which", "aapt2"], capture_output=True, text=True).stdout.strip() or subprocess.run(["which", "aapt"], capture_output=True, text=True).stdout.strip()
+                  if aapt:
+                      out = subprocess.run([aapt, "dump", "badging", apk], capture_output=True, text=True).stdout
+                      m_sdk = re.search(r"(?:sdkVersion|minSdkVersion):\x27([^\x27]+)\x27", out)
+                      if m_sdk:
+                          min_sdk = m_sdk.group(1)
+                      m_den = re.search(r"densities:\s*\x27([^\x27]+)\x27", out)
+                      if m_den:
+                          densities = [d for d in m_den.group(1).split() if d]
+                      m_nat = re.search(r"native-code:\s*\x27([^\x27]+)\x27", out)
+                      if m_nat:
+                          native_libraries = [n for n in m_nat.group(1).split() if n]
+              except Exception as e:
+                  print(f"aapt dump failed: {e}")
+
+              if not native_libraries and zipfile.is_zipfile(apk):
+                  try:
+                      with zipfile.ZipFile(apk, "r") as z:
+                          libs = set()
+                          for f in z.namelist():
+                              if f.startswith("lib/") and "/" in f[4:]:
+                                  libs.add(f.split("/")[1])
+                          if libs:
+                              native_libraries = sorted(list(libs))
+                  except Exception as e:
+                      print(f"zip inspection failed: {e}")
+
+              if not native_libraries:
+                  if "x86_64" in filename.lower():
+                      native_libraries = ["x86_64"]
+                  elif "x86" in filename.lower():
+                      native_libraries = ["x86"]
+                  elif "arm64" in filename.lower() or "v8a" in filename.lower():
+                      native_libraries = ["arm64-v8a"]
+                  elif "arm" in filename.lower() or "v7a" in filename.lower():
+                      native_libraries = ["armeabi-v7a"]
+                  else:
+                      native_libraries = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+
+              entry_key = filename.lower()
+              ext = filename.split(".")[-1] if "." in filename else "apk"
+              meta_item = {
+                  "name": name,
+                  "arch": arch,
+                  "ext": ext,
+                  "version": "${{ needs.check.outputs.release_name }}",
+                  "patches": "zalithlauncher2-extra",
+                  "changelog": changelog,
+                  "applied_patches": applied_patches
+              }
+              if ext.lower() in ["apk", "apks", "xapk", "apkm"]:
+                  meta_item["min_sdk"] = min_sdk
+                  meta_item["densities"] = densities
+                  meta_item["native_libraries"] = native_libraries
+
+              build_json[entry_key] = meta_item
+
+          with open("build.json", "w") as f:
+              json.dump(build_json, f, indent=2)
+          '
+          cp build.json ./release-files/build.json
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ needs.check.outputs.release_tag }}"
+          name: "${{ needs.check.outputs.release_name }}"
+          target_commitish: main
+          prerelease: false
+          make_latest: true
+          files: ./release-files/*
+          body_path: release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag sync marker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "sync/${{ needs.check.outputs.upstream_tag }}"
+          git push origin "sync/${{ needs.check.outputs.upstream_tag }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================
+  # 5. CLEANUP JOB
+  # ==========================================
+  trigger_cleanup:
+    needs: [release]
+    if: ${{ needs.release.result == 'success' }}
+    uses: ./.github/workflows/cleanup.yml
+    secrets: inherit
