@@ -388,7 +388,8 @@ fun VersionsManageScreen(
                 },
                 onInstall = {
                     backScreenViewModel.navigateToDownload()
-                }
+                },
+                onLaunchGame = onLaunchGame
             )
 
             CleanupOperation(
@@ -542,6 +543,7 @@ private fun VersionsLayout(
     onRefresh: () -> Unit,
     onVersionPinned: () -> Unit,
     onInstall: () -> Unit,
+    onLaunchGame: (Version) -> Unit = {}
 ) {
     val context = LocalContext.current
     val surfaceYOffset by swapAnimateDpAsState(
