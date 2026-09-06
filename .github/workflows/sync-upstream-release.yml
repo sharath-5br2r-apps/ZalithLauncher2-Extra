@@ -241,7 +241,7 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/release.p12"
 
-      - name: Locate generated APK
+      - name: Locate and rename APK
         id: find_apk
         shell: bash
         run: |
@@ -261,8 +261,33 @@ jobs:
           fi
 
           apk_path="${apk_files[0]}"
-          echo "apk_path=$apk_path" >> "$GITHUB_OUTPUT"
-          echo "apk_name=$(basename "$apk_path")" >> "$GITHUB_OUTPUT"
+
+          # Determine arch label for filename
+          MATRIX_ARCH="${{ matrix.arch }}"
+          case "$MATRIX_ARCH" in
+            all)   ARCH_LABEL="all" ;;
+            arm)   ARCH_LABEL="armeabi-v7a" ;;
+            arm64) ARCH_LABEL="arm64-v8a" ;;
+            x86)   ARCH_LABEL="x86" ;;
+            x86_64) ARCH_LABEL="x86_64" ;;
+            *)     ARCH_LABEL="$MATRIX_ARCH" ;;
+          esac
+
+          # Build version string: strip leading 'v', normalize, prepend 'v'
+          UPSTREAM_TAG="${{ needs.check.outputs.upstream_tag }}"
+          NORM_TAG="${UPSTREAM_TAG#v}"
+          RELEASE_TAG="${{ needs.check.outputs.release_tag }}"
+          # Extract revision suffix (e.g. -r2) from release_tag if present
+          REVISION=$(echo "$RELEASE_TAG" | grep -oE '\-r[0-9]+$' || true)
+          VERSION="v${NORM_TAG}${REVISION}"
+
+          NEW_NAME="zalith-launcher-2-extra-${VERSION}-${ARCH_LABEL}.apk"
+          NEW_PATH="${output_dir}/${NEW_NAME}"
+          mv "$apk_path" "$NEW_PATH"
+
+          echo "apk_path=$NEW_PATH" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "Renamed APK to: $NEW_NAME"
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
