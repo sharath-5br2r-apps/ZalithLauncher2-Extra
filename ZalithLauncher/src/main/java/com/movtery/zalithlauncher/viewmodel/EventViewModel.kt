@@ -123,7 +123,7 @@ class EventViewModel : ViewModel() {
             data class Event(val event: MarkdownBlock.Button.Event): HomePage
         }
         /** 设备 Vulkan 检查 */
-        data object VulkanCheck: Event
+        data class VulkanCheck(val version: Version): Event
         /** 在应用内打开日志文件 */
         data class OpenLog(val path: String) : Event
 

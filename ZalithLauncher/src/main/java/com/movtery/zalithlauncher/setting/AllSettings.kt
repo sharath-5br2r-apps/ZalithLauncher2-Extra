@@ -761,7 +761,6 @@ object AllSettings : SettingsRegistry() {
      * 搜索光影的初始搜索平台
      */
     val searchShadersPlatform = enumSetting("searchShadersPlatform", Platform.CURSEFORGE)
-
     // ------- 下载页过滤器持久化 (Issue #22) -------
 
     /** 搜索模组：排序方式 */

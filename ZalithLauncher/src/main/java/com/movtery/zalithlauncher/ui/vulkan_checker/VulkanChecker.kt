@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.utils.device.VulkanCapabilities
@@ -42,7 +43,7 @@ import com.movtery.zalithlauncher.utils.device.VulkanCapabilities
 fun VulkanChecker(
     operation: VCOperation,
     onChange: (VCOperation) -> Unit,
-    startCheck: () -> Unit,
+    startCheck: (Version) -> Unit,
     confirmResult: () -> Unit,
 ) {
     when (operation) {
@@ -52,7 +53,9 @@ fun VulkanChecker(
                 title = stringResource(R.string.game_vulkan_check_title),
                 text = stringResource(R.string.game_vulkan_check_text),
                 dismissByDialog = false,
-                onDismiss = startCheck
+                onDismiss = {
+                    startCheck(operation.version)
+                }
             )
         }
         is VCOperation.Result -> {

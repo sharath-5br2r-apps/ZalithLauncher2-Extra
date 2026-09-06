@@ -57,8 +57,8 @@ import com.movtery.zalithlauncher.filemanager.events.FileManagerEventRegistrar
 import com.movtery.zalithlauncher.game.control.ControlManager
 import com.movtery.zalithlauncher.game.path.getVersionsHome
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
-import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.renderer.Renderers
+import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.activities.EXTRA_LAUNCH_VERSION
 import com.movtery.zalithlauncher.ui.activities.EXTRA_OPEN_LOG
@@ -92,7 +92,7 @@ import com.movtery.zalithlauncher.ui.vulkan_checker.VulkanChecker
 import com.movtery.zalithlauncher.upgrade.TooFrequentOperationException
 import com.movtery.zalithlauncher.utils.compareLangTag
 import com.movtery.zalithlauncher.utils.copyText
-import com.movtery.zalithlauncher.utils.device.VulkanChecker as VulkanCapabilityChecker
+
 import com.movtery.zalithlauncher.utils.festival.getTodayFestivals
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.utils.isChinese
@@ -303,7 +303,7 @@ class MainActivity : BaseAppCompatActivity() {
                         handleHomePageEvent(event0.key, event0.data)
                     }
                     is EventViewModel.Event.VulkanCheck -> {
-                        checkVulkan()
+                        checkVulkan(event.version)
                     }
                     is EventViewModel.Event.OpenLog -> {
                         screenBackStackModel.mainScreen.backStack.navigateToLogView(
@@ -371,7 +371,7 @@ class MainActivity : BaseAppCompatActivity() {
                         exitActivity = {
                             this@MainActivity.finish()
                         },
-                        waitForVulkanChecker = vulkanCheckerViewModel::waitForVulkanChecker,
+                        ensureVulkanSupported = vulkanCheckerViewModel::ensureSupported,
                         submitError = {
                             errorViewModel.showError(it)
                         },
@@ -531,12 +531,13 @@ class MainActivity : BaseAppCompatActivity() {
                     onChange = {
                         vulkanCheckerViewModel.changeOperation(it)
                     },
-                    startCheck = {
-                        eventViewModel.sendEvent(EventViewModel.Event.VulkanCheck)
+                    startCheck = { version ->
+                        eventViewModel.sendEvent(
+                            EventViewModel.Event.VulkanCheck(version)
+                        )
                     },
                     confirmResult = {
                         vulkanCheckerViewModel.resumeCont()
-                        AllSettings.autoVulkanChecker.save(false)
                     }
                 )
 
@@ -577,17 +578,9 @@ class MainActivity : BaseAppCompatActivity() {
     /**
      * 检查设备 Vulkan 支持情况
      */
-    private suspend fun checkVulkan() {
-        val driver = DriverPluginManager.getDriver()
-        val useTurnip = !(AllSettings.zinkPreferSystemDriver.getValue() || driver.isLauncher)
-
+    private suspend fun checkVulkan(version: Version) {
         withContext(Dispatchers.Main) {
-            val result = if (useTurnip) {
-                val tempDir = File(PathManager.DIR_CACHE, "vulkan_temp")
-                VulkanCapabilityChecker.checkCapabilities(null, driver.path, tempDir.absolutePath)
-            } else {
-                VulkanCapabilityChecker.checkCapabilities(null, null, null)
-            }
+            val (result, useTurnip) = vulkanCheckerViewModel.check(version)
             vulkanCheckerViewModel.changeOperation(VCOperation.Result(result, useTurnip))
         }
     }

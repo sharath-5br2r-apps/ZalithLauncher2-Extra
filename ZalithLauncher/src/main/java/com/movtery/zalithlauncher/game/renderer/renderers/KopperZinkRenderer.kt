@@ -27,6 +27,10 @@ object KopperZinkRenderer : RendererInterface {
 
     override fun getRendererName(): String = "Kopper Zink"
 
+    override fun getMaxMCVersion(): String = "26.3-snapshot-4"
+
+    override fun getDisplayMaxMCVersion(): String = "26.3"
+
     override fun getRendererEnv(): Lazy<Map<String, String>> = lazy {
         mapOf(
             "LIBGL_ES" to "3"
