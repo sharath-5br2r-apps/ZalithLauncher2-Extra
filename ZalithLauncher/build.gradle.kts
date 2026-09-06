@@ -205,36 +205,53 @@ val mobileGluesLibs by tasks.registering {
         val jniLibsDir = file("src/main/jniLibs")
         val versionFile = file("src/main/jniLibs/.mobileglues_version")
 
-        // Fetch the latest release metadata first so we can version-check.
+        val expectedLibs = listOf("libMobileGlues.so", "libmobileglues_info_getter.so")
+        val allExist = abis.all { abi -> expectedLibs.all { lib -> file("$jniLibsDir/$abi/$lib").exists() } }
+        val bundledVersion = if (versionFile.exists()) versionFile.readText().trim() else ""
+
+        // Fetch the latest release metadata so we can version-check.
         val apiUrl = URL("https://api.github.com/repos/MobileGL-Dev/MobileGlues-release/releases/latest")
-        val releaseJson = retryWithBackoff(maxRetries = 5, initialDelayMs = 2000) { attempt ->
-            val conn = apiUrl.openConnection() as java.net.HttpURLConnection
-            conn.setRequestProperty("Accept", "application/json")
-            val responseCode = conn.responseCode
-            if (responseCode == 200) {
-                val body = conn.inputStream.readAllBytes().decodeToString()
-                conn.disconnect()
-                body
-            } else {
-                val errorBody = conn.errorStream?.readAllBytes()?.decodeToString() ?: "no body"
-                conn.disconnect()
-                if (responseCode == 403) {
-                    logger.warn("MobileGlues API rate limited (attempt $attempt), retrying...")
-                    null
+        val releaseJson = try {
+            retryWithBackoff(maxRetries = 3, initialDelayMs = 1000) { attempt ->
+                val conn = apiUrl.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                conn.setRequestProperty("Accept", "application/json")
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val body = conn.inputStream.readAllBytes().decodeToString()
+                    conn.disconnect()
+                    body
                 } else {
-                    throw GradleException("MobileGlues API request failed (HTTP $responseCode): $errorBody")
+                    val errorBody = conn.errorStream?.readAllBytes()?.decodeToString() ?: "no body"
+                    conn.disconnect()
+                    if (responseCode == 403) {
+                        logger.warn("MobileGlues API rate limited (attempt $attempt), retrying...")
+                        null
+                    } else {
+                        logger.warn("MobileGlues API request failed (HTTP $responseCode): $errorBody")
+                        null
+                    }
                 }
             }
-        } ?: throw GradleException("MobileGlues API request failed after retries — rate limited.")
+        } catch (e: Exception) {
+            logger.warn("Failed to check MobileGlues releases: ${e.message}")
+            null
+        }
+
+        if (releaseJson == null) {
+            if (allExist && bundledVersion.isNotEmpty()) {
+                logger.lifecycle("MobileGlues update check failed; using existing bundled $bundledVersion")
+                return@doLast
+            }
+            throw GradleException("MobileGlues API request failed and no valid bundled version is present.")
+        }
 
         val latestTag = Regex("\"tag_name\":\"([^\"]+)\"").find(releaseJson)?.groupValues?.get(1)
             ?: throw GradleException("Could not parse tag_name from MobileGlues release JSON")
 
         // Skip the download only when ALL expected libraries are present AND the
         // bundled version already matches the latest tag.
-        val expectedLibs = listOf("libMobileGlues.so", "libmobileglues_info_getter.so")
-        val allExist = abis.all { abi -> expectedLibs.all { lib -> file("$jniLibsDir/$abi/$lib").exists() } }
-        val bundledVersion = if (versionFile.exists()) versionFile.readText().trim() else ""
         if (allExist && bundledVersion == latestTag) {
             logger.lifecycle("MobileGlues $latestTag is already up-to-date — skipping download")
             return@doLast
