@@ -9,7 +9,7 @@
 #include "utils.h"
 
 typedef int (*Main_Function_t)(int, char**);
-typedef void (*android_update_LD_LIBRARY_PATH_t)(char*);
+typedef void (*android_update_LD_LIBRARY_PATH_t)(const char*);
 
 long shared_awt_surface;
 
@@ -125,7 +125,7 @@ JNIEnv* get_attached_env(JavaVM* jvm) {
     jint status = (*jvm)->GetEnv(jvm, (void**)&env, JNI_VERSION_1_4);
     if (status == JNI_OK) return env;
     if (status == JNI_EDETACHED) {
-        if ((*jvm)->AttachCurrentThread(jvm, (void**)&env, NULL) == JNI_OK) {
+        if ((*jvm)->AttachCurrentThread(jvm, &env, NULL) == JNI_OK) {
             return env;
         }
     }
