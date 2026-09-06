@@ -8,9 +8,13 @@ on:
         required: true
         type: string
     secrets:
-      KEY_PASSWORD:
+      KEYSTORE_P12_BASE64:
         required: false
-      STORE_PASSWORD:
+      KEYSTORE_PASSWORD:
+        required: false
+      KEYSTORE_KEY_PASSWORD:
+        required: false
+      KEYSTORE_ALIAS:
         required: false
       OAUTH_CLIENT_ID:
         required: false
@@ -27,8 +31,6 @@ jobs:
       fail-fast: false
 
     env:
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
       OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
       CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
 
@@ -49,7 +51,26 @@ jobs:
         with:
           add-job-summary: "on-failure"
 
+      - name: Decode keystore from secret
+        id: keystore
+        env:
+          KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_P12_BASE64" ]; then
+            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "keystore_path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+            echo "Using CI keystore"
+          else
+            echo "keystore_path=" >> "$GITHUB_OUTPUT"
+            echo "No CI keystore secret found — falling back to bundled debug keystore"
+          fi
+
       - name: Build APK for ${{ matrix.arch }}
+        env:
+          KEYSTORE_FILE: ${{ steps.keystore.outputs.keystore_path }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS || vars.KEYSTORE_ALIAS }}
         run: |
           chmod +x gradlew
           ./gradlew ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }}
@@ -107,20 +128,30 @@ jobs:
 
       - name: Generate Microsoft Entra Android Signature Hash
         env:
-          _STORE_PASS: ${{ secrets.STORE_PASSWORD }}
-          _KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
+          _STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          _KEY_PASS: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          _KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS || vars.KEYSTORE_ALIAS }}
         run: |
-          # Fall back to defaults in gradle.properties if secrets are not set
-          if [ -z "$_STORE_PASS" ]; then
-            _STORE_PASS=$(grep '^[[:space:]]*default_store_password=' ZalithLauncher/gradle.properties | cut -d= -f2-)
-          fi
-          if [ -z "$_KEY_PASS" ]; then
-            _KEY_PASS=$(grep '^[[:space:]]*default_key_password=' ZalithLauncher/gradle.properties | cut -d= -f2-)
+          if [ -n "$KEYSTORE_P12_BASE64" ]; then
+            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+            KEY_ALIAS="${_KEY_ALIAS:-sharath}"
+          else
+            KEYSTORE_FILE="ZalithLauncher/zalith_launcher_debug.jks"
+            KEY_ALIAS="movtery_zalith_debug"
+            # Fall back to gradle.properties defaults if secrets are not set
+            if [ -z "$_STORE_PASS" ]; then
+              _STORE_PASS=$(grep '^[[:space:]]*default_store_password=' ZalithLauncher/gradle.properties | cut -d= -f2-)
+            fi
+            if [ -z "$_KEY_PASS" ]; then
+              _KEY_PASS=$(grep '^[[:space:]]*default_key_password=' ZalithLauncher/gradle.properties | cut -d= -f2-)
+            fi
           fi
 
           HASH=$(keytool -exportcert \
-            -alias "movtery_zalith_debug" \
-            -keystore "ZalithLauncher/zalith_launcher_debug.jks" \
+            -alias "$KEY_ALIAS" \
+            -keystore "$KEYSTORE_FILE" \
             -storepass "$_STORE_PASS" \
             -keypass "$_KEY_PASS" \
             | openssl sha1 -binary | openssl base64)

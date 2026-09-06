@@ -31,6 +31,18 @@ val defaultCurseForgeApiKey = project.findProperty("curseforge_api_key") as? Str
 
 val projectArch: String = System.getProperty("arch", "all")
 
+// Signing: prefer CI-injected env vars (KEYSTORE_FILE, KEYSTORE_PASSWORD,
+// KEYSTORE_KEY_PASSWORD, KEYSTORE_ALIAS); fall back to the bundled jks for local dev.
+val ciKeystorePath    = System.getenv("KEYSTORE_FILE")
+val ciStorePassword   = System.getenv("KEYSTORE_PASSWORD")
+val ciKeyPassword     = System.getenv("KEYSTORE_KEY_PASSWORD")
+val ciKeyAlias        = System.getenv("KEYSTORE_ALIAS")
+
+val signingKeystore   = if (ciKeystorePath != null) file(ciKeystorePath) else file("zalith_launcher_debug.jks")
+val signingStorePass  = ciStorePassword  ?: defaultStorePassword
+val signingKeyPass    = ciKeyPassword    ?: defaultKeyPassword
+val signingAlias      = ciKeyAlias       ?: "movtery_zalith_debug"
+
 fun getKeyFromLocal(envKey: String, fileName: String? = null, default: String? = null): String {
     val key = System.getenv(envKey)
     return key ?: fileName?.let {
@@ -48,16 +60,16 @@ android {
 
     signingConfigs {
         create("releaseBuild") {
-            storeFile = file("zalith_launcher_debug.jks")
-            storePassword = defaultStorePassword
-            keyAlias = "movtery_zalith_debug"
-            keyPassword = defaultKeyPassword
+            storeFile = signingKeystore
+            storePassword = signingStorePass
+            keyAlias = signingAlias
+            keyPassword = signingKeyPass
         }
         create("debugBuild") {
-            storeFile = file("zalith_launcher_debug.jks")
-            storePassword = defaultStorePassword
-            keyAlias = "movtery_zalith_debug"
-            keyPassword = defaultKeyPassword
+            storeFile = signingKeystore
+            storePassword = signingStorePass
+            keyAlias = signingAlias
+            keyPassword = signingKeyPass
         }
     }
 
