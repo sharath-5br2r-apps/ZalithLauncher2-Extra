@@ -1844,7 +1844,7 @@
     <string name="recorder_mic_off">Microphone Off</string>
     <string name="recorder_mic_denied">Microphone permission denied</string>
     <string name="recorder_notification_channel_name">Screen Recording</string>
-    <string name="recorder_notification_title">Zeryth is recording</string>
+    <string name="recorder_notification_title">Recording in progress</string>
     <string name="recorder_notification_text">Game audio and screen are being captured</string>
     <string name="recorder_saved">Recording saved</string>
     <string name="recorder_error">Recording failed to start</string>
@@ -1860,11 +1860,6 @@
     <string name="recordings_reveal">Show in File Manager</string>
     <string name="recordings_delete_title">Delete recording?</string>
     <string name="recordings_delete_message">"%s" will be permanently deleted.</string>
-    <string name="recorder_mic_on">Microphone On</string>
-    <string name="recorder_mic_off">Microphone Off</string>
-    <string name="recorder_notification_channel_name">Screen Recording</string>
-    <string name="recorder_notification_title">Recording in progress</string>
-    <string name="recorder_notification_text">Game audio and screen are being captured</string>
 
     <!-- File Manager -->
     <string name="fm_activity_name">File Manager</string>
