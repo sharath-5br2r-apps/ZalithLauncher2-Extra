@@ -57,7 +57,7 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.nonInteractiveScrollbar
+import com.movtery.zalithlauncher.ui.components.lazyScrollWithBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -488,10 +488,7 @@ private fun AccountManageContent(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .scrollbar(
-                            state = scrollState.scrollIndicatorState,
-                            orientation = androidx.compose.foundation.gestures.Orientation.Vertical,
-                        ),
+                        .lazyScrollWithBar(state = scrollState),
                     state = scrollState,
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)

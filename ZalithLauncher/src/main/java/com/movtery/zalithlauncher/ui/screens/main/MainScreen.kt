@@ -343,12 +343,6 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
-                toFileManagerScreen = {
-                    screenBackStackModel.mainScreen.removeAndNavigateTo(
-                        removes = screenBackStackModel.clearBeforeNavKeys,
-                        screenKey = NormalNavKey.BuiltInFileManager()
-                    )
-                },
                 toRecordingsScreen = {
                     screenBackStackModel.mainScreen.removeAndNavigateTo(
                         removes = screenBackStackModel.clearBeforeNavKeys,

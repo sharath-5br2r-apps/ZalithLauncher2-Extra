@@ -555,11 +555,6 @@ class MainActivity : BaseAppCompatActivity() {
         PluginLoader.loadAllPlugins(this, true)
     }
 
-    override fun onDestroy() {
-        fmEventRegistrar?.stop()
-        fmEventRegistrar = null
-        super.onDestroy()
-    }
 
     /**
      * 文件管理器文件变更事件处理
@@ -896,6 +891,8 @@ class MainActivity : BaseAppCompatActivity() {
     }
 
     override fun onDestroy() {
+        fmEventRegistrar?.stop()
+        fmEventRegistrar = null
         super.onDestroy()
         if (isFinishing) {
             android.os.Process.killProcess(android.os.Process.myPid())

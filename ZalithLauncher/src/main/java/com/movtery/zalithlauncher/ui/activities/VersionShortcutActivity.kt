@@ -1,89 +1,20 @@
 package com.movtery.zalithlauncher.ui.activities
 
-import com.movtery.zalithlauncher.game.path.GamePathManager
-import android.widget.Toast
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import com.movtery.zalithlauncher.game.account.AccountsManager
 import android.content.Intent
 import android.os.Bundle
-import com.movtery.zalithlauncher.game.launch.LaunchGame
-import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.base.BaseAppCompatActivity
 
 class VersionShortcutActivity : BaseAppCompatActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val versionName = intent.getStringExtra(EXTRA_LAUNCH_VERSION)
-
-        if (versionName == null) {
-            Toast.makeText(
-                this,
-                "Shortcut: versionName NULL",
-                Toast.LENGTH_LONG
-            ).show()
-
-            openLauncher()
-            return
-        }
-
-        lifecycleScope.launch {
-            
-        GamePathManager.initialize(this@VersionShortcutActivity)
-
-        AccountsManager.initialize(this@VersionShortcutActivity)
-            AccountsManager.suspendReloadAccounts()
-
-            VersionsManager.refresh("Shortcut Retry", versionName)
-            VersionsManager.waitForRefresh()
-
-            val refreshedVersion = VersionsManager.getVersion(versionName)
-
-            if (refreshedVersion == null) {
-                runOnUiThread {
-                    Toast.makeText(
-                        this@VersionShortcutActivity,
-                        "Shortcut: version refresh failed",
-                        Toast.LENGTH_LONG
-                ).show()
+        val splashIntent = Intent(this, SplashActivity::class.java).apply {
+            if (versionName != null) {
+                putExtra(EXTRA_LAUNCH_VERSION, versionName)
             }
-
-            openLauncher()
-            return@launch
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-
-        VersionsManager.saveVersion(refreshedVersion)
-            
-        LaunchGame.launchGame(
-            context = this@VersionShortcutActivity,
-            version = refreshedVersion,
-            
-            exitActivity = {
-                finish()
-            },
-            
-            waitForVulkanChecker = {
-                // Skip Vulkan checker for shortcuts
-            },
-            submitError = {
-                runOnUiThread {
-                    Toast.makeText(
-                        this@VersionShortcutActivity,
-                        "Shortcut: LaunchGame error",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
-                openLauncher()
-            }
-        )
-    }
-}
-
-    private fun openLauncher() {
-        startActivity(Intent(this, SplashActivity::class.java))
+        startActivity(splashIntent)
         finish()
     }
 }

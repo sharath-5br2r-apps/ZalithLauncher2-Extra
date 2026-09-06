@@ -300,7 +300,8 @@ fun VersionsManageScreen(
     navigateToVersions: (Version) -> Unit,
     navigateToExport: (Version) -> Unit,
     eventViewModel: EventViewModel,
-    submitError: (ErrorViewModel.ThrowableMessage) -> Unit
+    submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+    onLaunchGame: (Version) -> Unit = {}
 ) {
     val viewModel = rememberVersionViewModel()
     val context = LocalContext.current
@@ -633,7 +634,8 @@ private fun VersionsLayout(
                                     onExportClick = { navigateToExport(version) },
                                     onDeleteClick = { versionsOperation = VersionsOperation.Delete(version) },
                                     onPinned = onVersionPinned,
-                                    onAddShortcutClick = { ShortcutUtils.pinVersion(context, version) }
+                                    onAddShortcutClick = { ShortcutUtils.pinVersion(context, version) },
+                                    onLaunchClick = { onLaunchGame(version) }
                                 )
                             }
                             VersionItemLayout(
@@ -642,10 +644,7 @@ private fun VersionsLayout(
                                     .animateItem(),
                                 version = version,
                                 selected = version == currentVersion,
-                                callbacks = callbacks,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .animateItem()
+                                callbacks = callbacks
                             )
                         }
                     }

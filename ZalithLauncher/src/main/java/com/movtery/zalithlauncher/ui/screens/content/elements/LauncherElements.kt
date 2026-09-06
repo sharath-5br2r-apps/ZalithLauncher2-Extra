@@ -372,12 +372,10 @@ fun LaunchGameOperation(
                     return@LaunchedEffect
                 }
 
-                val canHandlePermission = canHandlePermission()
-                val hasStoragePermission = checkStoragePermissions(activity)
                 //为可配置的渲染器检查文件管理权限
                 //前提：系统支持这个设置
                 if (
-                    canHandlePermission &&  !hasStoragePermission &&
+                    canHandlePermission && !hasStoragePermission &&
                     RendererPluginManager.isConfigurablePlugin(version.getRenderer())
                 ) {
                     launchGameViewModel.updateOperation(LaunchGameOperation.RendererNoStoragePermission(currentRenderer, version, quickPlay))

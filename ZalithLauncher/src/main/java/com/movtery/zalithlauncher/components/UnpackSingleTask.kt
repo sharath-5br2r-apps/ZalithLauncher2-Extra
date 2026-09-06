@@ -26,6 +26,7 @@ import com.movtery.zalithlauncher.utils.logging.Logger
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 
 private const val TAG = "UnpackSingleTask"
 
