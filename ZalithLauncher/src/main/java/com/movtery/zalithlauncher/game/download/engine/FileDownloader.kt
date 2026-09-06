@@ -244,9 +244,10 @@ class FileDownloader(
         apply { initCause(cause) }
 
     private fun executeSegment(source: SourceSet.Source, segment: SegmentChain.Segment, chain: SegmentChain, channel: FileChannel) {
-        val rangeFrom = segment.position()
+        //部分 CDN 的鉴权层会拒绝任何携带 Range 的请求，从零开始的段必须以普通 GET 起步
+        val rangeFrom = segment.position().takeIf { it > 0L } ?: -1L
         executeCall(source.url, rangeFrom).use { response ->
-            val body = checkStatus(response, rangeFrom, rangedRequest = true, source = source, chain = chain)
+            val body = checkStatus(response, rangeFrom, rangedRequest = rangeFrom >= 0, source = source, chain = chain)
             streamInto(body.byteStream(), segment, chain, channel)
         }
     }

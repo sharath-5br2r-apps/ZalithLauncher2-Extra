@@ -75,7 +75,7 @@
     <string name="date_format">MMM d, yyyy, h:mm:ss aa</string>
     <string name="just_now">agora mesmo</string>
     <string name="minutes_ago">%d minutos atrás</string>
-    <string name="hours_ago">%d horas atrás</string>
+    <string name="hours_ago">%d Horas atrás</string>
     <string name="days_ago">%d dias atrás</string>
     <string name="months_ago">%d meses atrás</string>
     <string name="years_ago">%d anos atrás</string>
@@ -1243,7 +1243,7 @@
     <string name="control_editor_edit_joystick_style_list_empty">Não há estilos de joystick no layout de controle atual</string>
     <string name="control_editor_edit_joystick_style_list_name">Nome do estilo do joystick</string>
     <string name="control_editor_edit_joystick_style_list_delete">Tem certeza de que deseja excluir o estilo de joystick mano? %s</string>
-    <string name="duration_format">%s Dias %s Horas %s Minutos</string>
+    <string name="duration_format">%s Dias ou %s Horas ou %s Minutos</string>
     <string name="saves_manage_playtime">Tempo jogado: %s</string>
     <string name="fm_initializing">Inicializando…</string>
     <string name="fm_init_failed">Falha na inicialização: %s</string>
@@ -1382,7 +1382,7 @@
     <string name="fm_trash_items">Itens: %d</string>
     <string name="fm_trash_size">Tamanho: %s</string>
     <string name="fm_trash_restore">Restaurar</string>
-    <string name="fm_trash_purge">Purgar</string>
+    <string name="fm_trash_purge">Excluir para sempre</string>
     <string name="fm_trash_deleted_at">Excluído: %s</string>
     <string name="fm_trash_clear">Limpar Lixo</string>
     <string name="fm_trash_corrupted">Corrompido (não pode ser restaurado)</string>
@@ -1395,4 +1395,24 @@
     <string name="fm_calculating">Calculando…</string>
     <string name="fm_name_conflict">Conflito de nomes com uma entrada existente</string>
     <string name="fm_activity_name">Gerenciador de Arquivos</string>
+    <string name="game_menu_option_auto_show_ime">Método de entrada de exibição automática (SDL)</string>
+    <string name="settings_gamepad_input_mode_title">Modo de entrada do gamepad</string>
+    <string name="settings_gamepad_input_mode_mapped">Mapeado (Teclas Virtuais)</string>
+    <string name="settings_gamepad_input_mode_mapped_summary">Os botões e joysticks do gamepad funcionam como teclado e mouse virtuais</string>
+    <string name="settings_gamepad_input_mode_sdl">Passagem SDL</string>
+    <string name="settings_gamepad_input_mode_sdl_summary">A entrada bruta do gamepad é enviada ao jogo através da API de gamepad SDL/GLFW; o remapeamento de botões é ignorado</string>
+    <string name="gamepad_mode_prompt_description">Entrada de gamepad detectada. O iniciador suporta dois modos de entrada de gamepad; escolha o que deseja usar.</string>
+    <string name="gamepad_mode_prompt_hint">Você pode alterar isso mais tarde na aba Gamepad do menu do jogo ou nas configurações do Launcher.</string>
+    <string name="settings_launcher_mirror_game_source_title">Fonte de Download do Jogo</string>
+    <string name="settings_launcher_mirror_asset_platform_source_title">Fonte de Download do Mod</string>
+    <string name="settings_launcher_mirror_auto">Automático</string>
+    <string name="account_relogin_title">Login necessário</string>
+    <string name="account_relogin_microsoft_message">O Launcher não conseguiu atualizar as credenciais de entrada desta conta Microsoft. A senha pode ter sido alterada ou a autorização revogada; portanto, você precisa entrar na conta Microsoft novamente.</string>
+    <string name="account_relogin_password_message">O servidor de autenticação rejeitou o login atual, possivelmente porque a senha foi alterada. Digite a senha %s novamente.</string>
+    <string name="account_relogin">Entrar novamente</string>
+    <string name="account_refresh_failed_title">Falha na atualização da conta</string>
+    <string name="account_refresh_failed_skip_message">Não foi possível acessar o servidor de autenticação. Você pode ignorar a atualização e iniciar com as credenciais atuais, mas servidores que exigem autenticação online podem rejeitar o login.</string>
+    <string name="account_refresh_failed_skip">Ignorar atualização</string>
+    <string name="account_refresh_failed_retry">Atualizar novamente</string>
+    <string name="download_install_error_process_start">O sistema recusou-se a criar o processo de instalação. Isso geralmente é causado por memória insuficiente ou restrições em segundo plano no dispositivo. Feche os aplicativos em segundo plano e tente novamente ou force a parada do launcher e abra-o novamente.</string>
 </resources>

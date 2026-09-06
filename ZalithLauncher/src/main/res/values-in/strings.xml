@@ -1244,4 +1244,17 @@
     <string name="control_editor_edit_joystick_style_list_empty">Tidak ada gaya joystick pada layout kontrol saat ini</string>
     <string name="control_editor_edit_joystick_style_list_name">Nama Gaya Joystick</string>
     <string name="control_editor_edit_joystick_style_list_delete">Apakah Anda yakin ingin menghapus gaya joystick %s?</string>
+    <string name="duration_format">%s Hari %s Jam %s Menit</string>
+    <string name="download_install_error_process_start">Sistem gagal memulai proses instalasi. Biasanya hal ini disebabkan oleh memori yang tidak mencukupi atau pembatasan aktivitas latar belakang pada perangkat. Silakan tutup aplikasi yang berjalan di latar belakang, lalu coba lagi. Anda juga dapat menghentikan paksa launcher, kemudian membukanya kembali.</string>
+    <string name="game_menu_option_auto_show_ime">Tampilkan Metode Input Otomatis (SDL)</string>
+    <string name="account_relogin_title">Perlu Login</string>
+    <string name="account_relogin_microsoft_message">Launcher gagal memperbarui kredensial masuk akun Microsoft ini. Kata sandi mungkin telah diubah atau otorisasi akun telah dicabut, sehingga Anda perlu masuk kembali ke akun Microsoft tersebut.</string>
+    <string name="account_relogin_password_message">Server autentikasi menolak proses masuk saat ini, kemungkinan karena kata sandi telah diubah. Silakan masukkan kembali kata sandi untuk %s.</string>
+    <string name="account_relogin">Login Lagi</string>
+    <string name="account_refresh_failed_title">Gagal Memperbarui Akun</string>
+    <string name="account_refresh_failed_skip_message">Tidak dapat terhubung ke server autentikasi. Anda dapat melewati pembaruan dan menjalankan launcher dengan kredensial saat ini, tetapi server yang memerlukan autentikasi online mungkin menolak proses login.</string>
+    <string name="account_refresh_failed_skip">Lewati Pembaruan</string>
+    <string name="account_refresh_failed_retry">Perbarui Lagi</string>
+    <string name="saves_manage_playtime">Waktu Bermain: %s</string>
+    <string name="settings_gamepad_input_mode_title">Mode Input Gamepad</string>
 </resources>
