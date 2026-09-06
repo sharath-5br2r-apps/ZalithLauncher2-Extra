@@ -430,7 +430,7 @@ object CrashDiagnosticEngine {
     private fun buildPlainLanguageExplanation(category: CrashCategory): String {
         return when (category) {
             CrashCategory.RENDERER_CRASH ->
-                "The part of Zeryth Launcher that draws the Minecraft screen stopped working. This usually happens because of an incompatibility between your GPU and the selected renderer. Switching to a different renderer often fixes this immediately."
+                "The part of Zalith Launcher that draws the Minecraft screen stopped working. This usually happens because of an incompatibility between your GPU and the selected renderer. Switching to a different renderer often fixes this immediately."
             CrashCategory.GPU_DRIVER_CRASH ->
                 "Your phone's graphics driver crashed. This is usually caused by an incompatible renderer or a known driver bug on your GPU model. Try switching to a different renderer."
             CrashCategory.OUT_OF_MEMORY ->

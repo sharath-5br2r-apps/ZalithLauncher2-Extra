@@ -1532,7 +1532,7 @@
     <string name="about_launcher_project_link">GitHub Link</string>
     <string name="about_sponsor">Sponsorship Support</string>
     <string name="disclaimer_title">Unofficial Version</string>
-    <string name="disclaimer_content">Zeryth Launcher is an unofficial fork of Zalith Launcher 2.</string>
+    <string name="disclaimer_content">Zalith Launcher is an unofficial fork of Zalith Launcher 2.</string>
     <string name="disclaimer_original_repo">Original Repo</string>
     <string name="launcher_fork_subtitle">A fork of Zalith Launcher 2</string>
     <string name="settings_renderer_external_driver">External Driver</string>
@@ -1719,7 +1719,7 @@
     <string name="customctrl_menu_open">Open menu</string>
     <string name="generic_load">Load</string>
     <!-- ZL1 Backport: file provider authority for control layout export -->
-    <string name="storageProviderAuthorities" translatable="false">com.rami1l.zerythlauncher.provider</string>
+    <string name="storageProviderAuthorities" translatable="false">com.movtery.zalithlauncher.v2.provider</string>
 
       <string name="legacy_control_editor_add_joystick">Add Joystick</string>
       <string name="legacy_control_editor_add_drawer">Add Drawer</string>

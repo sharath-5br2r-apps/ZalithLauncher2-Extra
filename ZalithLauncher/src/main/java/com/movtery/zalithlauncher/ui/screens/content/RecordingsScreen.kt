@@ -186,7 +186,7 @@ fun RecordingsScreen(backStackViewModel: ScreenBackStackViewModel) {
                                     .getExternalStoragePublicDirectory(
                                         android.os.Environment.DIRECTORY_MOVIES
                                     )
-                                val uri2 = Uri.parse("$dir/Zeryth Recordings")
+                                val uri2 = Uri.parse("$dir/Zalith Recordings")
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
                                     setDataAndType(uri2, "*/*")
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -426,9 +426,9 @@ private fun queryRecordings(context: Context): List<RecordingEntry> {
         MediaStore.Video.Media.WIDTH,
         MediaStore.Video.Media.HEIGHT
     )
-    val selection = "${MediaStore.Video.Media.RELATIVE_PATH} LIKE ? AND " +
+    val selection = "(${MediaStore.Video.Media.RELATIVE_PATH} LIKE ? OR ${MediaStore.Video.Media.RELATIVE_PATH} LIKE ?) AND " +
             "${MediaStore.Video.Media.IS_PENDING} = 0"
-    val selectionArgs = arrayOf("%Zeryth Recordings%")
+    val selectionArgs = arrayOf("%Zalith Recordings%", "%Zeryth Recordings%")
     val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
     val results = mutableListOf<RecordingEntry>()

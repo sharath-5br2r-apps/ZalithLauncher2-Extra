@@ -1280,8 +1280,8 @@ object GameRecorder {
 
     private fun createOutputEntry(context: Context): Pair<android.net.Uri, File> {
         val ts       = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "ZerythRec_$ts.mp4"
-        val relPath  = "Movies/Zeryth Recordings"
+        val fileName = "ZalithRec_$ts.mp4"
+        val relPath  = "Movies/Zalith Recordings"
 
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
@@ -1296,6 +1296,6 @@ object GameRecorder {
         val publicMovies = android.os.Environment.getExternalStoragePublicDirectory(
             android.os.Environment.DIRECTORY_MOVIES
         )
-        return Pair(uri, File(publicMovies, "Zeryth Recordings/$fileName"))
+        return Pair(uri, File(publicMovies, "Zalith Recordings/$fileName"))
     }
 }

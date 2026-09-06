@@ -144,7 +144,7 @@ class CrashAnalyzerActivity : BaseAppCompatActivity() {
                         onShareReportClick = {
                             viewModel.diagnosis?.let { diagnosis ->
                                 viewModel.session?.let { session ->
-                                    val reportFile = File(cacheDir, "zeryth-crash-report.txt")
+                                    val reportFile = File(cacheDir, "zalith-crash-report.txt")
                                     reportFile.writeText(CrashReportFormatter.technical(session, diagnosis))
                                     shareFile(this@CrashAnalyzerActivity, reportFile)
                                 }

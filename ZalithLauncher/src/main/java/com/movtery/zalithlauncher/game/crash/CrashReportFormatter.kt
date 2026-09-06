@@ -10,7 +10,7 @@ import com.movtery.zalithlauncher.game.crash.model.CrashSession
 
 object CrashReportFormatter {
     fun plain(session: CrashSession, diagnosis: CrashDiagnosis): String = buildString {
-        appendLine("Zeryth Launcher Crash Report")
+        appendLine("Zalith Launcher Crash Report")
         appendLine("Category: ${diagnosis.category.name}")
         appendLine("Confidence: ${diagnosis.confidence}% (${diagnosis.confidenceBand.name})")
         appendLine("Severity: ${diagnosis.severity.name}")

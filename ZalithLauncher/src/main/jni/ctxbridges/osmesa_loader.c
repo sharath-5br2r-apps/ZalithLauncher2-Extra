@@ -64,7 +64,8 @@ void dlsym_OSMesa() {
     OSMesaCreateContext_p = OSMGetProcAddress(dl_handle, "OSMesaCreateContext");
     OSMesaCreateContextAttribs_p = OSMGetProcAddress(dl_handle, "OSMesaCreateContextAttribs");
     OSMesaDestroyContext_p = OSMGetProcAddress(dl_handle, "OSMesaDestroyContext");
-    OSMesaFlushFrontbuffer_p = OSMGetProcAddress(dl_handle, "OSMesaFlushFrontbuffer");
+    // OSMesaFlushFrontbuffer is optional and deprecated in modern Mesa builds
+    OSMesaFlushFrontbuffer_p = dlsym(dl_handle, "OSMesaFlushFrontbuffer");
     OSMesaPixelStore_p = OSMGetProcAddress(dl_handle, "OSMesaPixelStore");
     glGetString_p = OSMGetProcAddress(dl_handle, "glGetString");
     glClearColor_p = OSMGetProcAddress(dl_handle, "glClearColor");
