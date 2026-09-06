@@ -57,9 +57,9 @@ jobs:
           KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_P12_BASE64" ]; then
-            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "keystore_path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
-            echo "Using CI keystore"
+            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "keystore_path=$RUNNER_TEMP/release.p12" >> "$GITHUB_OUTPUT"
+            echo "Using CI keystore (PKCS12)"
           else
             echo "keystore_path=" >> "$GITHUB_OUTPUT"
             echo "No CI keystore secret found — falling back to bundled debug keystore"
@@ -134,11 +134,13 @@ jobs:
           _KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS || vars.KEYSTORE_ALIAS }}
         run: |
           if [ -n "$KEYSTORE_P12_BASE64" ]; then
-            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+            echo "$KEYSTORE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            KEYSTORE_FILE="$RUNNER_TEMP/release.p12"
+            STORE_TYPE="-storetype PKCS12"
             KEY_ALIAS="${_KEY_ALIAS:-sharath}"
           else
             KEYSTORE_FILE="ZalithLauncher/zalith_launcher_debug.jks"
+            STORE_TYPE=""
             KEY_ALIAS="movtery_zalith_debug"
             # Fall back to gradle.properties defaults if secrets are not set
             if [ -z "$_STORE_PASS" ]; then
@@ -149,11 +151,12 @@ jobs:
             fi
           fi
 
+          # shellcheck disable=SC2086
           HASH=$(keytool -exportcert \
             -alias "$KEY_ALIAS" \
             -keystore "$KEYSTORE_FILE" \
+            $STORE_TYPE \
             -storepass "$_STORE_PASS" \
-            -keypass "$_KEY_PASS" \
             | openssl sha1 -binary | openssl base64)
 
           echo "========================================"

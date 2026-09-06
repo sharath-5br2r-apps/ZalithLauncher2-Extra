@@ -33,7 +33,7 @@ val projectArch: String = System.getProperty("arch", "all")
 
 // Signing: prefer CI-injected env vars (KEYSTORE_FILE, KEYSTORE_PASSWORD,
 // KEYSTORE_KEY_PASSWORD, KEYSTORE_ALIAS); fall back to the bundled jks for local dev.
-val ciKeystorePath    = System.getenv("KEYSTORE_FILE")
+val ciKeystorePath    = System.getenv("KEYSTORE_FILE").takeIf { !it.isNullOrBlank() }
 val ciStorePassword   = System.getenv("KEYSTORE_PASSWORD")
 val ciKeyPassword     = System.getenv("KEYSTORE_KEY_PASSWORD")
 val ciKeyAlias        = System.getenv("KEYSTORE_ALIAS")
@@ -42,6 +42,8 @@ val signingKeystore   = if (ciKeystorePath != null) file(ciKeystorePath) else fi
 val signingStorePass  = ciStorePassword  ?: defaultStorePassword
 val signingKeyPass    = ciKeyPassword    ?: defaultKeyPassword
 val signingAlias      = ciKeyAlias       ?: "movtery_zalith_debug"
+// P12/PKCS12 keystores require storeType = "PKCS12"; JKS files use the default ("JKS")
+val signingStoreType  = if (ciKeystorePath?.endsWith(".p12", ignoreCase = true) == true) "PKCS12" else "JKS"
 
 fun getKeyFromLocal(envKey: String, fileName: String? = null, default: String? = null): String {
     val key = System.getenv(envKey)
@@ -61,12 +63,14 @@ android {
     signingConfigs {
         create("releaseBuild") {
             storeFile = signingKeystore
+            storeType = signingStoreType
             storePassword = signingStorePass
             keyAlias = signingAlias
             keyPassword = signingKeyPass
         }
         create("debugBuild") {
             storeFile = signingKeystore
+            storeType = signingStoreType
             storePassword = signingStorePass
             keyAlias = signingAlias
             keyPassword = signingKeyPass
