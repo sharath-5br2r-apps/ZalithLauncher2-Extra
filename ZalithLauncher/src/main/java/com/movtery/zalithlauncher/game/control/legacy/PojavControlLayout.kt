@@ -25,19 +25,19 @@ import net.kdt.pojavlaunch.customcontrols.mouse.TouchEventProcessor
 import org.lwjgl.glfw.CallbackBridge
 import java.io.File
 
-/**
+/*
  * Gesture-only touch processor for grab (in-game) mode.
  *
- * Camera rotation is handled separately in [ControlLayout.dispatchTouchEvent], so this
+ * Camera rotation is handled separately in ControlLayout.dispatchTouchEvent, so this
  * processor MUST NOT send any cursor position or delta — doing so would cause double
  * camera movement.
  *
  * Responsibilities:
- *  - [LeftClickGesture]  : hold finger still → GLFW_MOUSE_BUTTON_LEFT  (break block)
- *  - [RightClickGesture] : quick tap         → GLFW_MOUSE_BUTTON_RIGHT (use / interact)
+ *  - LeftClickGesture  : hold finger still -> GLFW_MOUSE_BUTTON_LEFT  (break block)
+ *  - RightClickGesture : quick tap         -> GLFW_MOUSE_BUTTON_RIGHT (use / interact)
  *
  * Motion deltas fed to each gesture are sensitivity-scaled screen-pixel deltas, matching
- * [InGameEventProcessor]'s scale so the "finger still" threshold (9 dp) behaves identically
+ * InGameEventProcessor's scale so the "finger still" threshold (9 dp) behaves identically
  * to ZL2 mode.
  */
 private class InGameGestureProcessor : TouchEventProcessor {
@@ -108,24 +108,19 @@ private class InGameGestureProcessor : TouchEventProcessor {
     }
 }
 
-/**
- * Container view wrapping the native [ControlLayout] together with a [Touchpad] overlay.
+/*
+ * Container view wrapping the native ControlLayout together with a Touchpad overlay.
  *
- * The touchpad is a plain (non-clickable) [android.view.View], so it never intercepts touch
- * input — it is purely a visual + logic overlay driven by [InGUIEventProcessor] through the
- * [net.kdt.pojavlaunch.customcontrols.mouse.AbstractTouchpad] interface. All real touch
- * handling continues to flow through [controlLayout] beneath it.
+ * The touchpad is a plain (non-clickable) android.view.View, so it never intercepts touch
+ * input — it is purely a visual + logic overlay driven by InGUIEventProcessor through the
+ * AbstractTouchpad interface. All real touch handling continues to flow through controlLayout beneath it.
  */
 private class LegacyControlContainer(context: Context) : FrameLayout(context) {
     val controlLayout = ControlLayout(context)
     val touchpad = Touchpad(context)
 
-    /** Tracks the last [MouseControlMode] applied, so we only re-sync on actual changes. */
     var lastAppliedMode: MouseControlMode? = null
-
-    /** Tracks the last consumed toggle request counter from the floating quick menu. */
     var lastToggleRequest = 0
-
     var onCursorStateChanged: ((Boolean) -> Unit)? = null
 
     init {
@@ -135,14 +130,6 @@ private class LegacyControlContainer(context: Context) : FrameLayout(context) {
         addView(touchpad, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
 
-    /** Manually flips the virtual mouse cursor on/off — used by both the dedicated
-     *  in-layout special button and the floating quick-menu action.
-     *
-     *  After flipping the cursor, [AllSettings.mouseControlMode] is saved to match
-     *  the new state: SLIDE (swipe) when the cursor is shown, CLICK (tap) when it
-     *  is hidden.  This makes [AllSettings.mouseControlMode] the single source of
-     *  truth observed by both the in-layout button and the floating quick-menu's
-     *  mouse-mode selector, so they can never drift out of sync. */
     fun toggleMouseCursor() {
         val newState = touchpad.switchState()
         val newMode = if (newState) MouseControlMode.SLIDE else MouseControlMode.CLICK
@@ -150,7 +137,6 @@ private class LegacyControlContainer(context: Context) : FrameLayout(context) {
         onCursorStateChanged?.invoke(newState)
     }
 
-    /** Applies the Tap/Swipe mouse control mode as the touchpad's default display state. */
     fun applyMouseControlMode(mode: MouseControlMode) {
         if (mode == lastAppliedMode) return
         lastAppliedMode = mode
@@ -162,28 +148,9 @@ private class LegacyControlContainer(context: Context) : FrameLayout(context) {
     }
 }
 
-/**
- * Composable that renders PojavLauncher's native [ControlLayout] (View-based)
+/*
+ * Composable that renders PojavLauncher's native ControlLayout (View-based)
  * for the Legacy (Zalith 1) control mode.
- *
- * Touch routing:
- *  - Camera (grabbed / in-game): [ControlLayout.dispatchTouchEvent] — always called by
- *    the Android View system, regardless of whether child views consume the event.
- *    [ControlLayout.isPointOverAnyChild] guards against camera-tracking button touches.
- *  - Tap / long press (grabbed / in-game): [InGameGestureProcessor] via
- *    [ControlLayout.onTouchEvent], reached for empty-screen touches no child consumed.
- *    Fires GLFW_MOUSE_BUTTON_LEFT (hold still) and GLFW_MOUSE_BUTTON_RIGHT (quick tap).
- *  - Cursor (not grabbed / menu): [InGUIEventProcessor] via [ControlLayout.onTouchEvent].
- *    Behaves as Tap (direct positioning) or Swipe (offset cursor via the [Touchpad] overlay)
- *    depending on [AllSettings.mouseControlMode], or whichever the user last toggled with
- *    the dedicated mouse cursor button / floating quick-menu action.
- *
- * @param mouseCursorToggleRequest bump this counter (e.g. from the floating quick menu) to
- *   toggle the virtual mouse cursor on/off, mirroring the dedicated in-layout special button.
- * @param onKeyboardButtonClicked invoked when the on-screen keyboard special button is pressed.
- * @param onMouseCursorStateChanged reports the virtual mouse cursor's display state after any
- *   change (mode switch or manual toggle), so other UI (e.g. the floating quick menu) can stay
- *   in sync.
  */
 @Composable
 fun PojavControlLayout(

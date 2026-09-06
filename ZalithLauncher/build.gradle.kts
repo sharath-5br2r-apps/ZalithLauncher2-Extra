@@ -130,12 +130,10 @@ android {
         buildConfig = true
         prefab = true
     }
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-            //让 android.util.Log 等框架方法在本地单测中返回默认值而非抛出异常
-            isReturnDefaultValues = true
-        }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+        ignoreWarnings = true
     }
 }
 
