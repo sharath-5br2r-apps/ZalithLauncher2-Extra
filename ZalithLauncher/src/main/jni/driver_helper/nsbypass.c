@@ -15,6 +15,10 @@
 #include <sys/stat.h>
 #include <elf.h>
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE ((size_t)getpagesize())
+#endif
+
 #define OP_MS 0b11111100000000000000000000000000
 #define BL_OP 0b10010100000000000000000000000000
 #define BL_IM 0b00000011111111111111111111111111
@@ -61,7 +65,8 @@ static void* find_branch_label(void* func_start) {
 bool linker_ns_load(const char* lib_search_path) {
 #ifdef ADRENO_POSSIBLE
     loader_dlopen_t loader_dlopen = find_branch_label(&dlopen);
-    mprotect(loader_dlopen, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
+    void* loader_dlopen_page = (void*)(((uintptr_t)loader_dlopen) & ~(PAGE_SIZE - 1));
+    mprotect(loader_dlopen_page, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
 
     void* ld_android_handle = loader_dlopen("ld-android.so", RTLD_LAZY, &dlopen);
     if (!ld_android_handle)
