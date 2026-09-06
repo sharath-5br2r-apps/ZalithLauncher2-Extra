@@ -7,19 +7,6 @@ on:
       variant:
         required: true
         type: string
-    secrets:
-      KEYSTORE_P12_BASE64:
-        required: false
-      KEYSTORE_PASSWORD:
-        required: false
-      KEYSTORE_KEY_PASSWORD:
-        required: false
-      KEYSTORE_ALIAS:
-        required: false
-      OAUTH_CLIENT_ID:
-        required: false
-      CURSEFORGE_API_KEY:
-        required: false
 
 jobs:
   build:

@@ -20,10 +20,4 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       variant: Release
-    secrets:
-      KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
-      KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
-      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+    secrets: inherit
