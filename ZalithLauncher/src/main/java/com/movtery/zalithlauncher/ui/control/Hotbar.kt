@@ -379,7 +379,6 @@ private fun Modifier.mainTouchLogic(
                                     onDoubleClick()
                                     lastSlot = null
                                 } else {
-                                    onClick(finalSlotIndex)
                                     //完成单击后，记录上一次点击的槽位
                                     lastSlot = DownSlot(
                                         slot = finalSlotIndex,
