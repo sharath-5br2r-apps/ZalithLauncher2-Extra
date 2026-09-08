@@ -54,6 +54,7 @@ import com.movtery.zalithlauncher.game.download.assets.platform.searchAssets
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.searchMcMods
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.game.version.mod.InstalledMod
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -295,6 +296,7 @@ private fun rememberSearchAssetsViewModel(
  * @param mapCategories 通过平台获取类别本地化信息
  * @param filterPersistenceKey 持久化过滤器状态的 MMKV 键，为空则不保存
  * @param swapToDownload 跳转到下载详情页
+ * @param installedInfo 查询项目本地是否已安装，键为平台与平台项目ID
  * @param extraFilter 额外的过滤器UI
  */
 @Composable
@@ -318,6 +320,7 @@ fun SearchAssetsScreen(
     /** 是否允许"自动选择下载内容"功能在进入屏幕时预选游戏版本（由各内容类型的设置开关控制） */
     autoSelectEnabled: Boolean = true,
     swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> },
+    installedInfo: ((Platform, projectId: String) -> InstalledMod?)? = null,
     extraFilter: (LazyListScope.() -> Unit)? = null
 ) {
     val viewModel: SearchScreenViewModel = rememberSearchAssetsViewModel(
@@ -365,6 +368,7 @@ fun SearchAssetsScreen(
                     viewModel.search()
                 },
                 swapToDownload = swapToDownload,
+                installedInfo = installedInfo,
                 onPreviousPage = { pageNumber ->
                     previousPage(
                         pageNumber = pageNumber,

@@ -395,7 +395,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Задержка жеста длительного касания</string>
     <string name="settings_control_mouse_long_press_delay_summary">Установить время задержки для распознавания жеста длительного нажатия на экране (Работает только если собственно включены жесты)</string>
     <string name="settings_control_gesture_control_title">Управление жестами</string>
-    <string name="settings_control_gesture_control_summary">Поддерживает взаимодействие в игре через жесты, такие как касание и длительное нажатие, аналогично Bedrock Edition</string>
+    <string name="settings_control_gesture_control_summary">Поддерживает взаимодействие в игре через жесты, такие как касание, длительное нажатие и прокрутка свайпом двумя пальцами, аналогично Bedrock Edition</string>
     <string name="settings_control_gesture_tap_action_title">Тип действия при касании</string>
     <string name="settings_control_gesture_tap_action_summary">Выберите действие кнопки мыши, которое будет вызвано при касании экрана</string>
     <string name="settings_control_gesture_long_press_action_title">Тип действия при длительном нажатии</string>

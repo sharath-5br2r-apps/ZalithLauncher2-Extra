@@ -580,7 +580,7 @@
     <string name="settings_control_mouse_capture_sensitivity_summary">Ajusta a sensibilidade do mouse quando capturado, como a sensibilidade do movimento da câmera do jogo</string>
     <string name="settings_control_mouse_control_mode_summary">Escolhe o método de controle do mouse virtual; Deslizar ou tocar na tela para mover o cursor</string>
     <string name="settings_control_mouse_long_press_delay_summary">Define o tempo de resposta para o toque longo (não afeta o mouse físico, mesmo que seu controle esteja desativado)</string>
-    <string name="settings_control_gesture_control_summary">Suporta interações no jogo por meio de gestos como tocar e pressionar longamente, semelhante à vesão Bedrock</string>
+    <string name="settings_control_gesture_control_summary">Suporta interações no jogo por meio de gestos como tocar, pressionar longamente e rolar deslizando com dois dedos, semelhante à vesão Bedrock</string>
     <string name="settings_control_gesture_tap_action_summary">Seleciona a ação do botão do mouse quando um toque na tela é feito</string>
     <string name="settings_control_gesture_long_press_action_summary">Seleciona a ação do botão do mouse quando um toque longo na tela é feito</string>
     <string name="settings_launcher_color_theme_summary">Personaliza as cores do launcher</string>

@@ -605,7 +605,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Penundaan Tekan Lama</string>
     <string name="settings_control_mouse_long_press_delay_summary">Atur penundaan untuk mengenali tekan lama pada layar (tidak memengaruhi tekan lama pada mouse fisik, meskipun kontrol mouse fisik dimatikan)</string>
     <string name="settings_control_gesture_control_title">Kontrol Gestur</string>
-    <string name="settings_control_gesture_control_summary">Mendukung interaksi dalam game melalui gestur seperti sentuh dan tekan lama, seperti Bedrock Edition</string>
+    <string name="settings_control_gesture_control_summary">Mendukung interaksi dalam game melalui gestur seperti sentuhan, tekan lama, dan menggulir dengan menggeser dua jari, seperti Bedrock Edition</string>
     <string name="settings_control_gesture_tap_action_title">Tindakan Saat Disentuh</string>
     <string name="settings_launcher_log_share_summary">Ketuk untuk membagikan file log launcher, agar developer bisa mengidentifikasi dan memperbaiki masalah pada launcher</string>
     <string name="settings_control_gesture_tap_action_summary">Pilih tindakan yang akan di picu saat menyentuh layar</string>

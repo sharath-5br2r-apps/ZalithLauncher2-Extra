@@ -620,7 +620,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Uzun Basma Gecikmesi</string>
     <string name="settings_control_mouse_long_press_delay_summary">Ekranda uzun basmayı tanıma gecikme süresini ayarlayın (gerçek fare uzun basması bu ayardan etkilenmez, gerçek fare kontrolü devre dışı bırakılmış olsa bile)</string>
     <string name="settings_control_gesture_control_title">Hareketlerle Kontrol</string>
-    <string name="settings_control_gesture_control_summary">Oyun içinde, tıklama ve uzun basma gibi jestlerle etkileşimde bulunmayı destekler; Bedrock sürümüne benzer şekilde</string>
+    <string name="settings_control_gesture_control_summary">Oyun içinde, tıklama, uzun basma ve iki parmakla kaydırarak içerik kaydırma gibi jestlerle etkileşimde bulunmayı destekler; Bedrock sürümüne benzer şekilde</string>
     <string name="settings_control_gesture_tap_action_title">Dokunma Eylemi</string>
     <string name="settings_control_gesture_tap_action_summary">Ekrana hafif dokunulduğunda tetiklenecek fare tuşu işlemini seçin</string>
     <string name="settings_control_gesture_long_press_action_title">Uzun Basma Eylemi</string>

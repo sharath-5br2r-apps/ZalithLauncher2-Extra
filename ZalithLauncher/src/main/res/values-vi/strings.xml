@@ -559,7 +559,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Độ trễ nhấn giữ</string>
     <string name="settings_control_mouse_long_press_delay_summary">Thời gian nhận diện nhấn giữ trên màn hình (không ảnh hưởng chuột vật lý)</string>
     <string name="settings_control_gesture_control_title">Cử chỉ</string>
-    <string name="settings_control_gesture_control_summary">Dùng nhấn và giữ để tương tác kiểu Bedrock</string>
+    <string name="settings_control_gesture_control_summary">Dùng nhấn, giữ và trượt hai ngón tay để cuộn nhằm tương tác kiểu Bedrock</string>
     <string name="settings_control_gesture_tap_action_title">Hành động khi nhấn</string>
     <string name="settings_control_gesture_tap_action_summary">Chọn phím chuột khi chạm nhẹ</string>
     <string name="settings_control_gesture_long_press_action_title">Hành động khi nhấn giữ</string>

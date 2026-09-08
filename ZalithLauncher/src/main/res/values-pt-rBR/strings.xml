@@ -819,7 +819,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Atraso de pressionamento longo</string>
     <string name="settings_control_mouse_long_press_delay_summary">Defina o tempo de atraso para reconhecer um toque longo na tela (não afeta toques longos físicos do mouse, mesmo quando o controle físico do mouse está desativado)</string>
     <string name="settings_control_gesture_control_title">Controles por gestos</string>
-    <string name="settings_control_gesture_control_summary">Suporta interações no jogo por meio de gestos como toque e pressão longa, semelhante à Edição Bedrock</string>
+    <string name="settings_control_gesture_control_summary">Suporta interações no jogo por meio de gestos como toque, pressão longa e rolagem deslizando com dois dedos, semelhante à Edição Bedrock</string>
     <string name="settings_control_gesture_tap_action_title">Tipo de ação de toque</string>
     <string name="settings_control_gesture_tap_action_summary">Selecione a ação do botão do mouse para acionar com um toque na tela</string>
     <string name="settings_control_gesture_long_press_action_title">Tipo de ação de pressionar e segurar</string>

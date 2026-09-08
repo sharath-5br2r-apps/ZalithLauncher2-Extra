@@ -1225,7 +1225,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Long Press Delay</string>
     <string name="settings_control_mouse_long_press_delay_summary">Set the delay time for recognizing a long press on the screen (does not affect physical mouse long presses, even when physical mouse control is disabled)</string>
     <string name="settings_control_gesture_control_title">Gesture Controls</string>
-    <string name="settings_control_gesture_control_summary">Supports interactions in-game through gestures like tap and long press, similar to the Bedrock Edition</string>
+    <string name="settings_control_gesture_control_summary">Supports interactions in-game through gestures like tap, long press, and two-finger swipe scrolling, similar to the Bedrock Edition</string>
     <string name="settings_control_gesture_tap_action_title">Tap Action Type</string>
     <string name="settings_control_gesture_tap_action_summary">Select the mouse button action to trigger on a screen tap</string>
     <string name="settings_control_gesture_long_press_action_title">Long Press Action Type</string>

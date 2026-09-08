@@ -784,7 +784,7 @@
     <string name="settings_control_mouse_long_press_delay_title">Retardo de pulsación larga</string>
     <string name="settings_control_mouse_long_press_delay_summary">Establecer el tiempo de retardo para reconocer una pulsación larga en la pantalla (no afecta a las pulsaciones largas del ratón físico, incluso cuando el control del ratón físico está deshabilitado)</string>
     <string name="settings_control_gesture_control_title">Controles por gestos</string>
-    <string name="settings_control_gesture_control_summary">Soporta interacciones en el juego a través de gestos como tocar y mantener presionado, similar a la Edición Bedrock</string>
+    <string name="settings_control_gesture_control_summary">Soporta interacciones en el juego a través de gestos como tocar, mantener presionado y desplazar deslizando con dos dedos, similar a la Edición Bedrock</string>
     <string name="settings_control_gesture_tap_action_title">Tipo de acción de toque</string>
     <string name="settings_control_gesture_tap_action_summary">Seleccionar la acción del botón del ratón para activar al tocar la pantalla</string>
     <string name="settings_control_gesture_long_press_action_title">Tipo de acción de pulsación larga</string>

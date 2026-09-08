@@ -886,7 +886,7 @@
     <string name="settings_control_mouse_long_press_delay_title">虛擬滑鼠長按觸發延遲</string>
     <string name="settings_control_mouse_long_press_delay_summary">設定螢幕長按辨識的延遲時間（實體滑鼠長按不受此設定影響，包括停用實體滑鼠控制時）</string>
     <string name="settings_control_gesture_control_title">手勢控制</string>
-    <string name="settings_control_gesture_control_summary">支援透過點擊和長按等手勢，在遊戲中進行互動，類似基岩版</string>
+    <string name="settings_control_gesture_control_summary">支援透過點擊、長按以及雙指滑動捲動等手勢，在遊戲中進行互動，類似基岩版</string>
     <string name="settings_control_gesture_tap_action_title">點擊觸發的操作類型</string>
     <string name="settings_control_gesture_tap_action_summary">選擇在輕觸螢幕時應觸發的滑鼠按鍵操作</string>
     <string name="settings_control_gesture_long_press_action_title">長按觸發的操作類型</string>

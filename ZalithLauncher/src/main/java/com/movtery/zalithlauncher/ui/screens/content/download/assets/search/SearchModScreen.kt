@@ -28,6 +28,7 @@ import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.model
 import com.movtery.zalithlauncher.game.download.assets.platform.modrinth.models.ModrinthFeatures
 import com.movtery.zalithlauncher.game.download.assets.platform.modrinth.models.ModrinthModCategory
 import com.movtery.zalithlauncher.game.download.assets.platform.modrinth.models.modrinthModLoaderFilters
+import com.movtery.zalithlauncher.game.version.mod.InstalledMod
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -38,6 +39,8 @@ fun SearchModScreen(
     downloadScreenKey: TitledNavKey?,
     downloadModScreenKey: TitledNavKey,
     downloadModScreenCurrentKey: TitledNavKey?,
+    onPlatformChange: (Platform) -> Unit = {},
+    installedInfo: ((Platform, projectId: String) -> InstalledMod?)? = null,
     swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> }
 ) {
     val initialPlatform = remember {
@@ -80,6 +83,7 @@ fun SearchModScreen(
         initialPlatform = initialPlatform,
         onPlatformChange = {
             AllSettings.searchModPlatform.save(it)
+            onPlatformChange(it)
         },
         initialFilter = initialFilter,
         autoSelectEnabled = AllSettings.autoSelectDownloadContent.getValue() && AllSettings.autoSelectMods.getValue(),
@@ -124,6 +128,7 @@ fun SearchModScreen(
             }
         },
         filterPersistenceKey = AllSettings.searchModFilter.key,
-        swapToDownload = swapToDownload
+        swapToDownload = swapToDownload,
+        installedInfo = installedInfo
     )
 }
