@@ -709,6 +709,13 @@
     <string name="settings_renderer_from_plugins">Del plugin %s</string>
     <string name="settings_renderer_resolution_scale_title">Escala de resolución</string>
     <string name="settings_renderer_resolution_scale_summary">Los valores más bajos mejoran el rendimiento; los valores más altos mejoran la calidad gráfica. Ajusta según tus necesidades</string>
+
+    <string name="settings_renderer_resolution_rule_title">Regla de resolución</string>
+    <string name="settings_renderer_resolution_rule_summary">Elige cómo se calcula la resolución de la ventana del juego</string>
+    <string name="settings_renderer_resolution_rule_percentage">Porcentaje</string>
+    <string name="settings_renderer_resolution_custom_summary">Renderiza el juego con un ancho y alto exactos; la imagen se escala para ajustarse a la pantalla</string>
+    <string name="settings_renderer_resolution_custom_width">Ancho</string>
+    <string name="settings_renderer_resolution_custom_height">Alto</string>
     <string name="settings_renderer_full_screen_title">Modo de juego a pantalla completa</string>
     <string name="settings_renderer_full_screen_summary">Habilitar modo de pantalla completa, ignorando áreas seguras como muescas y perforaciones</string>
     <string name="settings_renderer_sustained_performance_title">Modo de rendimiento sostenido</string>

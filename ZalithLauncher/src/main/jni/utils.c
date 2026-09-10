@@ -112,6 +112,21 @@ JNIEXPORT jboolean JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_dlope
 	return handle != NULL;
 }
 
+JNIEXPORT jlong JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_getJavaVMPointer(JNIEnv *env, jclass clazz) {
+	if (pojav_environ->dalvikJavaVMPtr == NULL) return 0;
+	return (jlong) (intptr_t) pojav_environ->dalvikJavaVMPtr;
+}
+
+JNIEXPORT jstring JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_jObjectToString(JNIEnv *env, jclass clazz, jobject object) {
+	if (object == NULL) return NULL;
+	jobject global_ref = (*env)->NewGlobalRef(env, object);
+	if (global_ref == NULL) return NULL;
+
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%llx", (unsigned long long) (uintptr_t) global_ref);
+	return (*env)->NewStringUTF(env, buf);
+}
+
 JNIEXPORT jint JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_chdir(JNIEnv *env, jclass clazz, jstring nameStr) {
 	const char *name = (*env)->GetStringUTFChars(env, nameStr, NULL);
 	int retval = chdir(name);
@@ -179,4 +194,3 @@ JNIEXPORT void JNICALL Java_com_movtery_zalithlauncher_bridge_ZLBridge_fpsLimitS
 		LOG_TO_E("FPSLimit: fpslimit_set_limit not found");
 	}
 }
-

@@ -376,4 +376,11 @@
     <string name="error_bad_request">[%s เซิร์ฟเวอร์ไม่สามารถเข้าใจคําขอน้ได้</string>
     <string name="error_forbidden">(%s) คุณไม่มีสิทธิในการเข้าถึงทรัพยากรนี้</string>
     <string name="error_not_acceptable">(%s) ไม่ยอมรับ</string>
+
+    <string name="settings_renderer_resolution_rule_title">กฎความละเอียด</string>
+    <string name="settings_renderer_resolution_rule_summary">เลือกวิธีคำนวณความละเอียดของหน้าต่างเกม</string>
+    <string name="settings_renderer_resolution_rule_percentage">เปอร์เซ็นต์</string>
+    <string name="settings_renderer_resolution_custom_summary">เรนเดอร์เกมด้วยความกว้างและความสูงที่แน่นอน โดยภาพจะถูกปรับขนาดให้พอดีกับหน้าจอ</string>
+    <string name="settings_renderer_resolution_custom_width">ความกว้าง</string>
+    <string name="settings_renderer_resolution_custom_height">ความสูง</string>
 </resources>

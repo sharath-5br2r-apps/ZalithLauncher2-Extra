@@ -33,13 +33,14 @@ import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.setting.enums.DarkMode
-import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
+import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.HomePageType
 import com.movtery.zalithlauncher.setting.enums.MainScreenMode
 import com.movtery.zalithlauncher.setting.enums.AccountTypeDisplayMode
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
+import com.movtery.zalithlauncher.setting.enums.ResolutionRule
 import com.movtery.zalithlauncher.ui.control.HotbarRule
 import com.movtery.zalithlauncher.ui.control.gamepad.JoystickMode
 import com.movtery.zalithlauncher.ui.control.mouse.CENTER_HOTSPOT
@@ -74,6 +75,21 @@ object AllSettings : SettingsRegistry() {
      * 分辨率
      */
     val resolutionRatio = intSetting("resolutionRatio", 70, 25..300)
+
+    /**
+     * 分辨率规则
+     */
+    val resolutionRule = enumSetting("resolutionRule", ResolutionRule.PERCENTAGE)
+
+    /**
+     * 自定义分辨率宽度，0 表示尚未初始化
+     */
+    val customResolutionWidth = intSetting("customResolutionWidth", 0)
+
+    /**
+     * 自定义分辨率高度，0 表示尚未初始化
+     */
+    val customResolutionHeight = intSetting("customResolutionHeight", 0)
 
     /**
      * 游戏页面全屏化

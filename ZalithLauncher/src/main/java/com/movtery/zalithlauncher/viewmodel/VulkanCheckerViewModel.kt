@@ -22,12 +22,15 @@ import androidx.lifecycle.ViewModel
 import com.movtery.zalithlauncher.game.plugin.driver.Driver
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.game.version.installed.utils.isLowerVer
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.launcherMMKV
 import com.movtery.zalithlauncher.ui.vulkan_checker.VCOperation
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.device.VulkanCapabilities
 import com.movtery.zalithlauncher.utils.device.VulkanChecker
+import com.movtery.zalithlauncher.utils.device.normalizeMcVersion
+import com.movtery.zalithlauncher.utils.device.profileSupport
 import com.movtery.zalithlauncher.utils.logging.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,10 +48,24 @@ private const val TAG = "VulkanCheckerViewModel"
 private const val KEY_VULKAN_CHECK_RECORD = "vulkanCheckRecord"
 
 data class VulkanCheckRecord(
-    val allSupported: Boolean,
     val useTurnip: Boolean,
-    val driverPath: String
-)
+    val driverPath: String,
+    /** 设备可支持的 Minecraft 版本范围，[Range.until] 为排他上界，null 表示无上界 */
+    val supportedRanges: List<Range> = emptyList()
+) {
+    data class Range(
+        val since: String,
+        val until: String?
+    )
+
+    /** 判断指定 Minecraft 版本是否落在已支持的版本范围内 */
+    fun isSupported(mcVersion: String): Boolean {
+        return supportedRanges.any { range ->
+            !mcVersion.isLowerVer(range.since) &&
+                    (range.until == null || mcVersion.isLowerVer(range.until))
+        }
+    }
+}
 
 class VulkanCheckerViewModel: ViewModel() {
     private val _vcOperation = MutableStateFlow<VCOperation>(VCOperation.None)
@@ -86,9 +103,12 @@ class VulkanCheckerViewModel: ViewModel() {
             val capabilities = doCheck(useTurnip, driver)
             saveRecord(
                 VulkanCheckRecord(
-                    allSupported = capabilities?.isAllSupported == true,
                     useTurnip = useTurnip,
-                    driverPath = driverPath(useTurnip, driver)
+                    driverPath = driverPath(useTurnip, driver),
+                    supportedRanges = capabilities?.profileSupport()
+                        ?.filter { it.supported }
+                        ?.map { VulkanCheckRecord.Range(since = it.since, until = it.until) }
+                        ?: emptyList()
                 )
             )
             capabilities to useTurnip
@@ -98,18 +118,20 @@ class VulkanCheckerViewModel: ViewModel() {
     suspend fun ensureSupported(version: Version): Boolean {
         val driver = DriverPluginManager.getDriver(version.getDriver())
         val useTurnip = !driver.isLauncher
+        val mcVersion = version.getVersionInfo()?.minecraftVersion?.let(::normalizeMcVersion)
         val path = driverPath(useTurnip, driver)
 
         loadRecord()?.takeIf { last ->
             last.useTurnip == useTurnip && last.driverPath == path
         }?.let {
-            return it.allSupported
+            //同一驱动状态下设备能力不变，直接按已支持的版本范围判定
+            return mcVersion != null && it.isSupported(mcVersion)
         }
 
-        //记录不存在或状态不一致时走完整的检测流程，检测完成后结果已保存
+        //记录不存在或驱动状态不一致时走完整的检测流程，检测完成后结果已保存
         waitForVulkanChecker(version)
-        loadRecord()?.let { return it.allSupported }
-        return false
+        val record = loadRecord() ?: return false
+        return mcVersion != null && record.isSupported(mcVersion)
     }
 
     private fun driverPath(useTurnip: Boolean, driver: Driver): String {

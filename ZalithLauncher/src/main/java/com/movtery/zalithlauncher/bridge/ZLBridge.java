@@ -87,6 +87,19 @@ public final class ZLBridge {
     @Keep public static native void fsrSetQuality(int qualityPreset);
     @Keep public static native void fpsLimitSet(int fps);
 
+    //Narrator (flite)
+    /**
+     * 返回当前（Dalvik/ART）JavaVM 指针，供游戏 JVM 侧原生代码经环境变量 attach 回安卓运行时
+     */
+    @Keep
+    public static native long getJavaVMPointer();
+
+    /**
+     * 为对象创建全局引用并以十六进制字符串返回其地址，配合 {@link #getJavaVMPointer()} 注入环境变量
+     */
+    @Keep
+    public static native String jObjectToString(Object object);
+
     static {
         // libffmpeg.so (Replay Mod video export) failed to resolve the native_handle_create
         // symbol via libandroid.so on some Android 14 devices. Force-preload these system

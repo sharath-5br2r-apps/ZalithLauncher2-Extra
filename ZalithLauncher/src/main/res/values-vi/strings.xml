@@ -512,6 +512,13 @@
     <string name="settings_renderer_from_plugins">Từ plugin %s</string>
     <string name="settings_renderer_resolution_scale_title">Độ phân giải</string>
     <string name="settings_renderer_resolution_scale_summary">Càng thấp càng khỏe, càng cao càng đẹp</string>
+
+    <string name="settings_renderer_resolution_rule_title">Quy tắc độ phân giải</string>
+    <string name="settings_renderer_resolution_rule_summary">Chọn cách tính độ phân giải của cửa sổ trò chơi</string>
+    <string name="settings_renderer_resolution_rule_percentage">Phần trăm</string>
+    <string name="settings_renderer_resolution_custom_summary">Kết xuất trò chơi với chiều rộng và chiều cao chính xác; hình ảnh sẽ được chia tỷ lệ để vừa với màn hình</string>
+    <string name="settings_renderer_resolution_custom_width">Chiều rộng</string>
+    <string name="settings_renderer_resolution_custom_height">Chiều cao</string>
     <string name="settings_renderer_full_screen_title">Toàn màn hình game</string>
     <string name="settings_renderer_full_screen_summary">Kéo căng game ra toàn màn hình, bỏ qua vùng an toàn</string>
     <string name="settings_renderer_sustained_performance_title">Chế độ hiệu năng bền bỉ</string>
@@ -1033,8 +1040,16 @@
     <string name="game_vulkan_check_title">Kiểm tra Vulkan</string>
     <string name="game_vulkan_check_version">Vulkan: %s</string>
     <string name="game_vulkan_check_turnip">Dùng Turnip: %s</string>
-    <string name="game_vulkan_check_unsupp">Thiết bị không hỗ trợ Vulkan chạy MC 26.2+</string>
-    <string name="game_vulkan_check_supp">Thiết bị có thể dùng Vulkan chạy MC 26.2+</string>
+    <string name="game_vulkan_check_versions">Hỗ trợ theo phiên bản:</string>
+    <string name="game_vulkan_check_profile_supp">Được hỗ trợ</string>
+    <string name="game_vulkan_check_profile_unsupp">Không được hỗ trợ</string>
+    <string name="game_vulkan_check_dep_required">Bắt buộc:</string>
+    <string name="game_vulkan_check_dep_optional">Tùy chọn:</string>
+    <string name="game_vulkan_check_item_missing">" (còn thiếu)"</string>
+    <string name="game_vulkan_check_failed">Không thể lấy thông tin hỗ trợ Vulkan của thiết bị</string>
+    <string name="game_vulkan_check_partial">Thiết bị của bạn chỉ có thể chạy một số phiên bản Minecraft bằng Vulkan:</string>
+    <string name="game_vulkan_check_unsupp">Thiết bị của bạn không thể chạy phiên bản Minecraft nào bằng Vulkan</string>
+    <string name="game_vulkan_check_supp">Thiết bị của bạn có thể chạy Minecraft %s trở lên bằng Vulkan</string>
     <string name="account_label_server_url">URL server</string>
     <string name="account_change_skin_arm_style">Steve hay Alex</string>
     <string name="account_change_skin_arm_wide">Steve</string>
@@ -1076,10 +1091,8 @@
     <string name="game_menu_option_hotbar_long_click_delay">Độ trễ khi nhấn giữ thanh công cụ (hotbar)</string>
     <string name="game_saponsorship_finished_game">Trình khởi chạy đã khởi động trò chơi thành công %s lần! Nếu bạn thấy nó hữu ích, hãy cân nhắc ủng hộ tác giả nhé! :D</string>
     <string name="game_vulkan_check_text">Kiểm tra xem thiết bị của bạn có hỗ trợ chạy Minecraft 26.2+ bằng Vulkan hay không. Kết quả chỉ mang tính chất tham khảo.</string>
-    <string name="game_vulkan_check_extensions">Các tiện ích mở rộng bắt buộc:</string>
-    <string name="game_vulkan_check_missing_extensions">Các tiện ích mở rộng còn thiếu:</string>
-    <string name="game_vulkan_check_features">Các tính năng bắt buộc:</string>
-    <string name="game_vulkan_check_missing_features">Các tính năng còn thiếu:</string>
+    <string name="game_vulkan_check_extensions">Tiện ích mở rộng phụ thuộc:</string>
+    <string name="game_vulkan_check_features">Tính năng phụ thuộc:</string>
     <string name="plugin_unsupported_warning">Plugin %s hiện không hỗ trợ phiên bản trò chơi này, việc tiếp tục sử dụng có thể khiến trò chơi bị văng (crash)! Bạn có chắc chắn muốn bỏ qua rủi ro và tiếp tục không?</string>
     <string name="settings_game_graphics_api_default">Theo cài đặt trò chơi</string>
     <string name="settings_game_graphics_api_default_opengl">Chỉ đặt thành OpenGL trong lần khởi chạy đầu tiên</string>

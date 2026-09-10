@@ -16,10 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
-package com.movtery.zalithlauncher.notification
+package com.movtery.zalithlauncher.setting.enums
 
-const val NOTIFICATION_ID_JVM_SERVICE = 1001
-const val NOTIFICATION_ID_GAME_SERVICE = 1002
-const val NOTIFICATION_ID_VPN_REQUEST_CODE = 1003
-const val NOTIFICATION_ID_RECORDING_SERVICE = 1004
-const val NOTIFICATION_ID_TASK_SERVICE = 1005
+import com.movtery.zalithlauncher.R
+
+/**
+ * 游戏分辨率的计算规则
+ */
+enum class ResolutionRule(val nameRes: Int) {
+    /**
+     * 基于屏幕真实宽高按百分比缩放
+     */
+    PERCENTAGE(R.string.settings_renderer_resolution_rule_percentage),
+    /**
+     * 精确指定渲染宽高
+     */
+    CUSTOM(R.string.generic_custom)
+}
