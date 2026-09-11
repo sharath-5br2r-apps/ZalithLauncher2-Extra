@@ -427,6 +427,8 @@ jobs:
                   "arch": arch,
                   "ext": ext,
                   "version": "${{ needs.check.outputs.release_name }}",
+                  "os": "android",
+                  "isVanilla": False,
                   "patches": "zalithlauncher2-extra",
                   "changelog": changelog,
                   "applied_patches": applied_patches
