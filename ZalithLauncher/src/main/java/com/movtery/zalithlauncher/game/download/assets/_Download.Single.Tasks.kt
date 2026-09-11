@@ -64,7 +64,6 @@ private const val TAG = "DownloadSingle"
  * @param onFileCancelled 文件安装已取消 单独回调
  */
 fun downloadSingleForVersions(
-    context: Context,
     version: PlatformVersion,
     versions: List<Version>,
     folder: String,
@@ -270,17 +269,18 @@ suspend fun downloadDependenciesBatch(
         val dep = planned.dependency
         val project = planned.project
         val name = project.platformTitle()
+        val projectId = dep.projectId ?: project.platformId()
         runCatching {
             // Fetch all versions for this dependency project
             val allVersions = getVersions(
-                projectID = dep.projectId,
+                projectID = projectId,
                 platform = dep.platform
             )
 
             // Initialise every candidate first; unusable/uninitialisable ones are dropped here
             // instead of crashing later when their metadata is read.
             val initializedVersions = allVersions.mapNotNull { ver ->
-                runCatching { if (ver.initFile(dep.projectId)) ver else null }.getOrNull()
+                runCatching { if (ver.initFile(projectId)) ver else null }.getOrNull()
             }
 
             if (initializedVersions.isEmpty()) {
@@ -354,7 +354,6 @@ suspend fun downloadDependenciesBatch(
                 .forEach { selections ->
                     val selected = selections.first().second
                     downloadSingleForVersions(
-                        context = context,
                         version = selected,
                         versions = selections.map { it.first },
                         folder = folder,

@@ -58,9 +58,9 @@ fun planDependencyRequirements(
     dependencies: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>
 ): DependencyRequirementPlan {
     val dependencyGroups = dependencies
-        .filter { it.first.projectId.isNotBlank() }
+        .filter { !it.first.projectId.isNullOrBlank() }
         .groupBy { (dependency, _) ->
-            "${dependency.platform.name}:${dependency.projectId.lowercase()}"
+            "${dependency.platform.name}:${dependency.projectId?.lowercase().orEmpty()}"
         }
     val planningErrors = mutableListOf<Pair<String, String>>()
     val uniqueDependencies = dependencyGroups.values.flatMap { entries ->
