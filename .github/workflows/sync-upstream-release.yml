@@ -462,8 +462,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "sync/${{ needs.check.outputs.upstream_tag }}"
-          git push origin "sync/${{ needs.check.outputs.upstream_tag }}"
+          git tag -f "sync/${{ needs.check.outputs.upstream_tag }}"
+          git push -f origin "sync/${{ needs.check.outputs.upstream_tag }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
