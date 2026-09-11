@@ -82,7 +82,9 @@ fun VulkanChecker(
             Dialog(
                 onDismissRequest = {},
                 properties = DialogProperties(
-                    usePlatformDefaultWidth = false
+                    usePlatformDefaultWidth = false,
+                    dismissOnClickOutside = false,
+                    dismissOnBackPress = false,
                 )
             ) {
                 BoxWithConstraints(
@@ -195,8 +197,8 @@ fun VulkanChecker(
                                 FilledTonalButton(
                                     modifier = Modifier.focusProperties { canFocus = false },
                                     onClick = {
-                                        onChange(VCOperation.None)
                                         confirmResult()
+                                        onChange(VCOperation.None)
                                     }
                                 ) {
                                     Text(stringResource(R.string.generic_confirm))

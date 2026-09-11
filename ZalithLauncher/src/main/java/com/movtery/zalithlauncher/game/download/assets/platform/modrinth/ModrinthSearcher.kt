@@ -93,6 +93,15 @@ class ModrinthSearcher(
         )
     }
 
+    /**
+     * 获取 Modrinth 指定Id的单个版本
+     */
+    suspend fun getVersion(versionID: String): ModrinthVersion {
+        return httpGetJson(
+            url = "$api/version/$versionID"
+        )
+    }
+
     override suspend fun getVersionByLocalFile(
         file: File,
         sha1: String

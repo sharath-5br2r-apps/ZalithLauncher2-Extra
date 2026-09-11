@@ -58,7 +58,11 @@ fun getKeyFromLocal(envKey: String, fileName: String? = null, default: String? =
 
 android {
     namespace = zalithPackageName
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     signingConfigs {
         create("releaseBuild") {

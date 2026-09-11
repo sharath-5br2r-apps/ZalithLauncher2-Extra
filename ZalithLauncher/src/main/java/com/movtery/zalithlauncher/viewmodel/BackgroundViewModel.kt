@@ -29,6 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.movtery.zalithlauncher.context.copyLocalFile
 import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.utils.image.isImageFile
 import com.movtery.zalithlauncher.utils.video.isVideoFile
 import dev.chrisbanes.haze.HazeState
@@ -134,4 +135,9 @@ fun <E> influencedByBackground(
     } else {
         value
     }
+}
+
+@Composable
+fun backgroundVisible(): Boolean {
+    return LocalBackgroundViewModel.current?.isValid == true && AllSettings.launcherBackgroundOpacity.state < 100
 }

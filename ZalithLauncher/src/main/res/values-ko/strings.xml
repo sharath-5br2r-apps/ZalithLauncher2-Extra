@@ -229,6 +229,8 @@
     <string name="download_assets_install_progress_downloading">에셋 다운로드 및 설치 중\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">에셋 설치중\n%s</string>
     <string name="download_assets_install_failed">에셋 설치 실패!</string>
+    <string name="download_assets_dependency_no_compatible_version">의존성 %s에 대한 호환 버전을 찾을 수 없습니다</string>
+    <string name="download_assets_dependency_project_unavailable">프로젝트 정보를 가져올 수 없습니다</string>
     <string name="download_modpack_warning1">설치 전 안내, 대부분의 모드팩은 PC용으로 제작되었습니다, 모바일에서 실행 시 크래시(튕김)나 기타 문제가 발생할 확률이 매우 높으며, 이는 런처 수준에서 해결하기 어려운 경우가 많습니다.</string>
     <string name="download_modpack_warning2">오류가 발생하면 스스로 해결 방법을 찾아보거나, 커뮤니티 등을 통해 주변의 도움을 구해 보세요.</string>
     <string name="download_modpack_warning3">참고: 런처 개발자는 일반적으로 모드팩으로 인해 발생하는 문제를 해결해 드리지 않습니다.</string>

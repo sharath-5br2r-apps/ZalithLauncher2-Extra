@@ -110,8 +110,6 @@ sealed interface DownloadAssetsVersionLoading {
     data object StartLoadPage: DownloadAssetsVersionLoading
     /** 加载分页数据 */
     data class LoadingPage(val chunk: Int, val page: Int): DownloadAssetsVersionLoading
-    /** 正在加载并缓存依赖项目 */
-    data object LoadingDepProject: DownloadAssetsVersionLoading
 }
 
 /**

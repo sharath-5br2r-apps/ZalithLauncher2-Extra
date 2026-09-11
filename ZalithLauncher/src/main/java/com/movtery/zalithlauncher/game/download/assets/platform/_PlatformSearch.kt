@@ -304,6 +304,26 @@ suspend fun getProjectByVersion(
     }
 }
 
+/**
+ * 获取指定平台上的单个版本
+ * @param versionId 版本在平台上的Id
+ */
+suspend fun getVersionById(
+    versionId: String,
+    platform: Platform,
+    printLog: Boolean = true
+): PlatformVersion = withContext(Dispatchers.IO) {
+    when (platform) {
+        Platform.MODRINTH -> mirroredPlatformSearcher(
+            searchers = mirroredModrinthSource(),
+            printLog = printLog
+        ) { searcher ->
+            searcher.getVersion(versionId)
+        }
+        Platform.CURSEFORGE -> error("CurseForge dependencies do not carry a version id.")
+    }
+}
+
 suspend fun getVersionByLocalFile(file: File, sha1: String): PlatformVersion? = withContext(Dispatchers.IO) {
     coroutineScope {
         val modrinthDeferred = async(Dispatchers.IO) {

@@ -109,6 +109,8 @@
     <string name="download_assets_install_progress_downloading">กำลังดาวโหลดและติดตั้งข้อมูล\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">กำลังติดตั้งข้อมูล\n%s</string>
     <string name="download_assets_install_failed">การติดตั้งข้อมูล ผิดพลาด</string>
+    <string name="download_assets_dependency_no_compatible_version">ไม่พบเวอร์ชันที่เข้ากันได้สำหรับการพึ่งพา %s</string>
+    <string name="download_assets_dependency_project_unavailable">ไม่สามารถดึงข้อมูลโปรเจกต์ได้</string>
     <string name="download_modpack_warning1">ก่อนที่จะทำหารติดตั้ง โปรดเข้าใจว่า Modpacks ส่วนใหญ่ทำเพื่อให้เล่นบนคอมพิวเตอร์ มีโอกาสสูงที่จะเด้งหรือปัญหาอื่นเมื่อพยายามจะเล่น. ปัญหาพวกนั้นอยู่นอกเหนือสิ่งที่Luncherแก้ได้</string>
     <string name="download_modpack_warning2">โปรดเรียนรู้เกี่ยวกับปัญหา และพยายาที่จะแก้ด้วยตนเองหรือขอความช่วยเหลือจากผู้อื่น</string>
     <string name="download_modpack_warning3">ปล. โดยปกติผู้พัฒนาLuncherไม่ได้แก้ปัญหาที่เกิดจากmodpacks</string>

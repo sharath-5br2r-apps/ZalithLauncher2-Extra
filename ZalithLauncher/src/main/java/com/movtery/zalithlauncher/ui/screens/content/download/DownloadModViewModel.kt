@@ -23,33 +23,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.movtery.zalithlauncher.game.download.assets.platform.FINGERPRINT_BATCH_SIZE
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
-import com.movtery.zalithlauncher.game.download.assets.platform.getCFFilesByFingerprints
-import com.movtery.zalithlauncher.game.download.assets.platform.getModrinthVersBySha1
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.mod.InstalledMod
 import com.movtery.zalithlauncher.game.version.mod.ModFingerprints
-import com.movtery.zalithlauncher.game.version.mod.READER_PARALLELISM
-import com.movtery.zalithlauncher.game.version.mod.computeModFingerprints
-import com.movtery.zalithlauncher.game.version.mod.installedModCache
-import com.movtery.zalithlauncher.game.version.mod.isDisabled
-import com.movtery.zalithlauncher.game.version.mod.toInstalledMod
+import com.movtery.zalithlauncher.game.version.mod.matchInstalledMods
+import com.movtery.zalithlauncher.game.version.mod.scanModFingerprints
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.utils.logging.Logger
-import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
-import java.io.File
 
 private const val TAG = "DownloadModViewModel"
 
@@ -120,7 +105,7 @@ class DownloadModViewModel : ViewModel() {
             scannedVersionName = versionName
             scannedFingerprints = version?.let { ver ->
                 runCatching {
-                    scanFingerprints(VersionFolders.MOD.getDir(ver.getGameDir()))
+                    scanModFingerprints(VersionFolders.MOD.getDir(ver.getGameDir()))
                 }.onFailure { e ->
                     Logger.warning(TAG, "Failed to scan local mod fingerprints", e)
                 }.getOrDefault(emptyList())
@@ -162,121 +147,14 @@ class DownloadModViewModel : ViewModel() {
             return
         }
 
-        val cache = installedModCache()
-        val byProject = mutableMapOf<String, InstalledMod>()
-        val byVersion = mutableMapOf<String, InstalledMod>()
-        var allSucceeded = true
-
-        fun collect(installed: InstalledMod) {
-            if (installed.notFound) return
-            byProject[installed.projectId] = installed
-            byVersion[installed.versionId] = installed
-        }
-
-        // 优先读取持久缓存，只对未命中的指纹发起批量查询
-        val uncached = mutableListOf<ModFingerprints>()
-        for (print in fingerprints) {
-            val cached = cache.decodeParcelable(print.cacheKey(platform), InstalledMod::class.java)
-            if (cached != null) collect(cached) else uncached.add(print)
-        }
-
-        // 分块批量查询；块内成功时才允许写入持久缓存（含未命中的负缓存），
-        // 失败的块不写任何缓存，留待下次进入时重试
-        for (chunk in uncached.chunked(FINGERPRINT_BATCH_SIZE)) {
-            runCatching {
-                when (platform) {
-                    Platform.MODRINTH -> getModrinthVersBySha1(chunk.map { it.sha1 })
-                    Platform.CURSEFORGE ->
-                        getCFFilesByFingerprints(chunk.map { it.murmur2 }).mapKeys { it.key.toString() }
-                }
-            }.onSuccess { fetched ->
-                for (print in chunk) {
-                    val installed = fetched[print.fingerprintValue(platform)]?.toInstalledMod()
-                        ?: notFoundMod(platform)
-                    cache.encode(print.cacheKey(platform), installed, MMKV.ExpireInDay)
-                    collect(installed)
-                }
-            }.onFailure { e ->
-                allSucceeded = false
-                Logger.warning(TAG, "Failed to match installed mods on platform: $platform", e)
-            }
-        }
-
-        val result = byProject to byVersion
-        // 存在失败块时不做会话内缓存，下次切换平台时重试（成功块已有持久缓存兜底）
-        if (allSucceeded) matchedResults[platform] = result
-        installedByProject = result.first
-        installedByVersion = result.second
+        val matched = matchInstalledMods(fingerprints, platform)
+        // 存在失败分块时不做会话内缓存，下次切换平台时重试（成功块已有持久缓存兜底）
+        if (matched.complete) matchedResults[platform] = matched.byProject to matched.byVersion
+        installedByProject = matched.byProject
+        installedByVersion = matched.byVersion
     }
-
-    /**
-     * 并发计算模组目录内所有文件的指纹
-     */
-    private suspend fun scanFingerprints(modsDir: File): List<ModFingerprints> =
-        withContext(Dispatchers.IO) {
-            val files = modsDir.listFiles()
-                ?.filter { it.isFile && it.isModFileCandidate() }
-                ?: return@withContext emptyList()
-
-            val semaphore = Semaphore(READER_PARALLELISM)
-            coroutineScope {
-                files.map { file ->
-                    async {
-                        semaphore.withPermit {
-                            runCatching { computeModFingerprints(file) }
-                                .onFailure { e ->
-                                    Logger.warning(TAG, "Failed to compute mod fingerprints: ${file.name}", e)
-                                }
-                                .getOrNull()
-                        }
-                    }
-                }.awaitAll().filterNotNull()
-            }
-        }
 
     override fun onCleared() {
         scanJob?.cancel()
     }
 }
-
-/**
- * 可能为模组的文件扩展名（.disabled 后缀的文件已去除后缀再判断）
- */
-private val MOD_FILE_EXTENSIONS = setOf("jar", "zip", "litemod")
-
-/**
- * 文件是否可能为模组文件，非模组文件不参与指纹计算
- */
-private fun File.isModFileCandidate(): Boolean {
-    val extension = if (isDisabled()) {
-        File(nameWithoutExtension).extension
-    } else {
-        extension
-    }
-    return extension.lowercase() in MOD_FILE_EXTENSIONS
-}
-
-/**
- * 指纹在持久缓存中的键，不同平台的指纹相互独立
- */
-private fun ModFingerprints.cacheKey(platform: Platform): String =
-    "${platform.name}/${fingerprintValue(platform)}"
-
-/**
- * 指纹在对应平台上的匹配键
- */
-private fun ModFingerprints.fingerprintValue(platform: Platform): String = when (platform) {
-    Platform.MODRINTH -> sha1
-    Platform.CURSEFORGE -> murmur2.toString()
-}
-
-/**
- * 平台未命中指纹时的负缓存标记
- */
-private fun notFoundMod(platform: Platform): InstalledMod = InstalledMod(
-    platform = platform,
-    projectId = "",
-    versionId = "",
-    versionName = "",
-    notFound = true
-)

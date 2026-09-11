@@ -363,6 +363,8 @@
     <string name="download_assets_install_progress_downloading">Downloading and installing assets\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">Installing assets\n%s</string>
     <string name="download_assets_install_failed">Failed to install assets!</string>
+    <string name="download_assets_dependency_no_compatible_version">No compatible version was found for dependency %s</string>
+    <string name="download_assets_dependency_project_unavailable">Project information is unavailable</string>
     <string name="download_assets_id_holder">Project ID</string>
     <string name="download_assets_id_tip">Quickly get the corresponding project by project ID</string>
     <string name="download_assets_id_not_found">Project not found!</string>

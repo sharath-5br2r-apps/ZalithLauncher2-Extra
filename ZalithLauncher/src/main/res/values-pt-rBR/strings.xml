@@ -219,6 +219,8 @@
     <string name="download_assets_install_progress_downloading">Baixando e instalando recursos\n%1$s\n(%2$s/%3$s)</string>
     <string name="download_assets_install_progress_installing">Instalando recursos\n%s</string>
     <string name="download_assets_install_failed">Falha ao instalar os recursos!</string>
+    <string name="download_assets_dependency_no_compatible_version">Nenhuma versão compatível encontrada para a dependência %s</string>
+    <string name="download_assets_dependency_project_unavailable">Informações do projeto indisponíveis</string>
     <string name="download_modpack_warning1">Antes da instalação, você precisa entender que a maioria dos modpack são feitos para PC e há uma grande chance de travamentos, crashes ou outros problemas ao tentar iniciá-los. Esses problemas geralmente estão além do que o inicializador pode resolver, as vezes incompatibilidade com o Android.</string>
     <string name="download_modpack_warning2">Você precisará aprender o conhecimento relevante para tentar resolver os problemas sozinho ou procurar ajuda de outras pessoas.</string>
     <string name="download_modpack_warning3">Observação: os desenvolvedores do launcher geralmente não lidam com problemas causados por modpacks, pois isso não tem nada haver com o launcher.</string>

@@ -237,6 +237,8 @@
     <string name="download_assets_no_installed_versions">Nenhuma versão do jogo está instalada no momento, portanto, não é possível determinar o local de download do recurso. Por favor, instale uma versão do jogo primeiro!</string>
     <string name="download_assets_install_progress_installing">Instalando recursos\n%s</string>
     <string name="download_assets_install_failed">Falha ao instalar os recursos!</string>
+    <string name="download_assets_dependency_no_compatible_version">Não foi encontrada nenhuma versão compatível para a dependência %s</string>
+    <string name="download_assets_dependency_project_unavailable">Informações do projeto indisponíveis</string>
     <string name="game_launch_no_version">Nenhuma versão do jogo selecionada!</string>
     <string name="game_launch_no_account">Nenhuma conta está logada!</string>
     <string name="game_button_force_close">Forçar Fechamento</string>

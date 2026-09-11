@@ -1140,6 +1140,8 @@
     <string name="download_assets_install_progress_downloading">下載並安裝資源\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">安裝資源\n%s</string>
     <string name="download_assets_install_failed">安裝資源失敗!</string>
+    <string name="download_assets_dependency_no_compatible_version">依賴 %s 未找到適配的版本</string>
+    <string name="download_assets_dependency_project_unavailable">無法取得依賴專案資訊</string>
     <string name="download_assets_id_holder">專案 ID</string>
     <string name="download_assets_id_tip">根據專案 ID 快速取得對應專案</string>
     <string name="download_assets_id_not_found">未找到該專案！</string>

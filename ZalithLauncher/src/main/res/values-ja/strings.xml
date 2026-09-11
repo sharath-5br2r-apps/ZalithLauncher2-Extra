@@ -185,6 +185,8 @@
     <string name="download_assets_install_progress_downloading">アセットのダウンロードとインストール\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">アセットをインストール\n%s</string>
     <string name="download_assets_install_failed">アセットのインストールに失敗しました！</string>
+    <string name="download_assets_dependency_no_compatible_version">依存関係 %s に互換性のあるバージョンが見つかりません</string>
+    <string name="download_assets_dependency_project_unavailable">プロジェクト情報を取得できません</string>
     <string name="download_modpack_warning1">インストール前に理解してください、ほとんどのモッドパックはPC向けに作られているため、起動時にクラッシュやその他の問題が発生する可能性が高いです。これらの問題は、ランチャーでは解決できない場合が多いです。</string>
     <string name="download_modpack_install_overrides">モッドパックファイルを抽出</string>
     <string name="download_modpack_download">モッドパックに必要なコンテンツをダウンロード</string>

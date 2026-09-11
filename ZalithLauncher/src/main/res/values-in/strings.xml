@@ -182,6 +182,8 @@
     <string name="download_assets_install_progress_downloading">Mengunduh dan menginstal aset\n%1$s\n(%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">Menginstal aset\n%s</string>
     <string name="download_assets_install_failed">Gagal menginstal aset!</string>
+    <string name="download_assets_dependency_no_compatible_version">Tidak ditemukan versi yang kompatibel untuk dependensi %s</string>
+    <string name="download_assets_dependency_project_unavailable">Informasi proyek tidak tersedia</string>
     <string name="download_modpack_warning1">Sebelum instalasi, perlu dipahami bahwa sebagian besar modpack dibuat untuk PC, dan saat dijalankan ada kemungkinan crash atau masalah lain yang biasanya tidak bisa diperbaiki oleh launcher.</string>
     <string name="download_modpack_warning2">Anda harus mempelajari ilmu yang relevan untuk mencoba memecahkan masalah sendiri, atau meminta bantuan dari orang lain.</string>
     <string name="download_modpack_warning3">CATATAN: Developer dari launcher biasanya tidak akan mengatasi masalah apa pun yang disebabkan oleh modpack.</string>

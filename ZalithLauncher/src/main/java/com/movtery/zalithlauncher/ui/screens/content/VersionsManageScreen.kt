@@ -85,6 +85,7 @@ import com.movtery.zalithlauncher.game.version.installed.VersionMover
 import com.movtery.zalithlauncher.game.version.installed.VersionType
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.cleanup.GameAssetCleaner
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.activities.MainActivity
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
@@ -104,6 +105,7 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.VersionCategoryIte
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionItemCallbacks
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionsOperation
+import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.ShortcutUtils
@@ -113,6 +115,7 @@ import com.movtery.zalithlauncher.utils.checkStoragePermissions
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
+import com.movtery.zalithlauncher.viewmodel.backgroundVisible
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
@@ -590,7 +593,11 @@ private fun VersionsLayout(
             val barShownFraction = remember(topAppBarState) {
                 derivedStateOf { 1f - topAppBarState.collapsedFraction }
             }
-            val actionBarShadowElevation = 5.dp * barShownFraction.value * listScrolledFraction.value
+            val actionBarShadowElevation = if (backgroundVisible()) {
+                0.dp // 背景可见时不使用阴影，因为卡片会半透明化
+            } else {
+                5.dp * barShownFraction.value * listScrolledFraction.value
+            }
 
             val listTopFadePx = (headerHeightPx + headerTopPaddingPx + 80f) *
                     listScrolledFraction.value *
@@ -676,15 +683,20 @@ private fun VersionsLayout(
                             .padding(all = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        val blur = AllSettings.backgroundBlur.state
+                        val cardColor = cardColor()
+
                         Surface(
                             modifier = Modifier.height(IntrinsicSize.Max),
-                            color = cardColor(false),
+                            color = cardColor,
                             contentColor = onCardColor(),
                             shape = MaterialTheme.shapes.large,
                             shadowElevation = actionBarShadowElevation,
                         ) {
                             Row(
-                                modifier = Modifier.padding(all = 8.dp),
+                                modifier = Modifier
+                                    .backgroundGlass(blur, cardColor)
+                                    .padding(all = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -708,7 +720,7 @@ private fun VersionsLayout(
                             modifier = Modifier
                                 .weight(1f, fill = false)
                                 .height(IntrinsicSize.Max),
-                            color = cardColor(false),
+                            color = cardColor,
                             contentColor = onCardColor(),
                             shape = MaterialTheme.shapes.large,
                             shadowElevation = actionBarShadowElevation,
@@ -716,6 +728,7 @@ private fun VersionsLayout(
                             val scrollState = rememberScrollState()
                             Row(
                                 modifier = Modifier
+                                    .backgroundGlass(blur, cardColor)
                                     .fadeEdge(
                                         state = scrollState,
                                         length = 32.dp,

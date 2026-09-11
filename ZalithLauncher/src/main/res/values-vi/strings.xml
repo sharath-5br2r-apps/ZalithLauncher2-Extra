@@ -171,6 +171,8 @@
     <string name="download_assets_install_progress_downloading">Đang tải và cài đặt\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">Đang cài\n%s</string>
     <string name="download_assets_install_failed">Cài thất bại!</string>
+    <string name="download_assets_dependency_no_compatible_version">Không tìm thấy phiên bản tương thích cho phụ thuộc %s</string>
+    <string name="download_assets_dependency_project_unavailable">Không thể tải thông tin dự án</string>
     <string name="download_assets_category_worldgen">Tạo thế giới</string>
     <string name="download_assets_category_dimensions">Chiều không gian</string>
     <string name="download_assets_category_ores_resources">Khoáng sản</string>

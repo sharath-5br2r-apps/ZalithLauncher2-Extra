@@ -236,6 +236,8 @@
     <string name="download_assets_install_progress_downloading">Varlıklar indiriliyor ve yükleniyor\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">Varlıklar yükleniyor\n%s</string>
     <string name="download_assets_install_failed">Varlıklar yüklenemedi!</string>
+    <string name="download_assets_dependency_no_compatible_version">%s bağımlılığı için uyumlu sürüm bulunamadı</string>
+    <string name="download_assets_dependency_project_unavailable">Proje bilgileri alınamadı</string>
     <string name="download_modpack_warning1">Kurulumdan önce, çoğu mod paketinin PC için yapıldığını ve bunları başlatmaya çalıştığınızda çökme veya başka sorunlar yaşama olasılığının yüksek olduğunu anlamanız gerekir. Bu sorunlar genellikle tahmin edilemeyecek kadar büyüktür.</string>
     <string name="download_modpack_warning2">Sorunları kendi başınıza çözmeye çalışmak veya başkalarından yardım almak için ilgili bilgileri öğrenmeniz gerekecektir.</string>
     <string name="download_modpack_warning3">Not: Başlatıcı geliştiricileri genellikle mod paketlerinden kaynaklanan sorunları çözmez.</string>

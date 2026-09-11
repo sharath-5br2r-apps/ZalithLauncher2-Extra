@@ -468,6 +468,8 @@
     <string name="download_assets_install_progress_downloading">Загрузка и установка ресурсов\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">Установка ресурсов\n%s</string>
     <string name="download_assets_install_failed">Не удалось установить ресурсы!</string>
+    <string name="download_assets_dependency_no_compatible_version">Не найдено совместимой версии для зависимости %s</string>
+    <string name="download_assets_dependency_project_unavailable">Информация о проекте недоступна</string>
     <string name="download_assets_category_worldgen">Генерация мира</string>
     <string name="download_assets_category_biomes">Биомы</string>
     <string name="download_assets_category_dimensions">Измерения</string>

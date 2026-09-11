@@ -74,11 +74,13 @@ fun downloadSingleForVersions(
     onFileCancelled: (zip: File, folder: File) -> Unit = { _, _ -> },
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
-    val cacheFile = File(File(PathManager.DIR_CACHE, "assets"), version.platformSha1() ?: version.platformFileName())
+    val fileKey = version.platformSha1() ?: version.platformFileName()
+    val cacheFile = File(File(PathManager.DIR_CACHE, "assets"), fileKey)
     val targetFileName = customFileName ?: version.platformFileName()
 
     downloadSingleFile(
         version = version,
+        taskId = downloadTaskId(fileKey, versions),
         file = cacheFile,
         onDownloaded = { task ->
             task.updateProgress(-1f)
@@ -124,8 +126,18 @@ fun downloadSingleForVersions(
     )
 }
 
+/**
+ * 下载任务的Id
+ * 同一文件安装到不同的游戏版本时属于不同的任务，避免被误判为重复任务而丢弃目标版本
+ */
+private fun downloadTaskId(fileKey: String, versions: List<Version>): String {
+    if (versions.isEmpty()) return fileKey
+    return "$fileKey|${versions.map { it.getVersionName() }.sorted().joinToString(",")}"
+}
+
 private fun downloadSingleFile(
     version: PlatformVersion,
+    taskId: String,
     file: File,
     onDownloaded: suspend (Task) -> Unit,
     onError: (Throwable) -> Unit = {},
@@ -139,7 +151,7 @@ private fun downloadSingleFile(
 
     TaskSystem.submitTask(
         Task.runTask(
-            id = version.platformSha1() ?: version.platformFileName(),
+            id = taskId,
             task = { task ->
                 val totalFileSize = version.platformFileSize()
                 var downloadedSize = 0L

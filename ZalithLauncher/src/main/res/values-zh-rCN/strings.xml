@@ -269,6 +269,8 @@
     <string name="download_assets_install_progress_downloading">下载安装资源中\n%1$s\n (%2$s / %3$s)</string>
     <string name="download_assets_install_progress_installing">安装资源中\n%s</string>
     <string name="download_assets_install_failed">安装资源失败！</string>
+    <string name="download_assets_dependency_no_compatible_version">依赖 %s 未找到适配的版本</string>
+    <string name="download_assets_dependency_project_unavailable">依赖项目信息获取失败</string>
     <string name="download_assets_id_holder">项目 ID</string>
     <string name="download_assets_id_tip">根据项目 ID 快速获取对应项目</string>
     <string name="download_assets_id_not_found">未找到该项目！</string>
