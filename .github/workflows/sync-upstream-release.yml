@@ -431,10 +431,12 @@ jobs:
                   "isVanilla": False,
                   "patches": "zalithlauncher2-extra",
                   "changelog": changelog,
-                  "applied_patches": applied_patches
+                  "applied_patches": applied_patches,
+                  "removed_patches": []
               }
               if ext.lower() in ["apk", "apks", "xapk", "apkm"]:
                   meta_item["min_sdk"] = min_sdk
+                  meta_item["dpi"] = "nodpi"
                   meta_item["densities"] = densities
                   meta_item["native_libraries"] = native_libraries
 
