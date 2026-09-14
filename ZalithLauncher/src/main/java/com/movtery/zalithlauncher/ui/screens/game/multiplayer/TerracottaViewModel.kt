@@ -278,10 +278,15 @@ class TerracottaViewModel(
                         }
                         is EventViewModel.Event.Terracotta.VPNUpdateState -> {
                             withContext(Dispatchers.Main) {
-                                val vpnIntent = Intent(activity, TerracottaVPNService::class.java)
-                                    .setAction(TerracottaVPNService.ACTION_UPDATE_STATE)
-                                    .putExtra(TerracottaVPNService.EXTRA_STATE_TEXT, event.stringRes)
-                                activity.startForegroundService(vpnIntent)
+                                if (TerracottaVPNService.isRunning()) {
+                                    //服务已在前台运行，仅投递状态文本即可；
+                                    //服务未运行时直接跳过，避免经由 startForegroundService 拉起一个无法及时进入前台的服务
+                                    activity.startService(
+                                        Intent(activity, TerracottaVPNService::class.java)
+                                            .setAction(TerracottaVPNService.ACTION_UPDATE_STATE)
+                                            .putExtra(TerracottaVPNService.EXTRA_STATE_TEXT, event.stringRes)
+                                    )
+                                }
                             }
                         }
                         is EventViewModel.Event.Terracotta.StopVPN -> {

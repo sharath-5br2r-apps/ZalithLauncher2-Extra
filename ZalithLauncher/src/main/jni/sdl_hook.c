@@ -37,6 +37,9 @@ void *SDL_EGL_GetProcAddress(const char *proc);
 // egl_bridge.c（libpojavexec.so），SDL 路径下经 EGL 交换代理计帧
 void calculateFPS(void);
 
+// input_bridge_v3.c（libpojavexec.so），SDL 主窗口创建/销毁时同步指针，供文本输入通道判定渲染路径
+void sdlBridgeSetPrimaryWindow(struct SDL_Window *window);
+
 DECL_DLSYM(SDL_InitSubSystem)
 DECL_DLSYM(SDL_SetHint);
 DECL_DLSYM(SDL_SetTextInputArea);
@@ -336,6 +339,7 @@ static void custom_SDL_DestroyWindow_Func(SDL_Window *window) {
             return;
         }
         sPrimaryWindow = NULL;
+        sdlBridgeSetPrimaryWindow(NULL);
         if (window == sdlLastEventWindow) sdlLastEventWindow = NULL;
     } else if (window == sdlLastEventWindow) {
         sdlLastEventWindow = NULL;
@@ -422,6 +426,7 @@ static SDL_Window *custom_SDL_CreateWindow_Func(const char *title, int w, int h,
     if (reuse && wnd != NULL) {
         sPrimaryWindow = wnd;
         sPrimaryWindowRefs = 1;
+        sdlBridgeSetPrimaryWindow(wnd);
     }
     BYTEHOOK_POP_STACK();
     return wnd;
@@ -441,6 +446,7 @@ static SDL_Window *custom_SDL_CreateWindowWithProperties_Func(uint32_t props) {
     if (reuse && wnd != NULL) {
         sPrimaryWindow = wnd;
         sPrimaryWindowRefs = 1;
+        sdlBridgeSetPrimaryWindow(wnd);
     }
     BYTEHOOK_POP_STACK();
     return wnd;

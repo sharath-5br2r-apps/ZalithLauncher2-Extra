@@ -20,7 +20,9 @@ package com.movtery.zalithlauncher.game.download.modpack.platform
 
 import android.content.Context
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor
+import com.movtery.zalithlauncher.coroutine.TaskLogOutput
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
 /**
@@ -43,6 +45,7 @@ abstract class AbstractPack(
      * @param waitForVersionName 等待用户输入版本名称
      * @param addPhases 添加下一安装阶段
      * @param onClearTemp 已完成安装，开始清理缓存
+     * @param logOutputHolder 安装 JVM 日志输出的容器
      */
     abstract fun buildTaskPhases(
         context: Context,
@@ -50,6 +53,7 @@ abstract class AbstractPack(
         versionFolder: File,
         waitForVersionName: suspend (name: String) -> String,
         addPhases: (List<TaskFlowExecutor.TaskPhase>) -> Unit,
-        onClearTemp: suspend () -> Unit
+        onClearTemp: suspend () -> Unit,
+        logOutputHolder: MutableStateFlow<TaskLogOutput?> = MutableStateFlow(null)
     ): List<TaskFlowExecutor.TaskPhase>
 }

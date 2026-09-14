@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.game.version.installed
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 import com.movtery.zalithlauncher.game.path.getGameHome
 import com.movtery.zalithlauncher.utils.GSON
@@ -33,6 +34,7 @@ private const val TAG = "CurrentGameInfo"
  * @property version 当前选择的版本名称
  * @property favoritesMap 收藏夹映射表 <收藏夹名称, 包含的版本集合>
  */
+@Keep
 data class CurrentGameInfo(
     @SerializedName("version")
     var version: String = "",

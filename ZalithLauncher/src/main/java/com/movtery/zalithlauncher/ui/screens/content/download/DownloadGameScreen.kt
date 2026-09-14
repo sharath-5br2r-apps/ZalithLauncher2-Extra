@@ -327,6 +327,7 @@ private fun GameInstallOperation(
         is GameInstallOperation.Install -> {
             if (installer != null) {
                 val installGame = installer.tasksFlow.collectAsStateWithLifecycle()
+                val installLog = installer.logOutput.collectAsStateWithLifecycle()
                 if (installGame.value.isNotEmpty()) {
                     //安装游戏流程对话框
                     val dialogTitle = stringResource(R.string.download_game_install_title)
@@ -337,27 +338,7 @@ private fun GameInstallOperation(
                             onCancel()
                             updateOperation(GameInstallOperation.None)
                         },
-                        onMinimize = {
-                            InstallerRestoreRegistry.collapseTaskMenu()
-                            val bgTask = installer.createBackgroundTask(
-                                onCancelRequest = { onCancel() }
-                            )
-                            InstallerRestoreRegistry.register(
-                                bgTask.id,
-                                InstallerRestoreRegistry.RestorableInstaller(
-                                    title = dialogTitle,
-                                    tasksFlow = installer.tasksFlow,
-                                    onCancel = {
-                                        onCancel()
-                                        updateOperation(GameInstallOperation.None)
-                                    }
-                                )
-                            )
-                            TaskSystem.submitTask(bgTask, onEnded = {
-                                InstallerRestoreRegistry.unregister(bgTask.id)
-                            })
-                            updateOperation(GameInstallOperation.None)
-                        }
+                        logOutput = installLog.value
                     )
                 }
             }

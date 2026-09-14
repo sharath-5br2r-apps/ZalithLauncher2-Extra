@@ -32,6 +32,7 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.kyant.fishnet.Fishnet
+import com.movtery.zalithlauncher.context.GlobalContext
 import com.movtery.zalithlauncher.context.refreshContext
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.account.AccountsManager
@@ -59,6 +60,7 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun onCreate() {
+        GlobalContext = this
         refreshContext(this)
         //初始化任务保活控制器，需在任何任务开始前完成初始化
         TaskKeepAlive.initialize(this)

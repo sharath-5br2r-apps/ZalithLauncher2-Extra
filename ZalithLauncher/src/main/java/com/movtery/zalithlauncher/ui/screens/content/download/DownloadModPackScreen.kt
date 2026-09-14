@@ -400,6 +400,7 @@ private fun ModPackInstallOperation(
         is ModPackInstallOperation.Install -> {
             if (installer != null) {
                 val tasks = installer.tasksFlow.collectAsStateWithLifecycle()
+                val installLog = installer.logOutput.collectAsStateWithLifecycle()
                 if (tasks.value.isNotEmpty()) {
                     //安装整合包流程对话框
                     val dialogTitle = stringResource(R.string.download_modpack_install_title)
@@ -410,27 +411,7 @@ private fun ModPackInstallOperation(
                             onCancel()
                             updateOperation(ModPackInstallOperation.None)
                         },
-                        onMinimize = {
-                            InstallerRestoreRegistry.collapseTaskMenu()
-                            val bgTask = installer.createBackgroundTask(
-                                onCancelRequest = { onCancel() }
-                            )
-                            InstallerRestoreRegistry.register(
-                                bgTask.id,
-                                InstallerRestoreRegistry.RestorableInstaller(
-                                    title = dialogTitle,
-                                    tasksFlow = installer.tasksFlow,
-                                    onCancel = {
-                                        onCancel()
-                                        updateOperation(ModPackInstallOperation.None)
-                                    }
-                                )
-                            )
-                            TaskSystem.submitTask(bgTask, onEnded = {
-                                InstallerRestoreRegistry.unregister(bgTask.id)
-                            })
-                            updateOperation(ModPackInstallOperation.None)
-                        }
+                        logOutput = installLog.value
                     )
                 }
             }

@@ -37,7 +37,10 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     private InputListener mListener;
 
     public void enableKeyboard() {
-        if (SdlBridge.getSdlEnabled()) {
+        // 仅当游戏运行在 SDL 渲染路径（MC 26.3+）时由 SDL 输入框接管；
+        // 仅手柄子系统初始化 SDL 时（如 MC 26.2 挂 Controlify）游戏输入仍走 GLFW 桥，
+        // 委托给 SDL 通道只会被拒绝，须回落到启动器侧输入
+        if (SdlBridge.getSdlEnabled() && SdlBridge.isSdlRenderActive()) {
             SDLActivity.enableSDLEditKeyboard();
             return;
         }
@@ -62,7 +65,9 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     }
 
     public void disableKeyboard() {
-        if (SdlBridge.getSdlEnabled()) {
+        // 与 enableKeyboard 同条件分流：非 SDL 渲染路径时输入走的是启动器侧编辑器，
+        // 此时把关闭动作委托给 SDL 通道只会落空
+        if (SdlBridge.getSdlEnabled() && SdlBridge.isSdlRenderActive()) {
             SDLActivity.disableSDLEditKeyboard();
             if (sActiveInput == this) {
                 sActiveInput = null;

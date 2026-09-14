@@ -49,6 +49,7 @@ import com.movtery.layer_controller.ControlEditorLayer
 import com.movtery.layer_controller.data.ButtonSize
 import com.movtery.layer_controller.data.CenterPosition
 import com.movtery.layer_controller.data.DefaultDirectionEvents
+import com.movtery.layer_controller.data.DefaultLockEvents
 import com.movtery.layer_controller.data.JoystickData
 import com.movtery.layer_controller.data.NormalData
 import com.movtery.layer_controller.data.TextData
@@ -254,7 +255,8 @@ fun BoxWithConstraintsScope.ControlEditor(
                             position = CenterPosition,
                             sizeType = ButtonSize.Type.Percentage,
                             visibilityType = VisibilityType.ALWAYS,
-                            directionEvents = DefaultDirectionEvents
+                            directionEvents = DefaultDirectionEvents,
+                            lockEvents = DefaultLockEvents,
                         )
                     }
                 )

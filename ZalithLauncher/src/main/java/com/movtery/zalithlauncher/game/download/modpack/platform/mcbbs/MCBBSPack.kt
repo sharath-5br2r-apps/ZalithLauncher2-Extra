@@ -22,6 +22,7 @@ import android.content.Context
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor
+import com.movtery.zalithlauncher.coroutine.TaskLogOutput
 import com.movtery.zalithlauncher.coroutine.TitledTask
 import com.movtery.zalithlauncher.coroutine.addTask
 import com.movtery.zalithlauncher.coroutine.buildPhase
@@ -35,6 +36,7 @@ import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.copyDirectoryContents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
 class MCBBSPack(
@@ -62,7 +64,8 @@ class MCBBSPack(
         versionFolder: File,
         waitForVersionName: suspend (name: String) -> String,
         addPhases: (List<TaskFlowExecutor.TaskPhase>) -> Unit,
-        onClearTemp: suspend () -> Unit
+        onClearTemp: suspend () -> Unit,
+        logOutputHolder: MutableStateFlow<TaskLogOutput?>
     ): List<TaskFlowExecutor.TaskPhase> {
         return listOf(
             buildPhase {
@@ -120,7 +123,12 @@ class MCBBSPack(
                     }
 
                     //开始安装游戏！切换到下一阶段！
-                    val gameInstaller = GameInstaller(context, gameDownloadInfo, scope)
+                    val gameInstaller = GameInstaller(
+                        context = context,
+                        info = gameDownloadInfo,
+                        scope = scope,
+                        logOutputHolder = logOutputHolder
+                    )
                     addPhases(
                         gameInstaller.getTaskPhase(
                             createIsolation = false,

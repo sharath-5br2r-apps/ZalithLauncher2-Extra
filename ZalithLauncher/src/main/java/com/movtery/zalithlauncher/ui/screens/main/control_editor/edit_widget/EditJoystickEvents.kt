@@ -49,9 +49,7 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPositi
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.rememberSettingsCardShape
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.InfoLayoutTextItem
 import com.movtery.zalithlauncher.ui.theme.cardColor
-import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
-import com.movtery.zalithlauncher.ui.theme.onItemColor
 
 private enum class JoystickArea {
     North, NorthEast,
@@ -306,14 +304,14 @@ private fun AreaButton(
         if (isSelected) {
             MaterialTheme.colorScheme.secondary
         } else {
-            itemColor(false).copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.secondaryContainer
         }
     )
     val contentColor by animateColorAsState(
         if (isSelected) {
             MaterialTheme.colorScheme.onSecondary
         } else {
-            onItemColor().copy(alpha = 0.7f)
+            MaterialTheme.colorScheme.onSecondaryContainer
         }
     )
 
@@ -326,7 +324,7 @@ private fun AreaButton(
     ) {
         Box(
             modifier = if (position == CardPosition.Single) {
-                Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             } else {
                 Modifier.padding(all = 8.dp)
             },
@@ -334,7 +332,7 @@ private fun AreaButton(
         ) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center
             )
         }

@@ -661,6 +661,7 @@ private fun UpdateLoaderOperation(
         is UpdateLoaderOperation.Install -> {
             if (installer != null) {
                 val updateLoader by installer.tasksFlow.collectAsStateWithLifecycle()
+                val installLog = installer.logOutput.collectAsStateWithLifecycle()
                 if (updateLoader.isNotEmpty()) {
                     //安装/变更加载器流程对话框
                     TitleTaskFlowDialog(
@@ -669,7 +670,8 @@ private fun UpdateLoaderOperation(
                         onCancel = {
                             onCancel()
                             changeOperation(UpdateLoaderOperation.None)
-                        }
+                        },
+                        logOutput = installLog.value
                     )
                 }
             }

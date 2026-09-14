@@ -540,6 +540,7 @@ private fun LazyListScope.dependencyLayout(
         AssetsVersionDependencyItem(
             modifier = Modifier.fillMaxWidth(),
             project = project,
+            defaultClasses = defaultClasses,
             checked = selectedKeys.contains(key),
             onCheckedChange = { onSelectedChange(key, it) },
             installed = dependencyClasses == PlatformClasses.MOD &&
@@ -634,6 +635,7 @@ private fun AssetsUnavailableDependencyItem(
 private fun AssetsVersionDependencyItem(
     modifier: Modifier = Modifier,
     project: PlatformProject,
+    defaultClasses: PlatformClasses,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     installed: Boolean,
@@ -650,6 +652,7 @@ private fun AssetsVersionDependencyItem(
     val downloads = remember { project.platformDownloadCount() }
     val follows = remember { project.platformFollows() }
     val modLoaders = remember { project.platformModLoaders() }
+    val classes = remember { project.platformClasses(defaultClasses) }
 
     Surface(
         modifier = modifier,
@@ -731,6 +734,7 @@ private fun AssetsVersionDependencyItem(
                             follows = follows
                         )
                     }
+                    ClassesIdentifier(classes)
                     if (installed) {
                         InstalledModBadge()
                     }

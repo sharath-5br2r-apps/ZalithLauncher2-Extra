@@ -161,4 +161,20 @@ object SdlBridge {
 
     @JvmStatic
     external fun initializeControllerSubsystems()
+
+    /**
+     * 游戏是否运行在 SDL 渲染路径（SDL 窗口已创建，MC 26.3+）
+     * 仅手柄子系统使用 SDL 时（如 MC 26.2 挂 Controlify）返回 false，
+     * 此时游戏输入仍走 GLFW 桥，启动器不应把键盘切换委托给 SDL 输入通道
+     */
+    @JvmStatic
+    external fun isSdlRenderActive(): Boolean
+
+    /**
+     * 激活/关闭 native 侧 SDL 文本输入通道
+     * 游戏侧通道被模组（自绘输入界面）关闭时，启动器显式唤起输入法需代为激活，
+     * 否则输入法提交的文本会在 native 层被丢弃
+     */
+    @JvmStatic
+    external fun setNativeTextInputActive(active: Boolean): Boolean
 }

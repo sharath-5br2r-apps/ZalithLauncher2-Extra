@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.viewmodel
 
+import androidx.annotation.Keep
 import androidx.lifecycle.ViewModel
 import com.movtery.zalithlauncher.game.plugin.driver.Driver
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
@@ -47,12 +48,14 @@ import kotlin.coroutines.resume
 private const val TAG = "VulkanCheckerViewModel"
 private const val KEY_VULKAN_CHECK_RECORD = "vulkanCheckRecord"
 
+@Keep
 data class VulkanCheckRecord(
     val useTurnip: Boolean,
     val driverPath: String,
     /** 设备可支持的 Minecraft 版本范围，[Range.until] 为排他上界，null 表示无上界 */
     val supportedRanges: List<Range> = emptyList()
 ) {
+    @Keep
     data class Range(
         val since: String,
         val until: String?

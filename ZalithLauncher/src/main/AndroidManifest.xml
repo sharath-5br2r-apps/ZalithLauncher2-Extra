@@ -200,8 +200,11 @@
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:exported="true"
             android:process=":game"
-            android:foregroundServiceType="connectedDevice"
+            android:foregroundServiceType="specialUse"
             tools:ignore="VpnServicePolicy">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_TYPE"
+                android:value="Establish VPN tunnel for the multiplayer feature" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>

@@ -26,17 +26,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 卡片在列表组中所处的方位，用于决定四个角各自使用大圆角还是小圆角
+ * 卡片在列表组中的方位，记录四个角各自使用大圆角还是小圆角
  */
-enum class FmCardPosition {
-    Top, TopStart, TopEnd,
-    MiddleStart,
-    MiddleEnd,
-    Middle, Bottom, BottomStart, BottomEnd,
-    MiddleBottomEnd,
-    Single;
-
+@ConsistentCopyVisibility
+data class FmCardPosition private constructor(
+    val outerTopStart: Boolean,
+    val outerTopEnd: Boolean,
+    val outerBottomStart: Boolean,
+    val outerBottomEnd: Boolean
+) {
     companion object {
+        /**
+         * 四角均为大圆角，用于独立卡片
+         */
+        val Single = FmCardPosition(
+            outerTopStart = true,
+            outerTopEnd = true,
+            outerBottomStart = true,
+            outerBottomEnd = true
+        )
+
         /**
          * 根据条目在列表组中的位置推导方位
          * @param index 条目下标
@@ -48,11 +57,14 @@ enum class FmCardPosition {
             val cols = columns.coerceAtLeast(1)
             // 网格只有一行时，条目的上下边缘与组端暴露，邻接边使用小圆角
             if (count <= cols) {
-                return when (index) {
-                    0 -> MiddleStart
-                    count - 1 -> MiddleEnd
-                    else -> Middle
-                }
+                val start = index == 0
+                val end = index == count - 1
+                return FmCardPosition(
+                    outerTopStart = start,
+                    outerTopEnd = end,
+                    outerBottomStart = start,
+                    outerBottomEnd = end
+                )
             }
             val row = index / cols
             val col = index % cols
@@ -60,25 +72,19 @@ enum class FmCardPosition {
             val lastCol = (count - 1) % cols
 
             val top = row == 0
-            val bottom = row == lastRow
             val start = col == 0
             // 末行未占满时，由组内最后一个条目收拢右边缘
             val end = col == cols - 1 || (row == lastRow && col == lastCol)
-            // 末行的前一排中，超出末行占有列的条目底部暴露在组边缘
-            val gapBelow = row == lastRow - 1 && col > lastCol
+            // 末行未占满时，超出末行占有列的条目底部暴露在组边缘
+            val bottom = row == lastRow || (row == lastRow - 1 && col > lastCol)
 
-            return when {
-                top && start && end -> Top
-                top && start -> TopStart
-                top && end -> TopEnd
-                top -> Top
-                bottom && start && end -> Bottom
-                bottom && start -> BottomStart
-                bottom && end -> BottomEnd
-                bottom -> Bottom
-                gapBelow && end -> MiddleBottomEnd
-                else -> Middle
-            }
+            // 角只有在其相邻的两条边都暴露在组边缘时才使用大圆角
+            return FmCardPosition(
+                outerTopStart = top && start,
+                outerTopEnd = top && end,
+                outerBottomStart = bottom && start,
+                outerBottomEnd = bottom && end
+            )
         }
     }
 }
@@ -93,63 +99,11 @@ fun rememberFmCardShape(
     innerShape: Dp = 4.dp
 ): Shape {
     return remember(position, outerShape, innerShape) {
-        when (position) {
-            FmCardPosition.Top -> RoundedCornerShape(
-                topStart = outerShape,
-                topEnd = outerShape,
-                bottomStart = innerShape,
-                bottomEnd = innerShape
-            )
-            FmCardPosition.TopStart -> RoundedCornerShape(
-                topStart = outerShape,
-                topEnd = innerShape,
-                bottomStart = innerShape,
-                bottomEnd = innerShape
-            )
-            FmCardPosition.TopEnd -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = outerShape,
-                bottomStart = innerShape,
-                bottomEnd = innerShape
-            )
-            FmCardPosition.Middle -> RoundedCornerShape(innerShape)
-            FmCardPosition.MiddleStart -> RoundedCornerShape(
-                topStart = outerShape,
-                topEnd = innerShape,
-                bottomStart = outerShape,
-                bottomEnd = innerShape
-            )
-            FmCardPosition.MiddleEnd -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = outerShape,
-                bottomStart = innerShape,
-                bottomEnd = outerShape
-            )
-            FmCardPosition.MiddleBottomEnd -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = innerShape,
-                bottomStart = innerShape,
-                bottomEnd = outerShape
-            )
-            FmCardPosition.Bottom -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = innerShape,
-                bottomStart = outerShape,
-                bottomEnd = outerShape
-            )
-            FmCardPosition.BottomStart -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = innerShape,
-                bottomStart = outerShape,
-                bottomEnd = innerShape
-            )
-            FmCardPosition.BottomEnd -> RoundedCornerShape(
-                topStart = innerShape,
-                topEnd = innerShape,
-                bottomStart = innerShape,
-                bottomEnd = outerShape
-            )
-            FmCardPosition.Single -> RoundedCornerShape(outerShape)
-        }
+        RoundedCornerShape(
+            topStart = if (position.outerTopStart) outerShape else innerShape,
+            topEnd = if (position.outerTopEnd) outerShape else innerShape,
+            bottomStart = if (position.outerBottomStart) outerShape else innerShape,
+            bottomEnd = if (position.outerBottomEnd) outerShape else innerShape
+        )
     }
 }

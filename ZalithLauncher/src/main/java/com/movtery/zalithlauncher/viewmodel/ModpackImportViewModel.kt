@@ -220,6 +220,7 @@ fun ModpackImportOperation(
         is ModpackImportOperation.Import -> {
             if (importer != null) {
                 val tasks by importer.taskFlow.collectAsStateWithLifecycle()
+                val installLog = importer.logOutput.collectAsStateWithLifecycle()
                 if (tasks.isNotEmpty()) {
                     TitleTaskFlowDialog(
                         title = stringResource(R.string.import_modpack),
@@ -227,7 +228,8 @@ fun ModpackImportOperation(
                         onCancel = {
                             onCancel()
                             changeOperation(ModpackImportOperation.None)
-                        }
+                        },
+                        logOutput = installLog.value
                     )
                 }
             }

@@ -224,6 +224,10 @@ abstract class Launcher(
 
             put("sodium.checks.issue2561", "false")
 
+            put("file.encoding", "UTF-8")
+            put("sun.stdout.encoding", "UTF-8")
+            put("sun.stderr.encoding", "UTF-8")
+
             put("cpu.name", getSocName())
 
             putJavaArgs()
@@ -484,7 +488,12 @@ abstract class Launcher(
     }
 
     private fun setEnv(screenSize: IntSize) {
-        val envMap = initEnv(screenSize)
+        val envMap = runCatching {
+            initEnv(screenSize)
+        }.onFailure {
+            LoggerBridge.appendTitle("Init Env Failed")
+            LoggerBridge.append(it.stackTraceToString())
+        }.getOrThrow()
         envMap.forEach { (key, value) ->
             LoggerBridge.append("▷ $key = $value")
             runCatching {
