@@ -426,6 +426,7 @@ jobs:
                   "name": filename,
                   "arch": arch,
                   "ext": asset_ext,
+                  "os": "Android",
                   "min_sdk": min_sdk,
                   "densities": densities,
                   "native_libraries": native_libraries,
