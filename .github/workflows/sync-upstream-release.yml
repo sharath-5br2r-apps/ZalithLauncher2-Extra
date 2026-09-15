@@ -421,24 +421,27 @@ jobs:
                       native_libraries = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
 
               entry_key = filename.lower()
-              ext = filename.split(".")[-1] if "." in filename else "apk"
+              asset_ext = f".{ext.lstrip('.')}" if ext else ".apk"
+              asset_obj = {
+                  "name": filename,
+                  "arch": arch,
+                  "ext": asset_ext,
+                  "min_sdk": min_sdk,
+                  "densities": densities,
+                  "native_libraries": native_libraries,
+                  "appliedPatches": applied_patches,
+                  "skippedPatches": [],
+                  "failedPatches": []
+              }
               meta_item = {
                   "name": name,
-                  "arch": arch,
-                  "ext": ext,
                   "version": "${{ needs.check.outputs.release_name }}",
                   "os": "android",
                   "isVanilla": False,
                   "patches": "zalithlauncher2-extra",
                   "changelog": changelog,
-                  "applied_patches": applied_patches,
-                  "removed_patches": []
+                  "assets": [asset_obj]
               }
-              if ext.lower() in ["apk", "apks", "xapk", "apkm"]:
-                  meta_item["min_sdk"] = min_sdk
-                  meta_item["dpi"] = "nodpi"
-                  meta_item["densities"] = densities
-                  meta_item["native_libraries"] = native_libraries
 
               build_json[entry_key] = meta_item
 
