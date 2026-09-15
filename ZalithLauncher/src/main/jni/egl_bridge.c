@@ -52,6 +52,7 @@ void* loadTurnipVulkan(const char* driver_path, const char* native_dir, const ch
 void calculateFPS();
 
 extern void updateMonitorSize(int width, int height);
+extern jboolean ensureGlfwNativeBridgeInitialized(JNIEnv *env);
 
 EXTERNAL_API void pojavTerminate() {
     printf("EGLBridge: Terminating\n");
@@ -213,6 +214,11 @@ EXTERNAL_API int pojavInit() {
     pojav_environ->glfwThreadVmEnv = get_attached_env_for_renderer(pojav_environ->runtimeJavaVMPtr);
     if (pojav_environ->glfwThreadVmEnv == NULL) {
         printf("Failed to attach Java-side JNIEnv to GLFW thread\n");
+        return 0;
+    }
+    // 桥初始化可能在其它线程上先行失败，此处于渲染线程兜底重试
+    if (!ensureGlfwNativeBridgeInitialized(pojav_environ->glfwThreadVmEnv)) {
+        printf("pojavInit: GLFW bridge is not initialized\n");
         return 0;
     }
     ANativeWindow_acquire(pojav_environ->pojavWindow);
