@@ -100,13 +100,9 @@ import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
-import com.movtery.zalithlauncher.ui.components.MarkdownView
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.ScalingActionButton
 import com.movtery.zalithlauncher.ui.components.defaultMarkdownConfig
-import com.iffly.compose.markdown.config.MarkdownRenderConfig
-import com.iffly.compose.markdown.style.ListTheme
-import com.iffly.compose.markdown.style.MarkdownTheme
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -322,9 +318,6 @@ private fun ContentMenu(
     }
 }
 
-private const val CHANGELOGS_URL = "https://raw.githubusercontent.com/Star1xr/ZalithLauncher2Plus/refs/heads/main/CHANGELOGS_UPDATE.md"
-private const val CHANGELOGS_UPDATE_TR = "https://raw.githubusercontent.com/Star1xr/ZalithLauncher2Plus/refs/heads/main/CHANGELOGS_UPDATE_TR.md"
-
 @Composable
 private fun StatsGrid(
     modifier: Modifier = Modifier,
@@ -356,8 +349,10 @@ private fun StatsGrid(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 versionNames = versionNames
             )
-            ChangelogCard(
-                modifier = Modifier.weight(1f).fillMaxHeight()
+            DailyPlayTimeCard(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                versionNames = versionNames,
+                onClick = onNavigateToPlayTimeStats
             )
         }
         Row(
@@ -366,13 +361,8 @@ private fun StatsGrid(
                 .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            DailyPlayTimeCard(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                versionNames = versionNames,
-                onClick = onNavigateToPlayTimeStats
-            )
             LastLogCard(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = Modifier.fillMaxSize(),
                 onNavigateToLog = onNavigateToLog
             )
         }
@@ -566,7 +556,7 @@ private fun LastLogCard(
                     Text(
                         text = remember(logFile) {
                             try {
-                                logFile.readText().take(2000)
+                                logFile.readText().take(5000)
                             } catch (e: Exception) { "" }
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -862,148 +852,7 @@ private fun VersionManagerLayout(
     }
 }
 
-@Composable
-private fun ChangelogCard(
-    modifier: Modifier = Modifier
-) {
-    var content by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var showDialog by remember { mutableStateOf(false) }
 
-    val isTurkey = LocalConfiguration.current.locales[0].language == "tr"
-    val changelogUrl = if (isTurkey) CHANGELOGS_UPDATE_TR else CHANGELOGS_URL
-
-    LaunchedEffect(Unit) {
-        try {
-            val text = withContext(Dispatchers.IO) {
-                java.net.URL(changelogUrl).readText()
-            }
-            content = text
-        } catch (_: Exception) {
-            content = null
-        }
-        isLoading = false
-    }
-
-    BackgroundCard(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        onClick = { if (content != null) showDialog = true }
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 8.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
-            ) {
-                val isTablet = LocalConfiguration.current.screenWidthDp >= 600
-
-                Text(
-                    text = stringResource(R.string.stats_changelog),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1
-                )
-                when {
-                    isLoading -> {
-                        Text(
-                            text = stringResource(R.string.stats_changelog_loading),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.alpha(0.6f)
-                        )
-                    }
-                    content == null -> {
-                        Text(
-                            text = stringResource(R.string.generic_error),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.alpha(0.6f)
-                        )
-                    }
-                    else -> {
-                        val contentText = content!!
-                        val previewText = remember(contentText) {
-                            val lines = contentText.lines()
-                            if (lines.size <= 2) contentText
-                            else lines.dropLast(2).joinToString("\n")
-                        }
-                        val bodySize = if (isTablet) MaterialTheme.typography.bodySmall.fontSize else MaterialTheme.typography.labelSmall.fontSize
-                        val primary = MaterialTheme.colorScheme.primary
-                        val onSurface = MaterialTheme.colorScheme.onSurface
-                        val cardConfig = remember(bodySize, primary, onSurface) {
-                            MarkdownRenderConfig.Builder()
-                                .markdownTheme(
-                                    MarkdownTheme(
-                                        textStyle = TextStyle(fontSize = bodySize, lineHeight = bodySize * 1.4f, color = onSurface),
-                                        headStyle = mapOf(
-                                            1 to TextStyle(fontSize = bodySize * 1.2f, lineHeight = bodySize * 1.5f, fontWeight = FontWeight.Bold, color = primary),
-                                            2 to TextStyle(fontSize = bodySize * 1.1f, lineHeight = bodySize * 1.4f, fontWeight = FontWeight.Bold, color = primary),
-                                            3 to TextStyle(fontSize = bodySize, lineHeight = bodySize * 1.3f, fontWeight = FontWeight.SemiBold, color = primary),
-                                        ),
-                                        listTheme = ListTheme(
-                                            markerTextStyle = TextStyle(
-                                                fontSize = bodySize,
-                                                lineHeight = bodySize * 1.4f,
-                                                textAlign = TextAlign.End,
-                                                color = onSurface,
-                                            ),
-                                        ),
-                                    )
-                                )
-                                .build()
-                        }
-                        MarkdownView(
-                            content = previewText,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .bottomFade(48.dp),
-                            config = cardConfig,
-                        )
-                        Text(
-                            text = stringResource(R.string.stats_click_for_more),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showDialog && content != null) {
-        Dialog(onDismissRequest = { showDialog = false }) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.85f),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    val dialogConfig = defaultMarkdownConfig()
-                    MarkdownView(
-                        content = "# ${stringResource(R.string.stats_changelog)}\n\n${content!!}",
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        config = dialogConfig
-                    )
-                    Button(
-                        onClick = { showDialog = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp)
-                    ) {
-                        Text(text = stringResource(R.string.generic_close))
-                    }
-                }
-            }
-        }
-    }
-}
 
 private fun Modifier.bottomFade(edgeHeight: androidx.compose.ui.unit.Dp): Modifier = this
     .graphicsLayer {

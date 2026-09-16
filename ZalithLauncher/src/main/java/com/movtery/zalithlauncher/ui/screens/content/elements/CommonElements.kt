@@ -364,6 +364,7 @@ fun TitleTaskFlowDialog(
     title: String,
     tasks: List<TitledTask>,
     onCancel: () -> Unit = {},
+    onMinimize: (() -> Unit)? = null,
     logOutput: TaskLogOutput? = null
 ) {
     Dialog(
@@ -399,6 +400,7 @@ fun TitleTaskFlowDialog(
                         title = title,
                         tasks = tasks,
                         onCancel = onCancel,
+                        onMinimize = onMinimize,
                         modifier = Modifier.padding(16.dp)
                     )
                 } else {
@@ -410,6 +412,7 @@ fun TitleTaskFlowDialog(
                             title = title,
                             tasks = tasks,
                             onCancel = onCancel,
+                            onMinimize = onMinimize,
                             modifier = Modifier.weight(1f)
                         )
                         TaskLogCard(
@@ -430,6 +433,7 @@ private fun TaskFlowListColumn(
     title: String,
     tasks: List<TitledTask>,
     onCancel: () -> Unit,
+    onMinimize: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -461,11 +465,24 @@ private fun TaskFlowListColumn(
             }
         }
 
-        Button(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            onClick = onCancel
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            MarqueeText(text = stringResource(R.string.generic_cancel))
+            if (onMinimize != null) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onMinimize
+                ) {
+                    MarqueeText(text = stringResource(R.string.generic_minimize))
+                }
+            }
+            Button(
+                modifier = if (onMinimize != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+                onClick = onCancel
+            ) {
+                MarqueeText(text = stringResource(R.string.generic_cancel))
+            }
         }
     }
 }
