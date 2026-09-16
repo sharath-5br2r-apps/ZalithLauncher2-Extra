@@ -421,6 +421,7 @@ jobs:
                       native_libraries = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
 
               entry_key = filename.lower()
+              _, ext = os.path.splitext(filename)
               asset_ext = f".{ext.lstrip('.')}" if ext else ".apk"
               asset_obj = {
                   "name": filename,
