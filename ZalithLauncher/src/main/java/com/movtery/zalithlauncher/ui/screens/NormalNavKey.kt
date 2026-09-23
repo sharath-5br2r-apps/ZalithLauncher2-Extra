@@ -212,6 +212,11 @@ sealed interface NormalNavKey : TitledNavKey {
         val iconUrl: String? = null
     ) : NormalNavKey
 
+    /** 综合统计屏幕 */
+    @Serializable data object Stats : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.page_title_stats)
+    }
+
     /** 游戏统计屏幕 */
     @Serializable data object GameStats : NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.stats_game_stats)

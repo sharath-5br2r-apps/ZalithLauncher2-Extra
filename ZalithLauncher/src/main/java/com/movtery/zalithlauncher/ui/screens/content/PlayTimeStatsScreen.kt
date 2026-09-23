@@ -55,11 +55,19 @@ import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 fun PlayTimeStatsScreen(
     backStackViewModel: ScreenBackStackViewModel
 ) {
+    val currentKey = backStackViewModel.mainScreen.currentKey
+    val screenKey = if (currentKey is NormalNavKey.Stats) NormalNavKey.Stats else NormalNavKey.PlayTimeStats
     BaseScreen(
-        screenKey = NormalNavKey.PlayTimeStats,
-        currentKey = backStackViewModel.mainScreen.currentKey
+        screenKey = screenKey,
+        currentKey = currentKey
     ) {
-        val versions = remember { VersionsManager.versions.value }
+        PlayTimeStatsContent()
+    }
+}
+
+@Composable
+fun PlayTimeStatsContent() {
+    val versions = remember { VersionsManager.versions.value }
         val versionNames = remember(versions) { versions.map { it.getVersionName() } }
 
         val todayMs = remember(versionNames) {

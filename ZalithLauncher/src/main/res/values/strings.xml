@@ -2029,4 +2029,5 @@
     <string name="fm_property_folders">Folders</string>
     <string name="fm_calculating">Calculating…</string>
     <string name="fm_name_conflict">Name conflicts with an existing entry</string>
+    <string name="page_title_stats">Stats</string>
 </resources>

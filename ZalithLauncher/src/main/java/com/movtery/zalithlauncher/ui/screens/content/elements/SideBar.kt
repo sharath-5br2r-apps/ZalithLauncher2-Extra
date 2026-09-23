@@ -89,6 +89,7 @@ fun SideBar(
     isVisible: Boolean,
     onFpsClick: () -> Unit,
     onVersionsClick: () -> Unit,
+    onLastLogClick: () -> Unit = {},
     onInfoClick: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -134,6 +135,7 @@ fun SideBar(
                     expanded = expanded,
                     onFpsClick = onFpsClick,
                     onVersionsClick = onVersionsClick,
+                    onLastLogClick = onLastLogClick,
                     onInfoClick = onInfoClick,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
@@ -152,6 +154,7 @@ private fun SideBarMenuContent(
     expanded: Boolean,
     onFpsClick: () -> Unit,
     onVersionsClick: () -> Unit,
+    onLastLogClick: () -> Unit,
     onInfoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -200,6 +203,14 @@ private fun SideBarMenuContent(
             }
 
             StaggeredItem(delay = 180) {
+                SideBarShortcut(
+                    icon = painterResource(R.drawable.ic_article_outlined),
+                    label = stringResource(R.string.stats_last_log),
+                    onClick = onLastLogClick
+                )
+            }
+
+            StaggeredItem(delay = 240) {
                 SideBarShortcut(
                     icon = painterResource(R.drawable.ic_info_outlined),
                     label = stringResource(R.string.about_launcher_title),

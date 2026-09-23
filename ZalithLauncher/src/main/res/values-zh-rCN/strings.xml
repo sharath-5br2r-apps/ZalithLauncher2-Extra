@@ -1450,4 +1450,7 @@
     <string name="fm_property_folders">文件夹数</string>
     <string name="fm_calculating">计算中…</string>
     <string name="fm_name_conflict">与已有条目重名</string>
+    <string name="page_title_stats">统计</string>
+    <string name="stats_last_log">最后游戏日志</string>
+    <string name="stats_no_log">暂无可用日志</string>
 </resources>

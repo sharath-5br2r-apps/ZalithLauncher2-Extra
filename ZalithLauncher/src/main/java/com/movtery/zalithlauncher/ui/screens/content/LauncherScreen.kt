@@ -68,7 +68,9 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -134,6 +136,8 @@ fun LauncherScreen(
             onDismissRequest = { performanceSettingsState = PerformanceSettingsOperation.None }
         )
 
+        val context = LocalContext.current
+
         Row(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -149,6 +153,15 @@ fun LauncherScreen(
                         remove = NestedNavKey.VersionSettings::class,
                         screenKey = NormalNavKey.VersionsManager
                     )
+                },
+                onLastLogClick = {
+                    val currentVer = VersionsManager.currentVersion.value
+                    val logFile = currentVer?.getLatestLog()
+                    if (logFile != null && logFile.exists()) {
+                        backStackViewModel.mainScreen.navigateTo(NormalNavKey.LogView(logFile.absolutePath))
+                    } else {
+                        Toast.makeText(context, R.string.stats_no_log, Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onInfoClick = {
                     showAboutDialog = true

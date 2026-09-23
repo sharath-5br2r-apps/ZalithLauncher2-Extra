@@ -116,6 +116,7 @@ import com.movtery.zalithlauncher.ui.screens.content.PlayTimeStatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
+import com.movtery.zalithlauncher.ui.screens.content.StatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionExportScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionSettingsScreen
@@ -348,6 +349,12 @@ fun MainScreen(
                         screenKey = NormalNavKey.Recordings
                     )
                 },
+                toStatsScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.Stats
+                    )
+                },
                 openFileManager = {
                     eventViewModel.sendEvent(
                         EventViewModel.Event.OpenFileManager(
@@ -411,6 +418,7 @@ private fun <E: TitledNavKey> TopBar(
     toDownloadScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
+    toStatsScreen: () -> Unit,
     openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
     onTitleClick: () -> Unit = {},
@@ -419,6 +427,7 @@ private fun <E: TitledNavKey> TopBar(
 
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
     val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
+    val inStatsScreen = mainScreenKey is NormalNavKey.Stats || mainScreenKey is NormalNavKey.GameStats || mainScreenKey is NormalNavKey.PlayTimeStats
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
 
@@ -604,6 +613,15 @@ private fun <E: TitledNavKey> TopBar(
                     text = stringResource(R.string.terracotta),
                     onClick = {
                         if (!inMultiplayerScreen) toMultiplayerScreen()
+                    },
+                )
+
+                TopBarRailItem(
+                    selected = inStatsScreen,
+                    painter = painterResource(R.drawable.ic_dashboard_filled),
+                    text = stringResource(R.string.page_title_stats),
+                    onClick = {
+                        if (!inStatsScreen) toStatsScreen()
                     },
                 )
 
@@ -848,6 +866,11 @@ private fun NavigationUI(
                 entry<NormalNavKey.LogView> { key ->
                     LogViewScreen(
                         key = key,
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.Stats> {
+                    StatsScreen(
                         backStackViewModel = screenBackStackModel,
                     )
                 }

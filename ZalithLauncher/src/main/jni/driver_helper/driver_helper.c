@@ -70,6 +70,10 @@ void* loadTurnipVulkan(const char* driver_path, const char* native_dir, const ch
     const char* target_driver = (driver_path && strlen(driver_path) > 0) ? driver_path : "libvulkan_freedreno.so";
     void* turnip_driver_handle = linker_ns_dlopen(target_driver, RTLD_LOCAL | RTLD_NOW);
 
+    if (!turnip_driver_handle && (!driver_path || strlen(driver_path) == 0 || strcmp(driver_path, "libvulkan_freedreno.so") == 0)) {
+        turnip_driver_handle = linker_ns_dlopen("vulkan.purple.so", RTLD_LOCAL | RTLD_NOW);
+    }
+
     if (!turnip_driver_handle) {
         dlclose(linkerhook);
         return NULL;
