@@ -1421,4 +1421,12 @@
     <string name="download_install_error_process_start">O sistema recusou-se a criar o processo de instalação. Isso geralmente é causado por memória insuficiente ou restrições em segundo plano no dispositivo. Feche os aplicativos em segundo plano e tente novamente ou force a parada do launcher e abra-o novamente.</string>
     <string name="notification_task_service_name">Serviço Keep-Alive de Tarefas</string>
     <string name="notification_task_service_running">As tarefas estão sendo executadas em segundo plano. Mantenha o launcher em execução.</string>
+    <string name="download_category_favorites">Favoritos</string>
+    <string name="favorite_add">Favorito</string>
+    <string name="favorite_added">Favoritado</string>
+    <string name="favorites_empty">Ainda não há favoritos. Vá pesquisar e adicione aos favoritos os recursos que você gosta!</string>
+    <string name="favorites_empty_filtered">Nenhum favorito corresponde aos filtros atuais</string>
+    <string name="favorites_item_unavailable">Indisponível</string>
+    <string name="favorites_sort_follow_time">Tempo de acompanhamento</string>
+    <string name="favorites_sort_title">Nome do Projeto</string>
 </resources>
