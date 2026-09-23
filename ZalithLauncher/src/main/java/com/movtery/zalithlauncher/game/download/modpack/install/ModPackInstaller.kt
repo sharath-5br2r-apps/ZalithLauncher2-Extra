@@ -348,6 +348,7 @@ class ModPackInstaller(
             // correct isolated game directory (targetClientDir/mods/).
             val installedVersion = Version(
                 versionName = targetClientDir.name,
+                gameHome = targetClientDir.parentFile?.parent ?: targetClientDir.parent ?: "",
                 versionConfig = installedVersionConfig,
                 versionInfo = null,
                 isValid = false,

@@ -523,7 +523,7 @@ private fun LastLogCard(
 ) {
     val currentVersion by VersionsManager.currentVersion.collectAsStateWithLifecycle()
     val logFile = remember(currentVersion) {
-        currentVersion?.let { VersionsManager.getLatestLog(it) }
+        currentVersion?.let { it.getLatestLog() }
     }
     val logExists = remember(logFile) { logFile?.exists() == true }
 

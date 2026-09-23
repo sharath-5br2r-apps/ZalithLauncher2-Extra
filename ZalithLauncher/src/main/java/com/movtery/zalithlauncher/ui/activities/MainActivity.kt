@@ -820,7 +820,7 @@ class MainActivity : BaseAppCompatActivity() {
         val versionName = intent.getStringExtra(EXTRA_LAUNCH_VERSION)
         if (versionName != null) {
             intent.removeExtra(EXTRA_LAUNCH_VERSION)
-            val version = VersionsManager.getVersion(versionName)
+            val version = VersionsManager.versions.value.find { it.getVersionName() == versionName && it.isValid() }
             if (version != null) {
                 VersionsManager.saveVersion(version)
                 launchGameViewModel.tryLaunch(version)

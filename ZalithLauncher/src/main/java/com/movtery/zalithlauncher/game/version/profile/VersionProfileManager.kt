@@ -548,7 +548,7 @@ object VersionProfileManager {
     private fun read(version: Version): VersionProfileFile {
         val key = version.getVersionPath().absolutePath
         cache[key]?.let { return it }
-        val file = File(VersionsManager.getZalithVersionPath(version), PROFILE_FILE_NAME)
+        val file = File(version.getZalithVersionPath(), PROFILE_FILE_NAME)
         val loaded = runCatching {
             if (file.exists()) GSON.fromJson<VersionProfileFile>(file.readText(), profileFileType)
             else null
@@ -576,7 +576,7 @@ object VersionProfileManager {
     private fun write(version: Version, value: VersionProfileFile) {
         val key = version.getVersionPath().absolutePath
         cache[key] = value
-        val directory = VersionsManager.getZalithVersionPath(version)
+        val directory = version.getZalithVersionPath()
         if (!directory.exists()) directory.mkdirs()
         runCatching {
             FileWriter(File(directory, PROFILE_FILE_NAME), false).use { it.write(GSON.toJson(value)) }
