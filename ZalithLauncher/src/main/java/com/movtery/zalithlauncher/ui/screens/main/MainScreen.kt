@@ -115,6 +115,7 @@ import com.movtery.zalithlauncher.ui.screens.content.CapeGalleryScreen
 import com.movtery.zalithlauncher.ui.screens.content.PlayTimeStatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
+import com.movtery.zalithlauncher.ui.screens.content.GameLogScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
 import com.movtery.zalithlauncher.ui.screens.content.StatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
@@ -355,6 +356,12 @@ fun MainScreen(
                         screenKey = NormalNavKey.Stats
                     )
                 },
+                toGameLogScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.GameLog
+                    )
+                },
                 openFileManager = {
                     eventViewModel.sendEvent(
                         EventViewModel.Event.OpenFileManager(
@@ -419,6 +426,7 @@ private fun <E: TitledNavKey> TopBar(
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
     toStatsScreen: () -> Unit,
+    toGameLogScreen: () -> Unit,
     openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
     onTitleClick: () -> Unit = {},
@@ -428,6 +436,7 @@ private fun <E: TitledNavKey> TopBar(
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
     val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inStatsScreen = mainScreenKey is NormalNavKey.Stats || mainScreenKey is NormalNavKey.GameStats || mainScreenKey is NormalNavKey.PlayTimeStats
+    val inGameLogScreen = mainScreenKey is NormalNavKey.GameLog || mainScreenKey is NormalNavKey.LogView
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
 
@@ -622,6 +631,15 @@ private fun <E: TitledNavKey> TopBar(
                     text = stringResource(R.string.page_title_stats),
                     onClick = {
                         if (!inStatsScreen) toStatsScreen()
+                    },
+                )
+
+                TopBarRailItem(
+                    selected = inGameLogScreen,
+                    painter = painterResource(R.drawable.ic_article_outlined),
+                    text = stringResource(R.string.page_title_game_log),
+                    onClick = {
+                        if (!inGameLogScreen) toGameLogScreen()
                     },
                 )
 
@@ -866,6 +884,11 @@ private fun NavigationUI(
                 entry<NormalNavKey.LogView> { key ->
                     LogViewScreen(
                         key = key,
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.GameLog> {
+                    GameLogScreen(
                         backStackViewModel = screenBackStackModel,
                     )
                 }

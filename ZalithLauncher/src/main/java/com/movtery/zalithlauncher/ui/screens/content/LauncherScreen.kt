@@ -155,13 +155,10 @@ fun LauncherScreen(
                     )
                 },
                 onLastLogClick = {
-                    val currentVer = VersionsManager.currentVersion.value
-                    val logFile = currentVer?.getLatestLog()
-                    if (logFile != null && logFile.exists()) {
-                        backStackViewModel.mainScreen.navigateTo(NormalNavKey.LogView(logFile.absolutePath))
-                    } else {
-                        Toast.makeText(context, R.string.stats_no_log, Toast.LENGTH_SHORT).show()
-                    }
+                    backStackViewModel.mainScreen.removeAndNavigateTo(
+                        removes = backStackViewModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.GameLog
+                    )
                 },
                 onInfoClick = {
                     showAboutDialog = true

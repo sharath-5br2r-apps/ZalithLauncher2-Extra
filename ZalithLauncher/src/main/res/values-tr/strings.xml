@@ -1597,4 +1597,6 @@
     <string name="recorder_notification_channel_name">Ekran Kaydı</string>
     <string name="recorder_notification_title">Kayıt devam ediyor</string>
     <string name="recorder_notification_text">Oyun sesi ve ekranı kaydediliyor</string>
+    <string name="page_title_stats">İstatistikler</string>
+    <string name="page_title_game_log">Oyun Günlüğü</string>
 </resources>

@@ -2030,4 +2030,5 @@
     <string name="fm_calculating">Calculating…</string>
     <string name="fm_name_conflict">Name conflicts with an existing entry</string>
     <string name="page_title_stats">Stats</string>
+    <string name="page_title_game_log">Game Log</string>
 </resources>

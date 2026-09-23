@@ -1453,4 +1453,5 @@
     <string name="page_title_stats">统计</string>
     <string name="stats_last_log">最后游戏日志</string>
     <string name="stats_no_log">暂无可用日志</string>
+    <string name="page_title_game_log">游戏日志</string>
 </resources>
