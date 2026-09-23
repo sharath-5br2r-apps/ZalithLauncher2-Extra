@@ -501,7 +501,6 @@ object AllSettings : SettingsRegistry() {
     val backgroundBlurType = enumSetting("backgroundBlurType", BackgroundBlur.Background)
 
     /**
-    /**
      * 版本列表视图模式：0=列表(LIST), 1=网格(GRID)
      */
     val versionViewMode = intSetting("versionViewMode", 0, 0..2)
