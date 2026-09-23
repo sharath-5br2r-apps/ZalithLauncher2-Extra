@@ -218,12 +218,14 @@ private fun isVersionAdapt(
 
 /**
  * 资源版本分组可折叠列表
+ * @param defaultExpanded 是否默认展开，默认为是否适配当前版本
  * @param installedChecker 查询版本本地是否已安装，null 则不进行已安装标注
  */
 @Composable
 fun AssetsVersionItemLayout(
     modifier: Modifier = Modifier,
     infoMap: VersionInfoMap,
+    defaultExpanded: Boolean = infoMap.isAdapt,
     maxListHeight: Dp = rememberMaxHeight(),
     shape: Shape = MaterialTheme.shapes.large,
     influencedByBackground: Boolean = true,
@@ -233,7 +235,7 @@ fun AssetsVersionItemLayout(
     installedChecker: ((PlatformVersion) -> InstalledMod?)? = null,
     onItemClicked: (PlatformVersion) -> Unit = {}
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember(infoMap) { mutableStateOf(defaultExpanded) }
 
     Surface(
         modifier = modifier,

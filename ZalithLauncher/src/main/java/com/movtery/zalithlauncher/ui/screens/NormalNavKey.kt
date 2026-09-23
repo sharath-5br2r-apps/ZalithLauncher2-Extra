@@ -203,6 +203,10 @@ sealed interface NormalNavKey : TitledNavKey {
     @Serializable data object SearchId : NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.download_category_by_id)
     }
+    /** 收藏屏幕 */
+    @Serializable data object Favorites : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.download_category_favorites)
+    }
 
     /** 下载资源屏幕 */
     @Serializable data class DownloadAssets(

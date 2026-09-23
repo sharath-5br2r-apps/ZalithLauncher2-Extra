@@ -181,6 +181,7 @@
     <string name="download_category_saves">存档</string>
     <string name="download_category_shaders">光影包</string>
     <string name="download_category_by_id">搜索ID</string>
+    <string name="download_category_favorites">收藏</string>
     <string name="download_game_failed_to_get_versions">获取版本失败：%s，点击重试。</string>
     <string name="download_game_type_release">正式版</string>
     <string name="download_game_type_snapshot">快照版</string>
@@ -243,6 +244,13 @@
     <string name="download_assets_filter_sort_by_recently_created">最近创建</string>
     <string name="download_assets_filter_sort_by_recently_updated">最近更新</string>
     <string name="download_assets_result_authors">作者：%s</string>
+    <string name="favorite_add">收藏</string>
+    <string name="favorite_added">已收藏</string>
+    <string name="favorites_empty">还没有收藏的项目，去搜索并收藏喜欢的资源吧！</string>
+    <string name="favorites_empty_filtered">没有符合当前过滤条件的收藏项目</string>
+    <string name="favorites_item_unavailable">已失效</string>
+    <string name="favorites_sort_follow_time">收藏时间</string>
+    <string name="favorites_sort_title">项目名称</string>
     <string name="download_assets_result_previous_page">上一页</string>
     <string name="download_assets_result_next_page">下一页</string>
     <string name="download_assets_failed_to_get_result">获取搜索结果失败：%s，点击重试。</string>
@@ -737,7 +745,7 @@
     <string name="versions_export_pack_author">整合包作者</string>
     <string name="versions_export_pack_summary">整合包描述</string>
     <string name="versions_export_pack_summary_hint">描述您的整合包，或者写写更新日志（支持使用 Markdown）</string>
-    <string name="versions_export_pack_jvm_args">游戏参数</string>
+    <string name="versions_export_pack_game_args">游戏参数</string>
     <string name="versions_export_pack_java_args">Java 虚拟机参数</string>
     <string name="versions_export_pack_website">整合包官方网站</string>
     <string name="versions_export_pack_min_memory">最小分配内存</string>
@@ -928,6 +936,8 @@
     <string name="settings_game_graphics_api_default_opengl">仅首次启动时设置为 OpenGL</string>
     <string name="settings_game_jvm_args_title">JVM 启动参数</string>
     <string name="settings_game_jvm_args_summary">启动 JVM 时，额外添加的 JVM 参数，不建议在没有把握的情况下进行修改，因为这很有可能导致崩溃</string>
+    <string name="versions_config_game_args_title">游戏参数</string>
+    <string name="versions_config_game_args_summary">启动游戏时，额外传递给游戏的参数，将追加在版本自带的游戏参数之后</string>
     <string name="settings_game_show_log_automatic_title">自动显示日志</string>
     <string name="settings_game_show_log_automatic_summary">在游戏还未正式渲染画面前，自动显示日志</string>
     <string name="settings_game_log_text_size_title">日志字体大小</string>

@@ -63,6 +63,11 @@ interface PlatformProject {
     fun platformAuthor(): String?
 
     /**
+     * 该项目在平台上的作者列表
+     */
+    fun platformAuthors(): List<String> = listOfNotNull(platformAuthor()?.takeIf { it.isNotBlank() })
+
+    /**
      * 该项目在平台上的总下载量
      */
     fun platformDownloadCount(): Long
@@ -76,6 +81,11 @@ interface PlatformProject {
      * 在平台上标注的模组加载器信息
      */
     fun platformModLoaders(): List<PlatformDisplayLabel>?
+
+    /**
+     * 该项目在平台上是否仍然可用
+     */
+    fun platformAvailable(): Boolean = true
 
     /**
      * 检查项目类别是否受支持

@@ -657,7 +657,9 @@
     <string name="versions_export_pack_author">모드팩 제작자</string>
     <string name="versions_export_pack_summary">모드팩 설명</string>
     <string name="versions_export_pack_summary_hint">모드팩 설명을 작성하거나 변경 사항(Changelog)을 기록해 주세요 (Markdown 지원)</string>
-    <string name="versions_export_pack_jvm_args">게임 실행 옵션</string>
+    <string name="versions_export_pack_game_args">게임 실행 옵션</string>
+    <string name="versions_config_game_args_title">게임 실행 옵션</string>
+    <string name="versions_config_game_args_summary">게임 실행 시 게임에 전달되는 추가 인수로, 버전의 게임 인수 뒤에 추가됩니다</string>
     <string name="versions_export_pack_java_args">자바 가상 머신 매개변수</string>
     <string name="versions_export_pack_website">모드팩 웹사이트</string>
     <string name="versions_export_pack_min_memory">최소 할당 메모리</string>

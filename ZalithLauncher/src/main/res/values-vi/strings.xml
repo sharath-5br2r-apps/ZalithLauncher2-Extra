@@ -1131,7 +1131,9 @@
     <string name="versions_export_pack_author">Tác giả gói mod</string>
     <string name="versions_export_pack_summary">Mô tả gói mod</string>
     <string name="versions_export_pack_summary_hint">Mô tả gói mod của bạn hoặc viết nhật ký thay đổi (hỗ trợ Markdown)</string>
-    <string name="versions_export_pack_jvm_args">Tham số trò chơi</string>
+    <string name="versions_export_pack_game_args">Tham số trò chơi</string>
+    <string name="versions_config_game_args_title">Tham số trò chơi</string>
+    <string name="versions_config_game_args_summary">Tham số bổ sung truyền cho trò chơi khi khởi động, được thêm vào sau tham số trò chơi của phiên bản</string>
     <string name="versions_export_pack_java_args">Tham số máy ảo Java</string>
     <string name="versions_export_pack_website">Trang web chính thức của gói mod</string>
     <string name="versions_export_pack_min_memory">Bộ nhớ được phân bổ tối thiểu</string>

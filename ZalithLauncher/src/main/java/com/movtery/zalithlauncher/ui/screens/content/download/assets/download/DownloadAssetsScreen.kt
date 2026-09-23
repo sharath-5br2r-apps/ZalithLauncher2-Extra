@@ -63,6 +63,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.download.assets.favorites.FavoriteProjectsRepository
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformProject
@@ -95,6 +96,7 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Cl
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DependencyEntry
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsState
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsVersionLoading
+import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.FavoriteIdentifier
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ProjectUrlsContent
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ScreenshotItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ShowScreenshotsButton
@@ -400,6 +402,8 @@ fun DownloadAssetsScreen(
                     .padding(end = 12.dp)
                     .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
                 projectResult = viewModel.projectResult,
+                platform = key.platform,
+                projectId = key.projectId,
                 classes = viewModel.classes,
                 onReload = { viewModel.getProject() },
                 openLink = { url ->
@@ -547,7 +551,10 @@ private fun Versions(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     state = scrollState
                 ) {
-                    items(versions.result) { info ->
+                    items(
+                        items = versions.result,
+                        key = { "${it.gameVersion}_${it.loader?.getDisplayName()}" }
+                    ) { info ->
                         AssetsVersionItemLayout(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -586,6 +593,8 @@ private fun Versions(
 private fun ProjectInfo(
     modifier: Modifier = Modifier,
     projectResult: DownloadAssetsState<Triple<PlatformProject, ModTranslations, ModTranslations.McMod?>>,
+    platform: Platform,
+    projectId: String,
     classes: PlatformClasses,
     onReload: () -> Unit = {},
     openLink: (url: String) -> Unit = {}
@@ -744,13 +753,36 @@ private fun ProjectInfo(
                 }
             }
 
-            // 资源类型
-            ClassesIdentifier(
+            // 资源类型、收藏开关
+            Row(
                 modifier = Modifier.padding(all = 16.dp),
-                classes = classes,
-                iconSize = 16.dp,
-                textStyle = MaterialTheme.typography.labelMedium
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ClassesIdentifier(
+                    classes = classes,
+                    iconSize = 16.dp,
+                    textStyle = MaterialTheme.typography.labelMedium
+                )
+
+                val isFavorite = FavoriteProjectsRepository.isFavorite(platform, projectId)
+                FavoriteIdentifier(
+                    isFavorite = isFavorite,
+                    iconSize = 16.dp,
+                    textStyle = MaterialTheme.typography.labelMedium,
+                    onClick = {
+                        if (isFavorite) {
+                            FavoriteProjectsRepository.unfavorite(platform, projectId)
+                        } else {
+                            //项目数据未就绪时无法生成收藏缓存，忽略此次操作
+                            (projectResult as? DownloadAssetsState.Success)
+                                ?.result?.first?.let { project ->
+                                    FavoriteProjectsRepository.favorite(project, classes)
+                                }
+                        }
+                    }
+                )
+            }
         }
     }
 }

@@ -48,6 +48,7 @@ import com.movtery.zalithlauncher.utils.string.insertJSONValueList
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import com.movtery.zalithlauncher.utils.string.isLowerTo
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
+import com.movtery.zalithlauncher.utils.string.splitPreservingQuotes
 import com.movtery.zalithlauncher.utils.string.toUnicodeEscaped
 import java.io.File
 
@@ -61,6 +62,7 @@ class LaunchArgs(
     private val version: Version,
     private val clientJar: File,
     private val gameManifest: GameManifest,
+    private val lwjglVersion: Int,
     private val runtime: Runtime,
     private val readAssetsFile: (path: String) -> String,
     private val getCacioJavaArgs: (isJava8: Boolean) -> List<String>
@@ -119,6 +121,9 @@ class LaunchArgs(
             }
         }
 
+        //追加版本配置的游戏参数，置于参数列表末尾
+        argsList.addAll(version.getGameArgs().splitPreservingQuotes())
+
         return argsList
     }
 
@@ -159,7 +164,7 @@ class LaunchArgs(
      * LWJGL2 时代（版本 <= 299）额外加入 lwjgl-lwjglx.jar 桥接层。
      * lwjgl.jar 核心优先 -> merged-modules -> 其余模块。
      */
-    private fun getLWJGL3ClassPath(lwjglVersion: Int): String {
+    private fun getLWJGL3ClassPath(): String {
         val versionDir = lwjglVersionDir(lwjglVersion)
         val dir = File(PathManager.DIR_COMPONENTS, "lwjgl/$versionDir")
         val isLwjgl2 = lwjglVersion in 1..299
@@ -258,13 +263,11 @@ class LaunchArgs(
 //        }
 
         val varArgMap: MutableMap<String, String> = android.util.ArrayMap()
-        val lwjglVersion = detectLwjglVersion(gameManifest)
-        Logger.info(TAG, "Detected LWJGL requirement version=$lwjglVersion")
-        val launchClassPath = "${getLWJGL3ClassPath(lwjglVersion)}:${generateLaunchClassPath(gameManifest)}"
+        val launchClassPath = "${getLWJGL3ClassPath()}:${generateLaunchClassPath(gameManifest)}"
         var hasClasspath = false //是否已经在jvm参数中包含 ${classpath} 配置
 
         varArgMap["classpath_separator"] = ":"
-        varArgMap["library_directory"] = getLibrariesHome()
+        varArgMap["library_directory"] = getLibrariesHome(version.getGameHome())
         varArgMap["version_name"] = gameManifest1.id
         varArgMap["natives_directory"] = runtimeLibraryPath
         setLauncherInfo(varArgMap)
@@ -339,7 +342,7 @@ class LaunchArgs(
             if (!(GameManifest.Rule.checkRules(libItem.rules) && !libItem.isNative)) continue
             val path = libItem.progressLibrary() ?: continue
             with(libSortFix) {
-                libs.insertLib(libItem, getLibrariesHome() + "/" + path)
+                libs.insertLib(libItem, getLibrariesHome(version.getGameHome()) + "/" + path)
             }
         }
 
@@ -373,9 +376,9 @@ class LaunchArgs(
         varArgMap["auth_player_name"] = account.username
         varArgMap["auth_uuid"] = account.profileId.replace("-", "")
         varArgMap["auth_xuid"] = account.xUid ?: ""
-        varArgMap["assets_root"] = getAssetsHome()
+        varArgMap["assets_root"] = getAssetsHome(version.getGameHome())
         varArgMap["assets_index_name"] = gameManifest.assetIndex.id
-        varArgMap["game_assets"] = getAssetsHome()
+        varArgMap["game_assets"] = getAssetsHome(version.getGameHome())
         varArgMap["game_directory"] = gameDirPath.absolutePath
         varArgMap["user_properties"] = "{}"
         varArgMap["user_type"] = "msa"

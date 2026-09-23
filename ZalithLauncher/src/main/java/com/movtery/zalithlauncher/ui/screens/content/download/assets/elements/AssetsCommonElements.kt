@@ -99,8 +99,8 @@ fun PlatformIdentifier(
     modifier: Modifier = Modifier,
     platform: Platform,
     iconSize: Dp = 12.dp,
-    color: Color = MaterialTheme.colorScheme.tertiary,
-    contentColor: Color = MaterialTheme.colorScheme.onTertiary,
+    color: Color = platform.getBrandColor(),
+    contentColor: Color = platform.getBrandContentColor(),
     shape: Shape = MaterialTheme.shapes.large,
     textStyle: TextStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
 ) {
@@ -122,6 +122,22 @@ fun PlatformIdentifier(
 fun Platform.getDrawable() = when (this) {
     Platform.CURSEFORGE -> R.drawable.img_platform_curseforge
     Platform.MODRINTH -> R.drawable.img_platform_modrinth
+}
+
+/**
+ * 平台品牌卡片背景色，取自平台官方LOGO主色
+ */
+fun Platform.getBrandColor(): Color = when (this) {
+    Platform.CURSEFORGE -> Color(0xFFF16436)
+    Platform.MODRINTH -> Color(0xFF1BD96A)
+}
+
+/**
+ * 平台品牌卡片内容色
+ */
+fun Platform.getBrandContentColor(): Color = when (this) {
+    Platform.CURSEFORGE -> Color.White
+    Platform.MODRINTH -> Color(0xFF072314)
 }
 
 /**

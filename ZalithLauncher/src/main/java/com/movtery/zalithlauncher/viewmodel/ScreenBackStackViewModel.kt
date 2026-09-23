@@ -43,6 +43,8 @@ class ScreenBackStackViewModel : ViewModel() {
     val downloadSavesScreen = NestedNavKey.DownloadSaves()
     /** 下载光影包屏幕 */
     val downloadShadersScreen = NestedNavKey.DownloadShaders()
+    /** 下载收藏屏幕 */
+    val downloadFavoritesScreen = NestedNavKey.DownloadFavorites()
 
     /**
      * 在跳转前，先将导航栈中所有属于 [clearBeforeNavKeys] 的页面全部移除

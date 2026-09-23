@@ -333,6 +333,8 @@ class CurseForgeData(
 
     override fun platformAuthor(): String = authors[0].name
 
+    override fun platformAuthors(): List<String> = authors.map { it.name }
+
     override fun platformIconUrl(): String? = logo?.url
 
     override fun platformDownloadCount(): Long = downloadCount

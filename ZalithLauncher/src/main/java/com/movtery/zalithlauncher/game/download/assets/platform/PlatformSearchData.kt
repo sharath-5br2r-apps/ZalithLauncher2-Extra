@@ -48,6 +48,11 @@ interface PlatformSearchData {
     fun platformAuthor(): String
 
     /**
+     * 在平台上的作者列表
+     */
+    fun platformAuthors(): List<String> = listOfNotNull(platformAuthor().takeIf { it.isNotBlank() })
+
+    /**
      * 图标链接
      */
     fun platformIconUrl(): String?

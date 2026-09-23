@@ -149,11 +149,13 @@ suspend fun searchAssets(
         val (containsChinese, englishKeywords) = searchFilter.searchName.localizedModSearchKeywords(platformClasses)
         //参考源代码：[HMCL Github](https://github.com/HMCL-dev/HMCL/blob/d295e60/HMCL/src/main/java/org/jackhuang/hmcl/game/LocalizedRemoteModRepository.java#L56-L68)
         //逐个英文短语尝试搜索，取第一个有非空结果的
-        val queries = if (!englishKeywords.isNullOrEmpty()) {
-            englishKeywords.toList()
-        } else {
-            listOf(searchFilter.searchName)
-        }
+        val queries = englishKeywords?.takeIf { it.isNotEmpty() }?.toList()
+            ?: listOf(searchFilter.searchName)
+        //参考源代码：[HMCL Github](https://github.com/HMCL-dev/HMCL/blob/8767cc0e/HMCL/src/main/java/org/jackhuang/hmcl/game/LocalizedRemoteAddonRepository.java)
+        //翻译出的英文短语搜索固定使用相关性排序，避免所选的排序方式将目标资源挤出结果页
+        val searchFilterForQuery = englishKeywords?.takeIf { it.isNotEmpty() }
+            ?.let { searchFilter.copy(sortField = PlatformSortField.RELEVANCE) }
+            ?: searchFilter
 
         var lastResult: PlatformSearchResult? = null
         var lastException: Exception? = null
@@ -166,7 +168,7 @@ suspend fun searchAssets(
                     ) { searcher ->
                         searcher.searchAssets(
                             query = query,
-                            searchFilter = searchFilter,
+                            searchFilter = searchFilterForQuery,
                             platformClasses = platformClasses
                         )
                     }
@@ -176,7 +178,7 @@ suspend fun searchAssets(
                     ) { searcher ->
                         searcher.searchAssets(
                             query = query,
-                            searchFilter = searchFilter,
+                            searchFilter = searchFilterForQuery,
                             platformClasses = platformClasses
                         )
                     }

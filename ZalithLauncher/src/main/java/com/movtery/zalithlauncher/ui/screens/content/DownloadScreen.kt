@@ -50,12 +50,15 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.download.assets.favorites.FavoriteProjectsRepository
+import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
+import com.movtery.zalithlauncher.ui.screens.content.download.DownloadFavoritesScreen
 import com.movtery.zalithlauncher.ui.screens.content.download.DownloadGameScreen
 import com.movtery.zalithlauncher.ui.screens.content.download.DownloadModPackScreen
 import com.movtery.zalithlauncher.ui.screens.content.download.DownloadModScreen
@@ -86,6 +89,36 @@ fun ScreenBackStackViewModel.navigateToDownload(targetScreen: TitledNavKey? = nu
     )
 }
 
+/**
+ * 跳转到资源类型对应的下载分类屏幕，并进入项目详情页
+ */
+private fun ScreenBackStackViewModel.swapToCategoryAssets(
+    platform: Platform,
+    classes: PlatformClasses,
+    projectId: String,
+    iconUrl: String?
+) {
+    val targetScreen = when (classes) {
+        PlatformClasses.MOD -> downloadModScreen
+        PlatformClasses.MOD_PACK -> downloadModPackScreen
+        PlatformClasses.RESOURCE_PACK -> downloadResourcePackScreen
+        PlatformClasses.SAVES -> downloadSavesScreen
+        PlatformClasses.SHADERS -> downloadShadersScreen
+    }
+    navigateToDownload(
+        targetScreen = targetScreen.apply {
+            navigateTo(
+                NormalNavKey.DownloadAssets(
+                    platform = platform,
+                    projectId = projectId,
+                    classes = classes,
+                    iconUrl = iconUrl
+                )
+            )
+        }
+    )
+}
+
 @Composable
 fun DownloadScreen(
     key: NestedNavKey.Download,
@@ -94,6 +127,11 @@ fun DownloadScreen(
     eventViewModel: EventViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
+    //进入下载屏幕时确保收藏仓库完成初始化
+    LaunchedEffect(Unit) {
+        FavoriteProjectsRepository.ensureLoaded()
+    }
+
     BaseScreen(
         screenKey = key,
         currentKey = backScreenViewModel.mainScreen.currentKey,
@@ -134,6 +172,7 @@ private fun TabMenu(
         CategoryItem(backScreenViewModel.downloadSavesScreen, { CategoryIcon(R.drawable.ic_public, R.string.download_category_saves) }, R.string.download_category_saves),
         CategoryItem(backScreenViewModel.downloadShadersScreen, { CategoryIcon(R.drawable.ic_lightbulb, R.string.download_category_shaders) }, R.string.download_category_shaders),
         CategoryItem(NormalNavKey.SearchId, { CategoryIcon(R.drawable.ic_card, R.string.download_category_by_id) }, R.string.download_category_by_id, division = true),
+        CategoryItem(backScreenViewModel.downloadFavoritesScreen, { CategoryIcon(R.drawable.ic_favorite_outlined, R.string.download_category_favorites) }, R.string.download_category_favorites),
     )
 
     val xOffset by swapAnimateDpAsState(
@@ -294,28 +333,24 @@ private fun NavigationUI(
                         mainScreenKey = backScreenViewModel.mainScreen.currentKey,
                         downloadScreenKey = backScreenViewModel.downloadScreen.currentKey,
                         swapToDownload = { platform, classes, projectId, iconUrl ->
-                            val backStack = when (classes) {
-                                PlatformClasses.MOD -> backScreenViewModel.downloadModScreen
-                                PlatformClasses.MOD_PACK -> backScreenViewModel.downloadModPackScreen
-                                PlatformClasses.RESOURCE_PACK -> backScreenViewModel.downloadResourcePackScreen
-                                PlatformClasses.SAVES -> backScreenViewModel.downloadSavesScreen
-                                PlatformClasses.SHADERS -> backScreenViewModel.downloadShadersScreen
-                            }
-                            backScreenViewModel.navigateToDownload(
-                                targetScreen = backStack.apply {
-                                    navigateTo(
-                                        NormalNavKey.DownloadAssets(
-                                            platform = platform,
-                                            projectId = projectId,
-                                            classes = classes,
-                                            iconUrl = iconUrl
-                                        )
-                                    )
-                                }
-                            )
+                            backScreenViewModel.swapToCategoryAssets(platform, classes, projectId, iconUrl)
                         },
                         openLink = { link ->
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(link))
+                        }
+                    )
+                }
+                entry<NestedNavKey.DownloadFavorites> { key ->
+                    DownloadFavoritesScreen(
+                        key = key,
+                        mainScreenKey = backScreenViewModel.mainScreen.currentKey,
+                        downloadScreenKey = backScreenViewModel.downloadScreen.currentKey,
+                        downloadFavoritesScreenKey = backScreenViewModel.downloadFavoritesScreen.currentKey,
+                        onCurrentKeyChange = { newKey ->
+                            backScreenViewModel.downloadFavoritesScreen.currentKey = newKey
+                        },
+                        swapToDownload = { platform, classes, projectId, iconUrl ->
+                            backScreenViewModel.swapToCategoryAssets(platform, classes, projectId, iconUrl)
                         }
                     )
                 }

@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.IntSize
 import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ZLApplication
-import com.movtery.zalithlauncher.bridge.LoggerBridge.append
+import com.movtery.zalithlauncher.bridge.LoggerBridge.appendInfo
 import com.movtery.zalithlauncher.bridge.LoggerBridge.appendTitle
 import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.context.readAssetFile
@@ -38,7 +38,6 @@ import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.download.game.parseLibraryComponents
 import com.movtery.zalithlauncher.game.multirt.Runtime
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
-import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.plugin.Plugin
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
@@ -48,7 +47,6 @@ import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.support.touch_controller.ControllerProxy
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionInfoParser
-import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
 import com.movtery.zalithlauncher.path.LibPath
 import com.movtery.zalithlauncher.path.PathManager
@@ -109,17 +107,13 @@ class GameLauncher(
         val manifest = GSON.fromJson(File(version.getVersionPath(), "${version.getVersionName()}.json").readText(), GameManifest::class.java)
         val clientJar = manifest.inheritsFrom?.let { inheritsFrom ->
             //FIXME: 依赖的是一个原版ID的版本，但这个版本可能是用户自行安装的，只是版本名称与ID一致，不保证客户端真的是对应版本
-            VersionsManager.getVersion(inheritsFrom)?.getClientJar()
+            version.getInheritedClientJar(inheritsFrom)
         } ?: version.getClientJar()
 
         gameManifest = VersionInfoParser(version)
             .setManifest(manifest)
             .setInheriting()
             .build()
-
-        // 探测版本 JSON 要求的 LWJGL 版本，决定组件与 natives
-        lwjglVersion = detectLwjglVersion(gameManifest)
-        Logger.info(TAG, "Detected LWJGL requirement version=$lwjglVersion, using component=${getLwjglVersionDir()}")
 
         //jna
         jnaDir = gameManifest.libraries?.find { library ->
@@ -139,6 +133,8 @@ class GameLauncher(
             javaArguments = customArgs.takeIf { it.isNotEmpty() } ?: "NONE",
             javaRuntime = javaRuntime,
         )
+
+        initLwjglComponent(activity, detectLwjglVersion(gameManifest))
 
         return launchGame(
             screenSize = screenSize,
@@ -168,7 +164,9 @@ class GameLauncher(
         return version.getGameDir().absolutePath
     }
 
-    override fun getLogFile(): File = VersionsManager.getLatestLog(version)
+    override fun getMinecraftPath(): String = version.getGameHome()
+
+    override fun getLogFile(): File = version.getLatestLog()
 
     override fun initEnv(screenSize: IntSize): MutableMap<String, String> {
         val envMap = super.initEnv(screenSize)
@@ -271,6 +269,7 @@ class GameLauncher(
             version = version,
             clientJar = clientJar,
             gameManifest = gameManifest,
+            lwjglVersion = lwjglVersion,
             runtime = runtime,
             readAssetsFile = { path -> activity.readAssetFile(path) },
             getCacioJavaArgs = { isJava8 ->
@@ -283,7 +282,7 @@ class GameLauncher(
         return launchJvm(
             context = activity,
             jvmArgs = launchArgs,
-            userHome = GamePathManager.getCurrentPath(),
+            userHome = version.getGameHome(),
             userArgs = customArgs,
             screenSize = screenSize
         )
@@ -315,20 +314,20 @@ class GameLauncher(
         val renderer = Renderers.getCurrentRenderer()
 
         appendTitle("Launch Minecraft")
-        append("▷ Launcher version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-        append("▷ Architecture: ${Architecture.archAsString(ZLApplication.DEVICE_ARCHITECTURE)}")
-        append("▷ Device model: ${Build.MANUFACTURER}, ${Build.MODEL}")
-        append("▷ API version: ${Build.VERSION.SDK_INT}")
-        append("▷ Renderer: ${renderer.getRendererName()}")
+        appendInfo("Launcher version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        appendInfo("Architecture: ${Architecture.archAsString(ZLApplication.DEVICE_ARCHITECTURE)}")
+        appendInfo("Device model: ${Build.MANUFACTURER}, ${Build.MODEL}")
+        appendInfo("API version: ${Build.VERSION.SDK_INT}")
+        appendInfo("Renderer: ${renderer.getRendererName()}")
         renderer.getRendererSummary()?.let { summary ->
-            append("▷ Renderer Summary: $summary")
+            appendInfo("Renderer Summary: $summary")
         }
-        append("▷ Selected Minecraft version: ${version.getVersionName()}")
-        append("▷ Minecraft Info: $mcInfo")
-        append("▷ Game Path: ${version.getGameDir().absolutePath} (Isolation: ${version.isIsolation()})")
-        append("▷ Custom Java arguments: $javaArguments")
-        append("▷ Java Runtime: $javaRuntime")
-        append("▷ Account: ${usingAccount.username} (${usingAccount.accountType})")
+        appendInfo("Selected Minecraft version: ${version.getVersionName()}")
+        appendInfo("Minecraft Info: $mcInfo")
+        appendInfo("Game Path: ${version.getGameDir().absolutePath} (Isolation: ${version.isIsolation()})")
+        appendInfo("Custom Java arguments: $javaArguments")
+        appendInfo("Java Runtime: $javaRuntime")
+        appendInfo("Account: ${usingAccount.username} (${usingAccount.accountType})")
     }
 
     /**

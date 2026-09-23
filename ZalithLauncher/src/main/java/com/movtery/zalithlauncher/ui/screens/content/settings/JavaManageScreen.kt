@@ -25,9 +25,11 @@ import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -460,48 +462,62 @@ private fun SelectJavaRuntimeDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .padding(all = 16.dp)
                 .heightIn(max = rememberDialogMaxHeight())
-                .wrapContentHeight(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = cardColor(false),
-            contentColor = onCardColor(),
-            shadowElevation = 6.dp
+                .fillMaxHeight()
+                .fillMaxWidth(0.55f),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Surface(
+                modifier = Modifier
+                    .padding(all = 6.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .wrapContentHeight(),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = cardColor(false),
+                contentColor = onCardColor(),
+                shadowElevation = 6.dp
             ) {
-                Text(
-                    text = stringResource(R.string.execute_jar_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                val scrollState = rememberLazyListState()
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false),
-                    state = scrollState,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(runtimes) { runtime ->
-                        JavaRuntimeItem(
-                            runtime = runtime,
-                            onClick = { onSelectRuntime(runtime) },
-                            onDeleteClick = null
-                        )
+                    Text(
+                        text = stringResource(R.string.execute_jar_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    val scrollState = rememberLazyListState()
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .nonInteractiveScrollbar(
+                                state = scrollState.scrollIndicatorState!!,
+                                orientation = Orientation.Vertical,
+                            ),
+                        state = scrollState,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(runtimes) { runtime ->
+                            JavaRuntimeItem(
+                                runtime = runtime,
+                                onClick = { onSelectRuntime(runtime) },
+                                onDeleteClick = null
+                            )
+                        }
                     }
-                }
 
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onDismissRequest
-                ) {
-                    MarqueeText(text = stringResource(R.string.generic_cancel))
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismissRequest
+                    ) {
+                        MarqueeText(text = stringResource(R.string.generic_cancel))
+                    }
                 }
             }
         }

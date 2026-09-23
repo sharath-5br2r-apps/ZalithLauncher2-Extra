@@ -680,7 +680,7 @@ class MainActivity : BaseAppCompatActivity() {
                 //分享游戏日志
                 "share_game_log" -> {
                     VersionsManager.currentVersion.value?.let { version ->
-                        VersionsManager.getLatestLog(version).takeIf { it.exists() }
+                        version.getLatestLog().takeIf { it.exists() }
                     }?.let { logFile ->
                         withContext(Dispatchers.Main) {
                             logsUploadViewModel.check(logFile)

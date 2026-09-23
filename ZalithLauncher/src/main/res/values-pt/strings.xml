@@ -972,7 +972,9 @@
     <string name="versions_export_pack_author">Criador do Modpack</string>
     <string name="versions_export_pack_summary">Descrição do Modpack</string>
     <string name="versions_export_pack_summary_hint">Descreva o seu ModPack ou escreva registos de alterações (Markdown suportado)</string>
-    <string name="versions_export_pack_jvm_args">Argumentos do jogo</string>
+    <string name="versions_export_pack_game_args">Argumentos do jogo</string>
+    <string name="versions_config_game_args_title">Argumentos do jogo</string>
+    <string name="versions_config_game_args_summary">Argumentos adicionais passados ao jogo, anexados após os argumentos de jogo da versão</string>
     <string name="versions_export_pack_java_args">Argumentos da Máquina Virtual Java</string>
     <string name="versions_export_pack_website">Site do Modpack</string>
     <string name="versions_export_pack_pack_remote">Descarregar recursos principais do %s</string>

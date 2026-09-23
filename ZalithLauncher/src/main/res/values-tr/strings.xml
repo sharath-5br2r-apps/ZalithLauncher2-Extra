@@ -1250,7 +1250,9 @@
     <string name="versions_export_pack_author">Mod paketi yazarı</string>
     <string name="versions_export_pack_summary">Mod Paketi Açıklaması</string>
     <string name="versions_export_pack_summary_hint">Mod paketinizi açıklayın veya değişiklik günlüklerini yazın (Markdown desteklenmektedir)</string>
-    <string name="versions_export_pack_jvm_args">Oyun Tartışmaları</string>
+    <string name="versions_export_pack_game_args">Oyun Argümanları</string>
+    <string name="versions_config_game_args_title">Oyun Argümanları</string>
+    <string name="versions_config_game_args_summary">Oyun başlatılırken oyuna iletilen ek bağımsız değişkenler, sürümün oyun bağımsız değişkenlerinin sonuna eklenir</string>
     <string name="versions_export_pack_java_args">Java Sanal Makine Argümanları</string>
     <string name="versions_export_pack_website">Modpack Web Sitesi</string>
     <string name="versions_export_pack_min_memory">Minimum Ayrılan Bellek</string>

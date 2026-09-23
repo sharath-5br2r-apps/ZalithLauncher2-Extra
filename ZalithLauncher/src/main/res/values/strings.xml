@@ -265,6 +265,7 @@
     <string name="download_category_saves">Saves</string>
     <string name="download_category_shaders">Shader Pack</string>
     <string name="download_category_by_id">Search by ID</string>
+    <string name="download_category_favorites">Favorites</string>
     <string name="download_game_failed_to_get_versions">Failed to get version: %s. Tap to retry.</string>
     <string name="download_game_type_release">Release</string>
     <string name="download_game_type_snapshot">Snapshot</string>
@@ -332,6 +333,13 @@
     <string name="download_assets_filter_sort_by_recently_created">Recently Created</string>
     <string name="download_assets_filter_sort_by_recently_updated">Recently Updated</string>
     <string name="download_assets_result_authors">By %s</string>
+    <string name="favorite_add">Favorite</string>
+    <string name="favorite_added">Favorited</string>
+    <string name="favorites_empty">No favorites yet. Go search and favorite the resources you like!</string>
+    <string name="favorites_empty_filtered">No favorites match the current filters</string>
+    <string name="favorites_item_unavailable">Unavailable</string>
+    <string name="favorites_sort_follow_time">Follow Time</string>
+    <string name="favorites_sort_title">Project Name</string>
     <string name="download_assets_result_previous_page">Previous Page</string>
     <string name="download_assets_result_next_page">Next Page</string>
     <string name="download_assets_failed_to_get_result">Failed to get search results: %s. Tap to retry.</string>
@@ -969,7 +977,7 @@
     <string name="versions_export_pack_author">Modpack Author</string>
     <string name="versions_export_pack_summary">Modpack Description</string>
     <string name="versions_export_pack_summary_hint">Describe your modpack or write changelogs (Markdown supported)</string>
-    <string name="versions_export_pack_jvm_args">Game Arguments</string>
+    <string name="versions_export_pack_game_args">Game Arguments</string>
     <string name="versions_export_pack_java_args">Java Virtual Machine Arguments</string>
     <string name="versions_export_pack_website">Modpack Website</string>
     <string name="versions_export_pack_min_memory">Minimum Allocated Memory</string>
@@ -1193,6 +1201,8 @@
     <string name="settings_game_graphics_api_default_opengl">Only set to OpenGL on first launch</string>
     <string name="settings_game_jvm_args_title">JVM Arguments</string>
     <string name="settings_game_jvm_args_summary">Additional JVM arguments added when starting the JVM. Modifying these without proper knowledge is not recommended, as it may cause crashes</string>
+    <string name="versions_config_game_args_title">Game Arguments</string>
+    <string name="versions_config_game_args_summary">Additional arguments passed to the game, appended after the version game arguments</string>
     <string name="settings_game_show_log_automatic_title">Automatically Show Logs</string>
     <string name="settings_game_show_log_automatic_summary">Automatically show logs before the game officially renders the screen</string>
     <string name="settings_game_log_text_size_title">Log Font Size</string>

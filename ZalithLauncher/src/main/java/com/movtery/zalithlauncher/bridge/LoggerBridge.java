@@ -48,6 +48,11 @@ public final class LoggerBridge {
         append(logText);
     }
 
+    public static void appendInfo(String info) {
+        String logText = "▷ " + info;
+        append(logText);
+    }
+
     static {
         // Same precaution as in ZLBridge: since there is no guarantee which bridge class
         // gets touched first, call this independently here as well (idempotent, safe).

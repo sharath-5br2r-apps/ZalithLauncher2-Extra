@@ -1073,7 +1073,7 @@ fun VersionIconImage(
 
     val model = remember(version, refreshKey) {
         version?.let {
-            val iconFile = VersionsManager.getVersionIconFile(it)
+            val iconFile = it.getVersionIconFile()
             if (iconFile.exists()) iconFile
             else null
         } ?: defaultIcon
