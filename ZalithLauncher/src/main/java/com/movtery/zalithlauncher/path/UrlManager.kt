@@ -42,9 +42,6 @@ import java.util.concurrent.TimeUnit
 val URL_USER_AGENT: String = "${BuildKeys.LAUNCHER_SHORT_NAME}/Android_${BuildConfig.VERSION_NAME}"
 val TIME_OUT = TimeUnit.SECONDS.toMillis(30L)
 
-/** 海量小文件多路复用客户端的读超时：比大文件更短，尽快触发换源 */
-const val SMALL_FILE_READ_TIMEOUT_MS = 5_000L
-
 const val HOST_CURSEFORGE_API = "api.curseforge.com"
 const val CURSEFORGE_CDN_SUFFIX = "forgecdn.net"
 
@@ -174,9 +171,9 @@ fun createOkHttpClientBuilder(action: (OkHttpClient.Builder) -> Unit = { }): OkH
 }
 
 /**
- * åå»ºç¨äºæä»¶ä¸è½½ç OkHttpClientã
- * ä¸æ®é API è°ç¨ä¸åï¼æä»¶ä¸è½½éè¦æ´é¿çè¶æ¶éç½®ï¼ä¸ä¸è®¾ callTimeout
- * ï¼å ä¸ºæä»¶å¤§å°å·®å¼å¾å¤§ï¼ä¸è½ç¨ä¸ä¸ªåºå®å¼éå¶æ´ä½ä¸è½½æ¶é´ï¼ã
+ * 创建用于网络请求的 OkHttpClient。
+ * 与普通 API 调用不同，该客户端不设 callTimeout
+ * （因为请求目标的大小差异很大，不能用一个固定值限制整体时间）。
  *
  * ä½¿ç¨ OkHttp æ¿ä»£ HttpURLConnection çä¸»è¦åå æ¯ï¼
  * OkHttp ä½¿ç¨èªå®ç°ç AsyncTimeout æºå¶ï¼æ¯ä¾èµæä½ç³»ç» socket è¶æ¶ç
@@ -184,18 +181,6 @@ fun createOkHttpClientBuilder(action: (OkHttpClient.Builder) -> Unit = { }): OkH
  */
 val DOWNLOAD_OKHTTP_CLIENT: OkHttpClient by lazy {
     buildDownloadClient(listOf(Protocol.HTTP_1_1))
-}
-
-/**
- * 支持 HTTP/2 多路复用的孪生客户端：用于海量小文件场景，
- * 数千次请求共享少数几条连接，消除逐文件 TCP+TLS 握手风暴。
- * 大文件的分段并发仍走强制 HTTP/1.1 的 [DOWNLOAD_OKHTTP_CLIENT]。
- *
- * 读超时较大文件客户端更短
- * 小文件的读停摆几乎必然意味着源/链路出问题，尽早超时才能尽快轮转到镜像源，而不是整批停在 0B/s
- */
-val DOWNLOAD_OKHTTP_CLIENT_MULTIPLEX: OkHttpClient by lazy {
-    buildDownloadClient(null, readTimeoutMillis = SMALL_FILE_READ_TIMEOUT_MS)
 }
 
 private fun buildDownloadClient(

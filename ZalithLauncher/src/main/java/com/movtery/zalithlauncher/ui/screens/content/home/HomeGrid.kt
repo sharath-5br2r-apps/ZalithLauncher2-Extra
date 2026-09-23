@@ -22,10 +22,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -133,20 +132,27 @@ fun HomeGrid(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                // 卡片自身再内缩 6dp，视觉边缘与容器保持 12dp
-                .padding(6.dp)
+                .padding(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            HomeCards.systemCards().forEachIndexed { index, systemCard ->
-                key(systemCard.id) {
-                    if (index > 0) Spacer(modifier = Modifier.height(12.dp))
-                    // 系统卡片补齐内缩量，视觉边缘同样与容器保持 12dp
-                    Box(modifier = Modifier.padding(horizontal = 6.dp)) {
-                        systemCard.content()
+            val systemCards = HomeCards.systemCards()
+            if (!systemCards.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    systemCards.forEach { systemCard ->
+                        key(systemCard.id) {
+                            Box(modifier = Modifier.padding(horizontal = 6.dp)) {
+                                systemCard.content()
+                            }
+                        }
                     }
                 }
             }
-            // 与网格区首行卡片保持 12dp 视觉间距（6dp 间距 + 6dp 卡片内缩）
-            Spacer(modifier = Modifier.height(6.dp))
+
             CardGrid(
                 state = state,
                 containerColor = cardColor(),
