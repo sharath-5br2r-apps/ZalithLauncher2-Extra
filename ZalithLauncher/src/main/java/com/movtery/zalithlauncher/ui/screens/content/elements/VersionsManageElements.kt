@@ -99,6 +99,8 @@ import com.movtery.zalithlauncher.ui.components.SimpleTaskDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
+import com.movtery.zalithlauncher.ui.screens.content.home.version.VersionCardDir
+import com.movtery.zalithlauncher.ui.screens.content.home.version.VersionCardManager
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
@@ -109,9 +111,8 @@ import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import kotlinx.coroutines.Dispatchers
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledTonalButton
+import kotlinx.coroutines.flow.map
 
 private const val TAG = "VersionsManageElements"
 
@@ -400,6 +401,11 @@ fun VersionsOperation(
                             title = R.string.versions_manage_rename_version,
                             task = {
                                 VersionsManager.renameVersion(versionsOperation.version, it)
+                                VersionCardManager.onVersionRenamed(
+                                    gameHome = versionsOperation.version.getGameHome(),
+                                    oldName = versionsOperation.version.getVersionName(),
+                                    newName = it
+                                )
                             }
                         )
                     )
@@ -885,6 +891,32 @@ fun VersionItemLayout(
                         },
                         onClick = {
                             listManageProfilesOpen = true
+                            menuExpanded = false
+                        }
+                    )
+                    //添加卡片到主界面
+                    val cardExists by remember(version) {
+                        VersionCardManager.cards.map { states ->
+                            states.any {
+                                it.record.versionName == version.getVersionName() &&
+                                        it.record.dir == VersionCardDir.fromGameHome(version.getGameHome())
+                            }
+                        }
+                    }.collectAsStateWithLifecycle(
+                        VersionCardManager.hasCard(version.getVersionName(), version.getGameHome())
+                    )
+                    DropdownMenuItem(
+                        text = { Text(text = stringResource(R.string.home_add_version_card)) },
+                        leadingIcon = {
+                            Icon(
+                                modifier = Modifier.size(20.dp),
+                                painter = painterResource(R.drawable.ic_add_box_filled),
+                                contentDescription = stringResource(R.string.home_add_version_card)
+                            )
+                        },
+                        enabled = version.isValid() && !cardExists,
+                        onClick = {
+                            VersionCardManager.addCard(version)
                             menuExpanded = false
                         }
                     )

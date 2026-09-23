@@ -21,8 +21,7 @@ package com.movtery.zalithlauncher.ui.screens.content
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Arrangement
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,10 +36,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
+
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -62,7 +58,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
@@ -89,10 +84,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import com.movtery.zalithlauncher.BuildConfig
-import com.movtery.zalithlauncher.BuildKeys
+import com.movtery.cardgrid.state.rememberCardGridState
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
@@ -102,26 +94,14 @@ import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.ScalingActionButton
-import com.movtery.zalithlauncher.ui.components.defaultMarkdownConfig
-import com.movtery.zalithlauncher.ui.screens.NestedNavKey
-import com.movtery.zalithlauncher.ui.screens.NormalNavKey
-import com.movtery.zalithlauncher.ui.screens.TitledNavKey
-import com.movtery.zalithlauncher.ui.screens.content.elements.AccountAvatar
-import com.movtery.zalithlauncher.ui.screens.content.elements.CommonVersionInfoLayout
-import com.movtery.zalithlauncher.ui.screens.content.elements.AboutDialog
-import com.movtery.zalithlauncher.ui.screens.content.elements.SideBar
-import com.movtery.zalithlauncher.ui.screens.content.elements.VersionIconImage
 import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsDialog
 import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsOperation
-import com.movtery.zalithlauncher.ui.screens.main.custom_home.MarkdownBlock
-import com.movtery.zalithlauncher.ui.screens.main.custom_home.customHomePage
-
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.removeAndNavigateTo
-import com.movtery.zalithlauncher.utils.PlayTimeUtils
+import com.movtery.zalithlauncher.ui.screens.content.home.HomeGrid
+import com.movtery.zalithlauncher.ui.screens.content.home.version.LocalHomeCardLauncher
+import com.movtery.zalithlauncher.ui.screens.content.home.version.LocalHomeCardVersionSettings
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
-import com.movtery.zalithlauncher.viewmodel.HomePageState
-import com.movtery.zalithlauncher.viewmodel.LocalHomePageViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 
 @Composable
@@ -130,10 +110,6 @@ fun LauncherScreen(
     navigateToVersions: (Version) -> Unit,
     onLaunchGame: (Version?) -> Unit,
     onOpenLink: (String) -> Unit,
-    onHomePageEvent: (MarkdownBlock.Button.Event) -> Unit,
-    onNavigateToStats: () -> Unit = {},
-    onNavigateToPlayTimeStats: () -> Unit = {},
-    onNavigateToLog: (String) -> Unit = {},
 ) {
     BaseScreen(
         screenKey = NormalNavKey.LauncherMain,
@@ -182,10 +158,10 @@ fun LauncherScreen(
                 ContentMenu(
                     modifier = Modifier.weight(7f),
                     isVisible = isVisible,
-                    onHomePageEvent = onHomePageEvent,
-                    onNavigateToStats = onNavigateToStats,
-                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-                    onNavigateToLog = onNavigateToLog
+                    onLaunchGame = { version ->
+                        onLaunchGame(version)
+                    },
+                    onOpenVersionSettings = navigateToVersions
                 )
             }
 
@@ -220,379 +196,29 @@ fun LauncherScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ContentMenu(
     isVisible: Boolean,
-    onHomePageEvent: (MarkdownBlock.Button.Event) -> Unit,
-    onNavigateToStats: () -> Unit,
-    onNavigateToPlayTimeStats: () -> Unit = {},
-    onNavigateToLog: (String) -> Unit,
+    onLaunchGame: (Version) -> Unit,
+    onOpenVersionSettings: (Version) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val yOffset by swapAnimateDpAsState(
         targetValue = (-40).dp,
         swapIn = isVisible
     )
+    val gridState = rememberCardGridState()
 
-    val homePageViewModel = LocalHomePageViewModel.current
-    val pageState by homePageViewModel.pageState.collectAsStateWithLifecycle()
-    val config = defaultMarkdownConfig()
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
-            .padding(all = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    CompositionLocalProvider(
+        LocalHomeCardLauncher provides onLaunchGame,
+        LocalHomeCardVersionSettings provides onOpenVersionSettings
     ) {
-        if (BuildConfig.DEBUG) {
-            //debug版本关不掉的警告，防止有人把测试版当正式版用 XD
-            BackgroundCard(shape = MaterialTheme.shapes.extraLarge) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.generic_warning),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.launcher_version_debug_warning, BuildKeys.LAUNCHER_NAME),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        modifier = Modifier
-                            .alpha(0.8f)
-                            .align(Alignment.End),
-                        text = stringResource(R.string.launcher_version_debug_warning_cant_close),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-
-        // Stats grid fills remaining space — no scroll
-        StatsGrid(
-            modifier = Modifier.weight(1f),
-            onNavigateToStats = onNavigateToStats,
-            onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-            onNavigateToLog = onNavigateToLog
-        )
-
-        // Home page content below (only shown when configured)
-        when (val state = pageState) {
-            is HomePageState.Blank -> {}
-            is HomePageState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(all = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        LoadingIndicator()
-                        Text(
-                            text = stringResource(R.string.settings_launcher_home_page_loading),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                }
-            }
-            is HomePageState.None -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    customHomePage(
-                        blocks = state.page,
-                        config = config,
-                        onEvent = onHomePageEvent
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatsGrid(
-    modifier: Modifier = Modifier,
-    onNavigateToStats: () -> Unit,
-    onNavigateToPlayTimeStats: () -> Unit = {},
-    onNavigateToLog: (String) -> Unit,
-) {
-    val versions by VersionsManager.versions.collectAsStateWithLifecycle()
-    val versionNames = remember(versions) { versions.map { it.getVersionName() } }
-
-    Column(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.stats_today_header),
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .alpha(0.5f)
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            WeeklyPlayTimeChart(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                versionNames = versionNames
-            )
-            DailyPlayTimeCard(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                versionNames = versionNames,
-                onClick = onNavigateToPlayTimeStats
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LastLogCard(
-                modifier = Modifier.fillMaxSize(),
-                onNavigateToLog = onNavigateToLog
-            )
-        }
-    }
-}
-
-@Composable
-private fun WeeklyPlayTimeChart(
-    modifier: Modifier = Modifier,
-    versionNames: List<String>
-) {
-    val weekData = remember(versionNames) {
-        val dates = PlayTimeRepository.lastNDays(7).reversed()
-        dates.map { date ->
-            date to PlayTimeRepository.getDailyTotalPlayTime(date, versionNames)
-        }
-    }
-
-    val maxMs = remember(weekData) { weekData.maxOfOrNull { it.second } ?: 1L }
-    val primaryColor = MaterialTheme.colorScheme.primary
-
-    val dayLabels = remember(weekData) {
-        val sdf = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault())
-        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        weekData.map { (date, _) ->
-            val d = parser.parse(date)
-            if (d != null) sdf.format(d) else date.takeLast(5)
-        }
-    }
-
-    BackgroundCard(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Column(
-            modifier = Modifier
+        HomeGrid(
+            state = gridState,
+            modifier = modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                weekData.forEachIndexed { index, (_, ms) ->
-                    val fraction = if (maxMs > 0) ms.toFloat() / maxMs else 0f
-                    val hours = PlayTimeUtils.getPlayHours(ms)
-                    val barAlpha = 0.4f + (fraction * 0.6f).coerceAtMost(0.6f)
-
-                    Column(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            text = "%.1f".format(hours),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 9.sp,
-                            modifier = Modifier.alpha(0.8f)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.55f)
-                                .weight(fraction.coerceAtLeast(0.03f))
-                                .background(
-                                    color = primaryColor.copy(alpha = barAlpha),
-                                    shape = RoundedCornerShape(4.dp)
-                                )
-                        )
-                        Spacer(Modifier.weight((1f - fraction).coerceAtLeast(0.001f)))
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = dayLabels.getOrElse(index) { "" },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 7.sp,
-                            modifier = Modifier.alpha(0.5f),
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-
-            Text(
-                text = stringResource(R.string.stats_play_time_graph),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .alpha(0.5f)
-                    .padding(top = 2.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun DailyPlayTimeCard(
-    modifier: Modifier = Modifier,
-    versionNames: List<String>,
-    onClick: () -> Unit = {}
-) {
-    val todayMs = remember(versionNames) {
-        PlayTimeRepository.getDailyTotalPlayTime(PlayTimeRepository.today(), versionNames)
-    }
-    val hours = PlayTimeUtils.getPlayHours(todayMs)
-
-    BackgroundCard(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        onClick = onClick
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    text = "%.1f h".format(hours),
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                    fontSize = 26.sp
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).alpha(0.7f),
-                    text = stringResource(R.string.stats_today),
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    text = stringResource(R.string.stats_statistics),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = stringResource(R.string.stats_click_for_more),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LastLogCard(
-    modifier: Modifier = Modifier,
-    onNavigateToLog: (String) -> Unit
-) {
-    val currentVersion by VersionsManager.currentVersion.collectAsStateWithLifecycle()
-    val logFile = remember(currentVersion) {
-        currentVersion?.let { it.getLatestLog() }
-    }
-    val logExists = remember(logFile) { logFile?.exists() == true }
-
-    BackgroundCard(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        onClick = {
-            if (logExists) logFile?.absolutePath?.let { onNavigateToLog(it) }
-        },
-        enabled = logExists
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.stats_last_log),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1
-                )
-                if (!logExists || logFile == null) {
-                    Text(
-                        text = stringResource(R.string.stats_no_log),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.alpha(0.6f)
-                    )
-                } else {
-                    Text(
-                        text = remember(logFile) {
-                            try {
-                                logFile.readText().take(5000)
-                            } catch (e: Exception) { "" }
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .alpha(0.5f)
-                            .bottomFade(36.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.stats_click_for_more),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1
-                    )
-                }
-            }
-            if (logExists) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
-                        .clip(MaterialTheme.shapes.extraLarge)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_play_arrow_filled),
-                        contentDescription = stringResource(R.string.generic_open_link),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
+                .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+        )
     }
 }
 

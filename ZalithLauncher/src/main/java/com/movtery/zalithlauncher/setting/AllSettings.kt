@@ -35,7 +35,6 @@ import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
-import com.movtery.zalithlauncher.setting.enums.HomePageType
 import com.movtery.zalithlauncher.setting.enums.MainScreenMode
 import com.movtery.zalithlauncher.setting.enums.AccountTypeDisplayMode
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
@@ -502,15 +501,6 @@ object AllSettings : SettingsRegistry() {
     val backgroundBlurType = enumSetting("backgroundBlurType", BackgroundBlur.Background)
 
     /**
-     * 启动器主页类型
-     */
-    val homePageType = enumSetting("homePageType", HomePageType.Blank)
-
-    /**
-     * 启动器网络主页下载地址
-     */
-    val homePageURL = stringSetting("homePageURL", "")
-
     /**
      * 版本列表视图模式：0=列表(LIST), 1=网格(GRID)
      */
@@ -520,7 +510,6 @@ object AllSettings : SettingsRegistry() {
      * 启动器主屏幕布局模式：Default（简洁，默认）/ Advanced（完整）
      */
     val mainScreenMode = enumSetting("mainScreenMode", MainScreenMode.Default)
-    /**
      * 启动器上次检查更新时，用户选择忽略的版本号
      */
     val lastIgnoredVersion = intSetting("lastIgnoredVersion", null)

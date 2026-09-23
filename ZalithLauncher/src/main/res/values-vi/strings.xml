@@ -1030,7 +1030,6 @@
     <string name="account_local_uuid_tip_4">Dành cho người rành, không cần chỉnh.</string>
     <string name="generic_edit">Sửa</string>
     <string name="generic_view">Xem</string>
-    <string name="page_title_home_page_editor">Sửa trang chủ</string>
     <string name="crash_link_share_uploading">Đang tải nhật ký lên %s</string>
     <string name="crash_link_share_failed">Tải lên thất bại</string>
     <string name="notification_jvm_running_name">Dịch vụ giữ JVM</string>
@@ -1192,17 +1191,6 @@
     <string name="settings_launcher_background_blur_summary">Điều chỉnh hiệu ứng làm mờ nền. Tùy chọn này tốn nhiều hiệu năng.</string>
     <string name="settings_launcher_festivals_effects_title">Tính năng ẩn lễ hội</string>
     <string name="settings_launcher_festivals_effects_summary">Hiển thị hiệu ứng Easter Egg liên tục trong các khoảng thời gian cụ thể</string>
-    <string name="settings_launcher_home_page_title">Trang chủ</string>
-    <string name="settings_launcher_home_page_type_blank">Khoảng trắng</string>
-    <string name="settings_launcher_home_page_type_local">Tải từ máy</string>
-    <string name="settings_launcher_home_page_type_url">Tải từ URL</string>
-    <string name="settings_launcher_home_page_type_local_tip">Chỉnh sửa trang chủ của trình khởi chạy. Trình khởi chạy dùng cú pháp Markdown mở rộng để miêu tả trang chủ. Sau khi chỉnh sửa, bấm Làm mới để tải lại trang chủ</string>
-    <string name="settings_launcher_home_page_type_local_gen_doc">Tạo tài liệu</string>
-    <string name="settings_launcher_home_page_type_local_gen_doc_exists">Một tệp trang chủ đã tồn tại. Bạn có chắc muốn ghi đè trang chủ đang tồn tại và tạo lại trang chủ chính thức không?</string>
-    <string name="settings_launcher_home_page_type_url_tip">Tải tệp trang chủ launcher từ liên kết chỉ định và lưu vào bộ nhớ đệm, sau đó tự động làm mới và tải lại trang chủ định kỳ</string>
-    <string name="settings_launcher_home_page_type_warning">Trang chủ tùy chỉnh là nội dung của bên thứ ba. Launcher không đảm bảo về nội dung của chúng. Hãy cẩn trọng khi chấp nhận trang chủ lạ!</string>
-    <string name="settings_launcher_home_page_url">URL tải xuống trang chủ:</string>
-    <string name="settings_launcher_home_page_loading">Đang tải trang chủ</string>
     <string name="control_manage_import">Nhập giao diện điều khiển</string>
     <string name="control_editor_layers_delete">Bạn có chắc muốn xoá giao diện điều khiển %s?</string>
     <string name="control_editor_layers_attribute_hide_when_mouse">Ẩn khi sử dụng chuột</string>

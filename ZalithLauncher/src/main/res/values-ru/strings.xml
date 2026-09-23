@@ -1122,7 +1122,6 @@
     <string name="versions_export_alias_options">Настройки игры</string>
     <string name="generic_edit">Редактировать</string>
     <string name="generic_view">Просмотреть</string>
-    <string name="page_title_home_page_editor">Редактор домашней страницы</string>
     <string name="versions_overview_log">Лог запуска</string>
     <string name="versions_export_alias_resource_packs">Папка ресурс-паков</string>
     <string name="versions_export_alias_mods">Папка модов</string>
@@ -1196,17 +1195,6 @@
     <string name="settings_gamepad_config_no_items">Конфиги не созданы, переключаться некуда</string>
     <string name="settings_launcher_festivals_effects_title">Постоянные эффекты праздничных пасхалок</string>
     <string name="settings_launcher_festivals_effects_summary">Отображать постоянные пасхальные эффекты в определённые периоды времени</string>
-    <string name="settings_launcher_home_page_title">Домашняя страница</string>
-    <string name="settings_launcher_home_page_type_blank">Пустая</string>
-    <string name="settings_launcher_home_page_type_local">Загружать из локального хранилища</string>
-    <string name="settings_launcher_home_page_type_url">Загружать по URL</string>
-    <string name="settings_launcher_home_page_type_local_tip">Редактируйте локальный файл домашней страницы. Он использует расширенный синтаксис Markdown для её описания. После редактирования нажмите «Обновить», чтобы перезагрузить домашнюю страницу лаунчера.</string>
-    <string name="settings_launcher_home_page_type_local_gen_doc">Сгенерировать документ</string>
-    <string name="settings_launcher_home_page_type_local_gen_doc_exists">Файл домашней страницы уже существует. Вы уверены, что хотите перезаписать существующую домашнюю страницу и повторно сгенерировать официальную документацию?</string>
-    <string name="settings_launcher_home_page_type_url_tip">Загружает файл домашней страницы лаунчера по указанной ссылке, кэширует его, а затем периодически обновляет и перезагружает.</string>
-    <string name="settings_launcher_home_page_type_warning">Пользовательские домашние страницы являются сторонним контентом. Лаунчер не предоставляет никаких гарантий относительно их содержимого. Будьте осторожны при установке незнакомых домашних страниц!</string>
-    <string name="settings_launcher_home_page_url">URL загрузки домашней страницы:</string>
-    <string name="settings_launcher_home_page_loading">Загрузка домашней страницы</string>
     <string name="control_manage_import">Импорт раскладки</string>
     <string name="control_editor_layers_delete">Вы уверены, что хотите удалить слой раскладки %s?</string>
     <string name="control_editor_layers_attribute_hide_when_mouse">Скрывать при использовании мыши</string>

@@ -524,7 +524,6 @@
     <string name="page_title_select_files">اختر المسار</string>
     <string name="unpack_screen_jre25">بيئة Java 25 (مطلوبة لـ Minecraft 26.1+)</string>
     <string name="unpack_screen_jna">يسمح لماينكرافت الوصول المباشر لوظائف نظام التشغيل منخفضة المستوى</string>
-    <string name="page_title_home_page_editor">محرر الصفحة الرئيسية</string>
     <string name="files_browse_folder">تصفح المجلد</string>
     <string name="files_importing">استيراد الملفات</string>
     <string name="files_delete_file">…هل أنت متأكد من رغبتك في حذف %s؟</string>

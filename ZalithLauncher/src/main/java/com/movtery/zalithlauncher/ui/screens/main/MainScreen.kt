@@ -107,7 +107,6 @@ import com.movtery.zalithlauncher.ui.screens.content.BuiltInFileManagerScreen
 import com.movtery.zalithlauncher.ui.screens.content.DownloadScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileSelectorScreen
-import com.movtery.zalithlauncher.ui.screens.content.HomePageEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
 import com.movtery.zalithlauncher.ui.screens.content.elements.AboutDialog
 import com.movtery.zalithlauncher.ui.screens.content.LicenseScreen
@@ -724,18 +723,7 @@ private fun NavigationUI(
                         onOpenLink = {
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(it))
                         },
-                        onHomePageEvent = { event ->
-                            eventViewModel.sendEvent(EventViewModel.Event.HomePage.Event(event))
-                        },
-                        onNavigateToStats = {
-                            backStack.navigateTo(NormalNavKey.GameStats)
-                        },
-                        onNavigateToPlayTimeStats = {
-                            backStack.navigateTo(NormalNavKey.PlayTimeStats)
-                        },
-                        onNavigateToLog = { logPath ->
-                            backStack.navigateTo(NormalNavKey.LogView(logPath))
-                        }
+
                     )
                 }
                 entry<NestedNavKey.Settings> { key ->
@@ -855,11 +843,6 @@ private fun NavigationUI(
                         key = key,
                         backStackViewModel = screenBackStackModel,
                         submitError = submitError
-                    )
-                }
-                entry<NormalNavKey.HomePageEditor> {
-                    HomePageEditorScreen(
-                        backStackViewModel = screenBackStackModel,
                     )
                 }
                 entry<NormalNavKey.LogView> { key ->

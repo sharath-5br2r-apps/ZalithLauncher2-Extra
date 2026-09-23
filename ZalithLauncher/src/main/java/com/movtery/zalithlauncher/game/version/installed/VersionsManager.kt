@@ -137,41 +137,47 @@ object VersionsManager {
     }
 
     private fun processVersionFile(gameHome: String, versionFile: File): Version? {
-        if (versionFile.exists() && versionFile.isDirectory) {
-            var isVersion = false
+        val version = loadVersion(gameHome, versionFile.name) ?: return null
+        Logger.info(TAG,
+            "Identified and added version: ${version.getVersionName()}, " +
+                    "Path: (${version.getVersionPath()}), " +
+                    "Info: ${version.getVersionInfo()?.getInfoString()}"
+        )
+        return version
+    }
 
-            //通过判断是否存在版本的.json文件，来确定其是否为一个版本
-            val jsonFile = File(versionFile, "${versionFile.name}.json")
-            val versionInfo = if (jsonFile.exists() && jsonFile.isFile) {
-                parseJsonToVersionInfo(jsonFile)?.also {
-                    //如果解析失败了，可能不是标准版本
-                    //保险起见，只有解析成功了的版本，才会被判定为有效版本
-                    isVersion = true
-                }
-            } else {
-                null
+    /**
+     * 加载指定游戏目录下的单个版本
+     * @return 版本不存在或不是有效版本文件夹时返回 null
+     */
+    fun loadVersion(gameHome: String, versionName: String): Version? {
+        val versionFile = File(getVersionsHome(gameHome), versionName)
+        if (!versionFile.exists() || !versionFile.isDirectory) return null
+
+        var isVersion = false
+
+        //通过判断是否存在版本的.json文件，来确定其是否为一个版本
+        val jsonFile = File(versionFile, "${versionFile.name}.json")
+        val versionInfo = if (jsonFile.exists() && jsonFile.isFile) {
+            parseJsonToVersionInfo(jsonFile)?.also {
+                //如果解析失败了，可能不是标准版本
+                //保险起见，只有解析成功了的版本，才会被判定为有效版本
+                isVersion = true
             }
-
-            val versionConfig = VersionConfig.parseConfig(versionFile)
-
-            val version = Version(
-                versionFile.name,
-                gameHome,
-                versionConfig,
-                versionInfo,
-                isVersion,
-                versionInfo.getVersionType()
-            )
-
-            Logger.info(TAG,
-                "Identified and added version: ${version.getVersionName()}, " +
-                        "Path: (${version.getVersionPath()}), " +
-                        "Info: ${version.getVersionInfo()?.getInfoString()}"
-            )
-
-            return version
+        } else {
+            null
         }
-        return null
+
+        val versionConfig = VersionConfig.parseConfig(versionFile)
+
+        return Version(
+            versionFile.name,
+            gameHome,
+            versionConfig,
+            versionInfo,
+            isVersion,
+            versionInfo.getVersionType()
+        )
     }
 
     private fun refreshCurrentVersion() {
