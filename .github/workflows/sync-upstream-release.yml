@@ -364,7 +364,6 @@ jobs:
 
           for apk in apks:
               filename = os.path.basename(apk)
-              name = filename
               arch = "universal"
               if "arm64" in filename.lower() or "v8a" in filename.lower():
                   arch = "arm64-v8a"
@@ -420,13 +419,11 @@ jobs:
                   else:
                       native_libraries = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
 
-              entry_key = filename.lower()
-              _, ext = os.path.splitext(filename)
-              asset_ext = f".{ext.lstrip('.')}" if ext else ".apk"
+              entry_key = "zalithlauncher2-extra"
               asset_obj = {
                   "name": filename,
                   "arch": arch,
-                  "ext": asset_ext,
+                  "ext": ".apk",
                   "os": "Android",
                   "min_sdk": min_sdk,
                   "densities": densities,
@@ -435,22 +432,36 @@ jobs:
                   "skippedPatches": [],
                   "failedPatches": []
               }
-              meta_item = {
-                  "name": name,
-                  "version": "${{ needs.check.outputs.release_name }}",
-                  "os": "android",
-                  "isVanilla": False,
-                  "patches": "zalithlauncher2-extra",
-                  "changelog": changelog,
-                  "assets": [asset_obj]
-              }
-
-              build_json[entry_key] = meta_item
+              if entry_key in build_json:
+                  build_json[entry_key]["assets"].append(asset_obj)
+              else:
+                  build_json[entry_key] = {
+                      "name": entry_key,
+                      "version": "${{ needs.check.outputs.release_name }}",
+                      "os": "android",
+                      "patches": "zalithlauncher2-extra",
+                      "changelog": changelog,
+                      "changelog_urls": [],
+                      "changelogs": [],
+                      "package_name": "com.movtery.zalithlauncher",
+                      "display_name": "Zalith Launcher 2",
+                      "patches_source": "",
+                      "engine_brand": "",
+                      "patch_brand": "",
+                      "variant": None,
+                      "sub_variant": None,
+                      "assets": [asset_obj]
+                  }
 
           with open("build.json", "w") as f:
               json.dump(build_json, f, indent=2)
           '
           cp build.json ./release-files/build.json
+
+      - name: Convert build.json to release manifest
+        env:
+          RELEASE_VERSION: ${{ needs.check.outputs.release_name }}
+        run: python3 .github/workflows/scripts/generate_build_manifest.py
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
