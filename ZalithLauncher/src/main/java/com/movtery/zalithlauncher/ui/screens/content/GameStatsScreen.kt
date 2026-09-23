@@ -57,19 +57,11 @@ import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 fun GameStatsScreen(
     backStackViewModel: ScreenBackStackViewModel
 ) {
-    val currentKey = backStackViewModel.mainScreen.currentKey
-    val screenKey = if (currentKey is NormalNavKey.Stats) NormalNavKey.Stats else NormalNavKey.GameStats
     BaseScreen(
-        screenKey = screenKey,
-        currentKey = currentKey
+        screenKey = NormalNavKey.GameStats,
+        currentKey = backStackViewModel.mainScreen.currentKey
     ) {
-        GameStatsContent()
-    }
-}
-
-@Composable
-fun GameStatsContent() {
-    val context = LocalContext.current
+        val context = LocalContext.current
         val versions = remember { VersionsManager.versions.value }
 
         data class VersionStat(val name: String, val version: com.movtery.zalithlauncher.game.version.installed.Version, val totalMs: Long)

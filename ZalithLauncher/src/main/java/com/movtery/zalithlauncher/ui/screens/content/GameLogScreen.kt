@@ -49,7 +49,7 @@ import com.movtery.zalithlauncher.ui.code_editor.scheme.SchemeIDEADark
 import com.movtery.zalithlauncher.ui.code_editor.scheme.SchemeIDEALight
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
-import com.movtery.zalithlauncher.utils.logging.LogName
+import com.movtery.zalithlauncher.game.launch.LogName
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import io.github.rosemoe.sora.lang.Language
