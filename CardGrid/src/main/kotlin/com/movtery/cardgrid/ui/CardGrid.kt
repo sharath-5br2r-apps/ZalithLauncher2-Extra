@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -62,8 +64,10 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.movtery.cardgrid.model.CardInteraction
@@ -98,6 +102,31 @@ fun CardGrid(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     cardBackground: (@Composable (Modifier) -> Modifier)? = null,
     adjustingBar: (@Composable (Modifier, GridCard) -> Unit)? = null,
+) {
+    val hostDirection = LocalLayoutDirection.current
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        CardGridCanvas(
+            state = state,
+            modifier = modifier,
+            containerColor = containerColor,
+            contentColor = contentColor,
+            cardBackground = cardBackground,
+            adjustingBar = adjustingBar,
+            contentDirection = hostDirection
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CardGridCanvas(
+    state: CardGridState,
+    modifier: Modifier = Modifier,
+    containerColor: Color,
+    contentColor: Color,
+    cardBackground: (@Composable (Modifier) -> Modifier)?,
+    adjustingBar: (@Composable (Modifier, GridCard) -> Unit)?,
+    contentDirection: LayoutDirection
 ) {
     val density = LocalDensity.current
     val motionScheme = MaterialTheme.motionScheme
@@ -219,6 +248,7 @@ fun CardGrid(
                     contentColor = contentColor,
                     cardBackground = cardBackground,
                     adjustingBar = adjustingBar,
+                    contentDirection = contentDirection
                 )
             }
         }
@@ -234,6 +264,7 @@ private fun CardSlot(
     contentColor: Color,
     cardBackground: (@Composable (Modifier) -> Modifier)?,
     adjustingBar: (@Composable (Modifier, GridCard) -> Unit)?,
+    contentDirection: LayoutDirection
 ) {
     val rectProvider: () -> Rect = { state.renderRectOf(card) }
     val interaction = state.interactionOf(card.id)
@@ -258,7 +289,9 @@ private fun CardSlot(
             cardBackground = cardBackground,
             selected = adjusting
         ) {
-            card.type.content(state.cardStateOf(card), card.id)
+            CompositionLocalProvider(LocalLayoutDirection provides contentDirection) {
+                card.type.content(state.cardStateOf(card), card.id)
+            }
         }
 
         if (adjusting && adjustingBar != null) {
@@ -472,7 +505,7 @@ private fun Modifier.selectionHandles(
 
 /** 以网格坐标矩形定位并定尺寸的修饰符，矩形变化时触发重新测量 */
 private fun Modifier.cardBounds(rectProvider: () -> Rect): Modifier = this
-    .offset {
+    .absoluteOffset {
         val rect = rectProvider()
         IntOffset(rect.left.roundToInt(), rect.top.roundToInt())
     }

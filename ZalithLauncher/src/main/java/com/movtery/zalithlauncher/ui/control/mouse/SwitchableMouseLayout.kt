@@ -171,6 +171,9 @@ fun SwitchableMouseLayout(
         )
     }
 
+    val textInputActive = rememberTextInputActive()
+    val capturePointer = isCaptured || (requestPointerCapture1 && !textInputActive)
+
     fun updatePointerPos(pos: Offset) {
         lastVirtualMousePos.value = pos
         onPointerMove(pos)
@@ -241,7 +244,7 @@ fun SwitchableMouseLayout(
             },
             enableMouseClick = enableMouseClick,
             longPressTimeoutMillis = longPressTimeoutMillis,
-            requestPointerCapture = requestPointerCapture1,
+            requestPointerCapture = capturePointer,
             pointerIcon = cursorShape.composeIcon,
             onTouch = {
                 onTouch()
@@ -319,7 +322,7 @@ fun SwitchableMouseLayout(
                         onCapturedMove(offset)
                     }
                     CURSOR_ENABLED -> {
-                        if (requestPointerCapture) {
+                        if (capturePointer) {
                             updateMousePointer(true)
                             pointerPosition = Offset(
                                 x = (pointerPosition.x + offset.x * speedFactor).coerceIn(0f, screenWidth),

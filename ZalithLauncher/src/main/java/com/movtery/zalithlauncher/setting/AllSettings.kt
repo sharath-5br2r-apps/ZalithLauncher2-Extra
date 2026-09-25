@@ -29,6 +29,7 @@ import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSortField
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
+import com.movtery.zalithlauncher.setting.enums.ActionMenuSide
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.ChromaMode
@@ -479,6 +480,11 @@ object AllSettings : SettingsRegistry() {
      * 启动器页面切换动画类型
      */
     val launcherSwapAnimateType = enumSetting("launcherSwapAnimateType", TransitionAnimationType.JELLY_BOUNCE)
+
+    /**
+     * 主界面操作菜单的停泊侧
+     */
+    val launcherActionMenuSide = enumSetting("launcherActionMenuSide", ActionMenuSide.END)
 
     /**
      * 启动器背景元素不透明度

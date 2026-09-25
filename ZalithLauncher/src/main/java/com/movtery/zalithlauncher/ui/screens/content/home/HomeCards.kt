@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.ui.screens.content.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,7 +79,10 @@ object HomeCards {
      * debug版本关不掉的警告，防止有人把测试版当正式版用 XD
      */
     private fun debugWarningCard() = SystemCard(id = "system_debug_warning") {
-        BackgroundCard(shape = MaterialTheme.shapes.extraLarge) {
+        BackgroundCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge
+        ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

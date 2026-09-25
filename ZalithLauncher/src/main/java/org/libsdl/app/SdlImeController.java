@@ -175,6 +175,7 @@ final class SdlImeController {
         if (!mEdit.hasFocus()) {
             mEdit.requestFocus();
         }
+        SdlBridge.requestComposeFocus();
 
         if (mKeyboardShown) {
             Log.i(TAG, "IME: already visible, show by " + source + " ignored");

@@ -70,6 +70,18 @@ private data class DragState(
 )
 
 /**
+ * @return 当前是否处于文本输入状态
+ */
+@Composable
+fun rememberTextInputActive(): Boolean {
+    // 输入会话的开启与关闭都会触发 composeFocus 变化，作为此处状态的刷新时机
+    val composeFocusCount by SdlBridge.composeFocus.collectAsStateWithLifecycle()
+    return remember(composeFocusCount) {
+        TouchCharInput.isActive() || SDLActivity.isUsingSDLTextEdit()
+    }
+}
+
+/**
  * 判定双指同时按下的最大时间间隔（ms）
  */
 private const val SCROLL_GESTURE_DOWN_WINDOW_MILLIS = 200L

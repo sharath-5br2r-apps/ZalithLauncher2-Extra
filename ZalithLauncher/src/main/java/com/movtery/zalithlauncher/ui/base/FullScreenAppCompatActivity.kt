@@ -33,7 +33,8 @@ import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.abs
 
 abstract class FullScreenAppCompatActivity : AbstractAppCompatActivity() {
-    private var correctScaledMultiTouch = false
+    /** 当前手势的 raw 坐标与局部坐标是否分属不同坐标系，需要重建事件 */
+    private var correctTouchCoordinates = false
 
     /**
      * @return 决定是否忽略前置摄像头区域
@@ -59,16 +60,15 @@ abstract class FullScreenAppCompatActivity : AbstractAppCompatActivity() {
 
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_DOWN) {
-            // 部分设备的窗口坐标经过缩放，而 raw 坐标仍是物理屏幕坐标。
-            correctScaledMultiTouch = isScaledWindowCoordinateSpace()
-        } else if (!correctScaledMultiTouch &&
-            action == MotionEvent.ACTION_POINTER_DOWN && hasRawToLocalScaleMismatch(event)) {
-            // 窗口尺寸尚未稳定时，在第二指到达后再次判断。
-            correctScaledMultiTouch = true
+            correctTouchCoordinates = hasCoordinateSpaceMismatch(event)
+        } else if (!correctTouchCoordinates &&
+            action == MotionEvent.ACTION_POINTER_DOWN && hasCoordinateSpaceMismatch(event)) {
+            // 窗口位置可能在首指按下后才稳定，此时再次判断。
+            correctTouchCoordinates = true
         }
 
-        val handled = if (correctScaledMultiTouch) {
-            val corrected = event.copyWithLocalCoordinatesAndOriginalOffset()
+        val handled = if (correctTouchCoordinates) {
+            val corrected = event.copyWithConsistentCoordinates()
             try {
                 super.dispatchTouchEvent(corrected)
             } finally {
@@ -79,59 +79,46 @@ abstract class FullScreenAppCompatActivity : AbstractAppCompatActivity() {
         }
 
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-            correctScaledMultiTouch = false
+            correctTouchCoordinates = false
         }
         return handled
     }
 
-    private fun hasRawToLocalScaleMismatch(event: MotionEvent): Boolean {
-        if (Build.VERSION.SDK_INT < VERSION_CODES.Q || event.pointerCount < 2) return false
-
-        val localDeltaX = event.getX(1) - event.getX(0)
-        val localDeltaY = event.getY(1) - event.getY(0)
-        val rawDeltaX = event.getRawX(1) - event.getRawX(0)
-        val rawDeltaY = event.getRawY(1) - event.getRawY(0)
-        val mismatch = abs(rawDeltaX - localDeltaX) > 1f || abs(rawDeltaY - localDeltaY) > 1f
-        return mismatch
+    /**
+     * 检测事件中各指针的 raw 坐标是否偏离“窗口局部坐标 + 窗口在屏幕上的起点”。
+     * 正常情况下两者相等；厂商缩放窗口却未同步 raw 坐标时会不相等。
+     */
+    private fun hasCoordinateSpaceMismatch(event: MotionEvent): Boolean {
+        val origin = IntArray(2)
+        window.decorView.getLocationOnScreen(origin)
+        if (abs(event.rawX - (event.x + origin[0])) > 1f) return true
+        if (abs(event.rawY - (event.y + origin[1])) > 1f) return true
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
+            // getRawX(index)/getRawY(index) 需要 Q 以上，首指已用无参版本检查过
+            for (index in 1 until event.pointerCount) {
+                if (abs(event.getRawX(index) - (event.getX(index) + origin[0])) > 1f) return true
+                if (abs(event.getRawY(index) - (event.getY(index) + origin[1])) > 1f) return true
+            }
+        }
+        return false
     }
 
-    /** 检测窗口局部坐标系与物理屏幕坐标系之间是否存在缩放差异 */
-    private fun isScaledWindowCoordinateSpace(): Boolean {
-        if (Build.VERSION.SDK_INT < VERSION_CODES.R) return false
-        val display = display ?: return false
-        val physicalWidth = display.mode.physicalWidth
-        val physicalHeight = display.mode.physicalHeight
-        val decor = window.decorView
-        if (physicalWidth <= 0 || physicalHeight <= 0 || decor.width <= 0 || decor.height <= 0) {
-            return false
-        }
-        val directWidthScale = decor.width.toFloat() / physicalWidth
-        val directHeightScale = decor.height.toFloat() / physicalHeight
-        val swappedWidthScale = decor.width.toFloat() / physicalHeight
-        val swappedHeightScale = decor.height.toFloat() / physicalWidth
-        val directError = abs(directWidthScale - 1f) + abs(directHeightScale - 1f)
-        val swappedError = abs(swappedWidthScale - 1f) + abs(swappedHeightScale - 1f)
-        val widthScale: Float
-        val heightScale: Float
-        if (directError <= swappedError) {
-            widthScale = directWidthScale
-            heightScale = directHeightScale
-        } else {
-            widthScale = swappedWidthScale
-            heightScale = swappedHeightScale
-        }
-        return abs(widthScale - 1f) > 0.01f || abs(heightScale - 1f) > 0.01f
-    }
-
-    private fun MotionEvent.copyWithLocalCoordinatesAndOriginalOffset(): MotionEvent {
+    /**
+     * 以“窗口局部坐标 + 窗口在屏幕上的起点”重建触摸事件，统一 raw 坐标与局部坐标的坐标系。
+     */
+    private fun MotionEvent.copyWithConsistentCoordinates(): MotionEvent {
+        val origin = IntArray(2)
+        window.decorView.getLocationOnScreen(origin)
         val properties = Array(pointerCount) { MotionEvent.PointerProperties() }
         val coordinates = Array(pointerCount) { MotionEvent.PointerCoords() }
         for (index in 0 until pointerCount) {
             getPointerProperties(index, properties[index])
             getPointerCoords(index, coordinates[index])
+            // obtain 创建的事件 raw 坐标恒等于局部坐标；
+            // offsetLocation 只平移局部坐标、不影响 raw 坐标，因此必须预先移位
+            coordinates[index].x += origin[0]
+            coordinates[index].y += origin[1]
         }
-        val rootLocation = IntArray(2)
-        window.decorView.getLocationOnScreen(rootLocation)
         return MotionEvent.obtain(
             downTime,
             eventTime,
@@ -147,10 +134,7 @@ abstract class FullScreenAppCompatActivity : AbstractAppCompatActivity() {
             edgeFlags,
             source,
             flags,
-        ).also {
-            // 让 raw 坐标与窗口局部坐标使用同一缩放比例。
-            it.offsetLocation(rootLocation[0].toFloat(), rootLocation[1].toFloat())
-        }
+        )
     }
 
     /**

@@ -47,6 +47,7 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
         InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
         enable();
         sActiveInput = this;
+        SdlBridge.requestComposeFocus();
         imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
         clear();
     }
@@ -82,6 +83,7 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
         if (sActiveInput == this) {
             sActiveInput = null;
         }
+        SdlBridge.requestComposeFocus();
     }
 
     /**

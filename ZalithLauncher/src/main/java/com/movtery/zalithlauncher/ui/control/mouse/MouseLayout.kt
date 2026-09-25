@@ -141,6 +141,8 @@ fun VirtualPointerLayout(
     val screenWidth: Float = windowSize.width.toFloat()
     val screenHeight: Float = windowSize.height.toFloat()
 
+    val capturePointer = requestPointerCapture && !rememberTextInputActive()
+
     var showMousePointer by remember {
         mutableStateOf(requestPointerCapture)
     }
@@ -191,7 +193,7 @@ fun VirtualPointerLayout(
             controlMode = controlMode,
             enableMouseClick = enableMouseClick,
             longPressTimeoutMillis = longPressTimeoutMillis,
-            requestPointerCapture = requestPointerCapture,
+            requestPointerCapture = capturePointer,
             pointerIcon = cursorShape.composeIcon,
             onTap = { fingerPos ->
                 onTap(
@@ -222,7 +224,7 @@ fun VirtualPointerLayout(
                 onPointerMove(pointerPosition)
             },
             onMouseMove = { offset ->
-                if (requestPointerCapture) {
+                if (capturePointer) {
                     updateMousePointer(true)
                     pointerPosition = Offset(
                         x = (pointerPosition.x + offset.x * speedFactor).coerceIn(0f, screenWidth),

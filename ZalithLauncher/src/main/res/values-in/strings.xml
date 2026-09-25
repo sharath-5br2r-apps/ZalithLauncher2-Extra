@@ -1423,4 +1423,12 @@
     <string name="settings_gamepad_input_mode_sdl_summary">Input gamepad mentah dikirim ke game melalui API gamepad SDL/GLFW; pemetaan tombol dilewati</string>
     <string name="gamepad_mode_prompt_hint">Anda dapat mengubahnya nanti di tab Gamepad pada menu dalam game atau di pengaturan launcher.</string>
     <string name="control_editor_edit_category_joystick_events">Event Arah</string>
+    <string name="download_category_favorites">Favorit</string>
+    <string name="favorite_add">Favorit</string>
+    <string name="favorite_added">Difavoritkan</string>
+    <string name="favorites_empty">Tidak ada favorit. Pergi mencari dan favorit sumber daya yang Anda sukai!</string>
+    <string name="favorites_empty_filtered">Tidak ada favorit yang cocok dengan filter saat ini</string>
+    <string name="favorites_item_unavailable">Tidak Tersedia</string>
+    <string name="favorites_sort_follow_time">Berdasarkan Waktu</string>
+    <string name="favorites_sort_title">Nama Project</string>
 </resources>
